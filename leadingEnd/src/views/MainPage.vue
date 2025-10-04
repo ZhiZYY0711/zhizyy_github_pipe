@@ -123,27 +123,7 @@
       </div>
 
       <div v-else-if="currentMenu === 'logs'" class="module-content">
-        <h2>日志记录</h2>
-        <div class="content-card">
-          <p>系统操作日志和审计记录</p>
-          <div class="log-list">
-            <div class="log-item">
-              <span class="log-time">2024-01-15 10:30:25</span>
-              <span class="log-message">用户登录系统</span>
-              <span class="log-level info">信息</span>
-            </div>
-            <div class="log-item">
-              <span class="log-time">2024-01-15 10:25:12</span>
-              <span class="log-message">数据备份完成</span>
-              <span class="log-level info">信息</span>
-            </div>
-            <div class="log-item">
-              <span class="log-time">2024-01-15 09:45:33</span>
-              <span class="log-message">检测到异常压力值</span>
-              <span class="log-level warning">警告</span>
-            </div>
-          </div>
-        </div>
+        <LogRecord />
       </div>
     </div>
   </MainLayout>
@@ -155,6 +135,7 @@ import MonitoringData from '@/components/MonitoringData.vue'
 import DeviceInfo from '@/components/DeviceInfo.vue'
 import TaskManagement from '@/components/TaskManagement.vue'
 import RepairmanInfo from '@/components/RepairmanInfo.vue'
+import LogRecord from '@/components/LogRecord.vue'
 
 export default {
   name: 'MainPage',
@@ -163,7 +144,8 @@ export default {
     MonitoringData,
     DeviceInfo,
     TaskManagement,
-    RepairmanInfo
+    RepairmanInfo,
+    LogRecord
   },
   data() {
     return {

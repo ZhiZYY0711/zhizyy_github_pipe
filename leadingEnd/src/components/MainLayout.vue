@@ -24,18 +24,40 @@
           <li class="nav-item" @click="setActiveMenu('analysis')">
             <span class="nav-text">数据分析</span>
           </li>
-          <li class="nav-item" @click="setActiveMenu('monitoring')">
-            <span class="nav-text">监测数据</span>
+          
+          <!-- 数据管理模块 - 可展开 -->
+          <li class="nav-item nav-parent" @click="toggleSubmenu('dataManagement')">
+            <span class="nav-text">
+              数据管理
+              <i class="expand-icon" :class="{ 'expanded': expandedMenus.includes('dataManagement') }">▼</i>
+            </span>
           </li>
-          <li class="nav-item" @click="setActiveMenu('equipment')">
-            <span class="nav-text">设备信息</span>
+          <ul class="submenu" v-show="expandedMenus.includes('dataManagement')">
+            <li class="nav-item nav-child" @click="setActiveMenu('monitoring')">
+              <span class="nav-text">监测数据</span>
+            </li>
+            <li class="nav-item nav-child" @click="setActiveMenu('equipment')">
+              <span class="nav-text">设备信息</span>
+            </li>
+            <li class="nav-item nav-child" @click="setActiveMenu('tasks')">
+              <span class="nav-text">任务管理</span>
+            </li>
+            <li class="nav-item nav-child" @click="setActiveMenu('maintenance')">
+              <span class="nav-text">检修员信息</span>
+            </li>
+          </ul>
+          
+          <!-- 新增模块 -->
+          <li class="nav-item" @click="setActiveMenu('virtualExpert')">
+            <span class="nav-text">虚拟专家</span>
           </li>
-          <li class="nav-item" @click="setActiveMenu('tasks')">
-            <span class="nav-text">任务管理</span>
+          <li class="nav-item" @click="setActiveMenu('simulation')">
+            <span class="nav-text">模拟与演练</span>
           </li>
-          <li class="nav-item" @click="setActiveMenu('maintenance')">
-            <span class="nav-text">检修员信息</span>
+          <li class="nav-item" @click="setActiveMenu('emergency')">
+            <span class="nav-text">事故响应</span>
           </li>
+          
           <li class="nav-item" @click="setActiveMenu('logs')">
             <span class="nav-text">日志记录</span>
           </li>
@@ -63,13 +85,22 @@ export default {
   name: 'MainLayout',
   data() {
     return {
-      activeMenu: 'visualization'
+      activeMenu: 'visualization',
+      expandedMenus: []
     }
   },
   methods: {
     setActiveMenu(menu) {
       this.activeMenu = menu;
       this.$emit('menu-change', menu);
+    },
+    toggleSubmenu(menuName) {
+      const index = this.expandedMenus.indexOf(menuName);
+      if (index > -1) {
+        this.expandedMenus.splice(index, 1);
+      } else {
+        this.expandedMenus.push(menuName);
+      }
     }
   }
 }
@@ -163,7 +194,54 @@ export default {
   font-size: 14px;
   font-weight: 500;
   transition: transform 0.3s ease;
-  display: block;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* 父级菜单样式 */
+.nav-parent {
+  cursor: pointer;
+}
+
+.nav-parent .nav-text {
+  font-weight: 600;
+}
+
+/* 展开图标样式 */
+.expand-icon {
+  font-size: 10px;
+  transition: transform 0.3s ease;
+  margin-left: 10px;
+}
+
+.expand-icon.expanded {
+  transform: rotate(180deg);
+}
+
+/* 子菜单样式 */
+.submenu {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  background-color: rgba(255, 255, 255, 0.05);
+  border-left: 3px solid #3B82F6;
+}
+
+.nav-child {
+  padding: 12px 20px 12px 40px;
+  font-size: 13px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.nav-child:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  transform: translateX(5px);
+}
+
+.nav-child .nav-text {
+  font-weight: 400;
+  font-size: 13px;
 }
 
 /* 右侧内容区域样式 */

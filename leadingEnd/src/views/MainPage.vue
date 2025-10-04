@@ -92,24 +92,103 @@
         </div>
       </div>
 
+      <div v-else-if="currentMenu === 'virtualExpert'" class="module-content">
+        <h2>虚拟专家</h2>
+        <div class="content-card">
+          <p>AI智能专家系统，提供专业的管道监测分析和建议</p>
+          <div class="expert-grid">
+            <div class="expert-card">
+              <h4>智能诊断</h4>
+              <p>基于AI算法的设备故障诊断</p>
+              <button class="btn btn-primary">开始诊断</button>
+            </div>
+            <div class="expert-card">
+              <h4>预测分析</h4>
+              <p>管道运行状态预测和风险评估</p>
+              <button class="btn btn-primary">查看预测</button>
+            </div>
+            <div class="expert-card">
+              <h4>优化建议</h4>
+              <p>运行参数优化和维护建议</p>
+              <button class="btn btn-primary">获取建议</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div v-else-if="currentMenu === 'simulation'" class="module-content">
+        <h2>模拟与演练</h2>
+        <div class="content-card">
+          <p>管道系统仿真模拟和应急演练平台</p>
+          <div class="simulation-grid">
+            <div class="simulation-card">
+              <h4>压力仿真</h4>
+              <p>管道压力变化仿真模拟</p>
+              <button class="btn btn-success">启动仿真</button>
+            </div>
+            <div class="simulation-card">
+              <h4>泄漏演练</h4>
+              <p>管道泄漏应急处置演练</p>
+              <button class="btn btn-success">开始演练</button>
+            </div>
+            <div class="simulation-card">
+              <h4>维修演练</h4>
+              <p>设备维修操作流程演练</p>
+              <button class="btn btn-success">进入演练</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div v-else-if="currentMenu === 'emergency'" class="module-content">
+        <h2>事故响应</h2>
+        <div class="content-card">
+          <p>应急事故处理和响应管理系统</p>
+          <div class="emergency-dashboard">
+            <div class="emergency-status">
+              <h4>当前状态：<span class="status-normal">正常</span></h4>
+              <p>系统运行正常，无紧急事件</p>
+            </div>
+            <div class="emergency-actions">
+              <button class="btn btn-danger">启动应急预案</button>
+              <button class="btn btn-warning">发布预警信息</button>
+              <button class="btn btn-info">查看应急手册</button>
+            </div>
+            <div class="emergency-contacts">
+              <h4>应急联系人</h4>
+              <div class="contact-list">
+                <div class="contact-item">
+                  <span class="contact-name">应急指挥中心</span>
+                  <span class="contact-phone">400-123-4567</span>
+                </div>
+                <div class="contact-item">
+                  <span class="contact-name">技术支持</span>
+                  <span class="contact-phone">400-123-4568</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div v-else-if="currentMenu === 'logs'" class="module-content">
         <h2>日志记录</h2>
         <div class="content-card">
-          <p>系统操作日志和事件记录</p>
+          <p>系统操作日志和审计记录</p>
           <div class="log-list">
             <div class="log-item">
               <span class="log-time">2024-01-15 10:30:25</span>
-              <span class="log-content">用户登录系统</span>
+              <span class="log-message">用户登录系统</span>
               <span class="log-level info">信息</span>
             </div>
             <div class="log-item">
               <span class="log-time">2024-01-15 10:25:12</span>
-              <span class="log-content">监测数据更新</span>
+              <span class="log-message">数据备份完成</span>
               <span class="log-level info">信息</span>
             </div>
             <div class="log-item">
               <span class="log-time">2024-01-15 09:45:33</span>
-              <span class="log-content">设备状态异常</span>
+              <span class="log-message">检测到异常压力值</span>
               <span class="log-level warning">警告</span>
             </div>
           </div>
@@ -315,6 +394,193 @@ export default {
   margin-bottom: 10px;
 }
 
+/* 虚拟专家样式 */
+.expert-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.expert-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 25px;
+  border-radius: 12px;
+  text-align: center;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease;
+}
+
+.expert-card:hover {
+  transform: translateY(-5px);
+}
+
+.expert-card h4 {
+  margin-bottom: 10px;
+  font-size: 18px;
+}
+
+.expert-card p {
+  margin-bottom: 15px;
+  opacity: 0.9;
+}
+
+/* 模拟与演练样式 */
+.simulation-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.simulation-card {
+  background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+  color: white;
+  padding: 25px;
+  border-radius: 12px;
+  text-align: center;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease;
+}
+
+.simulation-card:hover {
+  transform: translateY(-5px);
+}
+
+.simulation-card h4 {
+  margin-bottom: 10px;
+  font-size: 18px;
+}
+
+.simulation-card p {
+  margin-bottom: 15px;
+  opacity: 0.9;
+}
+
+/* 事故响应样式 */
+.emergency-dashboard {
+  margin-top: 20px;
+}
+
+.emergency-status {
+  background: #f0f9ff;
+  border-left: 4px solid #0ea5e9;
+  padding: 20px;
+  margin-bottom: 20px;
+  border-radius: 6px;
+}
+
+.emergency-status h4 {
+  margin-bottom: 10px;
+  color: #0369a1;
+}
+
+.emergency-actions {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 25px;
+  flex-wrap: wrap;
+}
+
+.emergency-contacts {
+  background: #fafafa;
+  padding: 20px;
+  border-radius: 8px;
+}
+
+.emergency-contacts h4 {
+  margin-bottom: 15px;
+  color: #1E3A8A;
+}
+
+.contact-list {
+  display: grid;
+  gap: 10px;
+}
+
+.contact-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+}
+
+.contact-name {
+  font-weight: 500;
+}
+
+.contact-phone {
+  color: #1E3A8A;
+  font-weight: 600;
+}
+
+/* 按钮样式 */
+.btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.btn-primary {
+  background: #1E3A8A;
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #1e40af;
+  transform: translateY(-1px);
+}
+
+.btn-success {
+  background: #059669;
+  color: white;
+}
+
+.btn-success:hover {
+  background: #047857;
+  transform: translateY(-1px);
+}
+
+.btn-danger {
+  background: #dc2626;
+  color: white;
+}
+
+.btn-danger:hover {
+  background: #b91c1c;
+  transform: translateY(-1px);
+}
+
+.btn-warning {
+  background: #d97706;
+  color: white;
+}
+
+.btn-warning:hover {
+  background: #b45309;
+  transform: translateY(-1px);
+}
+
+.btn-info {
+  background: #0891b2;
+  color: white;
+}
+
+.btn-info:hover {
+  background: #0e7490;
+  transform: translateY(-1px);
+}
+
 /* 日志记录样式 */
 .log-list {
   margin-top: 20px;
@@ -368,6 +634,24 @@ export default {
   
   .staff-grid {
     grid-template-columns: 1fr;
+  }
+  
+  .expert-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .simulation-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .emergency-actions {
+    flex-direction: column;
+  }
+  
+  .contact-item {
+    flex-direction: column;
+    gap: 5px;
+    text-align: center;
   }
   
   .table-header, .table-row {

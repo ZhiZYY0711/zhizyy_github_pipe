@@ -1,6 +1,6 @@
 <template>
   <div id="app">
-    <LoginPage />
+    <MainPage />
   </div>
 </template>
 
@@ -8,7 +8,7 @@
 export default {
   name: 'App',
   components: {
-    LoginPage: () => import('./components/LoginPage.vue')
+    MainPage: () => import('./views/MainPage.vue')
   }
 }
 </script>

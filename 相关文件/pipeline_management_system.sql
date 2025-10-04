@@ -1,10 +1,4 @@
 -- 油气管道监测管理系统数据库
--- 根据表设计.md生成，应用了以下新增要求：
--- 1. 主键使用bigint和autoincrement
--- 2. 为每个表添加create_time和update_time字段
--- 3. task.result设置默认值为0
--- 4. task.response_time和accomplish_time明确NULL约束
--- 5. journal_sensor.overhaul_time明确NULL约束
 
 -- 创建数据库
 CREATE DATABASE IF NOT EXISTS pipeline_management_system;

@@ -32,64 +32,15 @@
       </div>
 
       <div v-else-if="currentMenu === 'equipment'" class="module-content">
-        <h2>设备信息</h2>
-        <div class="content-card">
-          <p>设备管理和信息查看</p>
-          <div class="equipment-grid">
-            <div class="equipment-card">
-              <h4>压缩机001</h4>
-              <p>状态：运行中</p>
-              <p>功率：85%</p>
-            </div>
-            <div class="equipment-card">
-              <h4>阀门002</h4>
-              <p>状态：开启</p>
-              <p>开度：75%</p>
-            </div>
-          </div>
-        </div>
+        <DeviceInfo />
       </div>
 
       <div v-else-if="currentMenu === 'tasks'" class="module-content">
-        <h2>任务管理</h2>
-        <div class="content-card">
-          <p>任务分配和进度跟踪</p>
-          <div class="task-list">
-            <div class="task-item">
-              <span class="task-title">管道巡检任务</span>
-              <span class="task-status pending">待执行</span>
-            </div>
-            <div class="task-item">
-              <span class="task-title">设备维护任务</span>
-              <span class="task-status in-progress">进行中</span>
-            </div>
-            <div class="task-item">
-              <span class="task-title">数据备份任务</span>
-              <span class="task-status completed">已完成</span>
-            </div>
-          </div>
-        </div>
+        <TaskManagement />
       </div>
 
       <div v-else-if="currentMenu === 'maintenance'" class="module-content">
-        <h2>检修员信息</h2>
-        <div class="content-card">
-          <p>检修人员管理和信息维护</p>
-          <div class="staff-grid">
-            <div class="staff-card">
-              <h4>张三</h4>
-              <p>工号：M001</p>
-              <p>专业：管道检修</p>
-              <p>状态：在岗</p>
-            </div>
-            <div class="staff-card">
-              <h4>李四</h4>
-              <p>工号：M002</p>
-              <p>专业：设备维护</p>
-              <p>状态：休假</p>
-            </div>
-          </div>
-        </div>
+        <RepairmanInfo />
       </div>
 
       <div v-else-if="currentMenu === 'virtualExpert'" class="module-content">
@@ -201,12 +152,18 @@
 <script>
 import MainLayout from '@/components/MainLayout.vue'
 import MonitoringData from '@/components/MonitoringData.vue'
+import DeviceInfo from '@/components/DeviceInfo.vue'
+import TaskManagement from '@/components/TaskManagement.vue'
+import RepairmanInfo from '@/components/RepairmanInfo.vue'
 
 export default {
   name: 'MainPage',
   components: {
     MainLayout,
-    MonitoringData
+    MonitoringData,
+    DeviceInfo,
+    TaskManagement,
+    RepairmanInfo
   },
   data() {
     return {

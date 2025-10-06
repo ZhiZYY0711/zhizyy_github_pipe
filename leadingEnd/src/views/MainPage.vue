@@ -6,6 +6,11 @@
         <DataVisualization />
       </div>
 
+      <!-- 任务详情模块渲染 -->
+      <div v-else-if="currentMenu === 'task-details'" class="module-content">
+        <TaskDetails />
+      </div>
+
       <div v-else-if="currentMenu === 'analysis'" class="module-content">
         <h2>数据分析</h2>
         <div class="content-card">
@@ -146,6 +151,7 @@ import LogRecord from '@/components/LogRecord.vue'
 import FlowTrendChart from '@/components/FlowTrendChart.vue'
 import DataVisualization from '@/views/DataVisualization.vue'
 import DataMonitoring from '@/views/DataMonitoring.vue'
+import TaskDetails from '@/views/TaskDetails.vue'
 
 export default {
   name: 'MainPage',
@@ -157,7 +163,8 @@ export default {
     LogRecord,
     FlowTrendChart,
     DataVisualization,
-    DataMonitoring
+    DataMonitoring,
+    TaskDetails
   },
   data() {
     return {

@@ -1,0 +1,28 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/25.0.2 Chrome/128.0.6613.186 Electron/32.2.5 Safari/537.36" version="25.0.2">
+  <diagram name="第 1 页" id="_VXZ7i9TWcBvc7UGAc8X">
+    <mxGraphModel dx="1461" dy="823" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="KwL9X3OccMe9Er8jiAOB-1" value="" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="150" y="200" width="550" height="320" as="geometry" />
+        </mxCell>
+        <mxCell id="KwL9X3OccMe9Er8jiAOB-2" value="任务状态分布饼图" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="180" y="240" width="300" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="KwL9X3OccMe9Er8jiAOB-3" value="任务数量折线图" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="180" y="420" width="120" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="KwL9X3OccMe9Er8jiAOB-4" value="任务数量柱状图" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="360" y="420" width="120" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="KwL9X3OccMe9Er8jiAOB-5" value="kpi榜" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="530" y="300" width="120" height="210" as="geometry" />
+        </mxCell>
+        <mxCell id="KwL9X3OccMe9Er8jiAOB-6" value="三个选项" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="530" y="240" width="120" height="40" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

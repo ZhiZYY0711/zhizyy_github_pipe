@@ -18,11 +18,23 @@
         <h2>数据分析</h2>
         <div class="content-card">
           <p>数据分析模块，提供深度数据洞察</p>
-          <div class="analysis-grid">
-            <div class="analysis-item">异常检测分析</div>
-            <div class="analysis-item">趋势预测分析</div>
-            <div class="analysis-item">性能评估分析</div>
-            <div class="analysis-item">风险评估分析</div>
+          
+          <!-- 图表和分析项目的布局容器 -->
+          <div class="analysis-layout">
+            <!-- 左上角的折线图 -->
+            <div class="chart-section">
+              <FlowTrendChart />
+            </div>
+            
+            <!-- 右侧的分析项目 -->
+            <div class="analysis-items-section">
+              <div class="analysis-grid">
+                <div class="analysis-item">异常检测分析</div>
+                <div class="analysis-item">趋势预测分析</div>
+                <div class="analysis-item">性能评估分析</div>
+                <div class="analysis-item">风险评估分析</div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -136,6 +148,7 @@ import DeviceInfo from '@/components/DeviceInfo.vue'
 import TaskManagement from '@/components/TaskManagement.vue'
 import RepairmanInfo from '@/components/RepairmanInfo.vue'
 import LogRecord from '@/components/LogRecord.vue'
+import FlowTrendChart from '@/components/FlowTrendChart.vue'
 
 export default {
   name: 'MainPage',
@@ -145,7 +158,8 @@ export default {
     DeviceInfo,
     TaskManagement,
     RepairmanInfo,
-    LogRecord
+    LogRecord,
+    FlowTrendChart
   },
   data() {
     return {
@@ -207,11 +221,33 @@ export default {
 }
 
 /* 数据分析样式 */
+.analysis-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-top: 20px;
+  min-height: 400px;
+}
+
+.chart-section {
+  grid-column: 1;
+  grid-row: 1;
+  min-height: 380px;
+}
+
+.analysis-items-section {
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
 .analysis-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 15px;
-  margin-top: 20px;
+  height: fit-content;
 }
 
 .analysis-item {
@@ -223,10 +259,37 @@ export default {
   font-weight: 500;
   cursor: pointer;
   transition: transform 0.3s ease;
+  min-height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .analysis-item:hover {
   transform: translateY(-2px);
+}
+
+/* 响应式设计 */
+@media (max-width: 1024px) {
+  .analysis-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
+    gap: 20px;
+  }
+  
+  .chart-section {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  
+  .analysis-items-section {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  
+  .analysis-grid {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
 }
 
 /* 监测数据表格样式 */

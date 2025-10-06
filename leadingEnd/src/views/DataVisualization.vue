@@ -76,11 +76,7 @@
       <div class="map-section">
         <div class="section-title">区域监控地图</div>
         <div class="map-placeholder">
-          <div class="map-container">
-            <p>大地图显示区域</p>
-            <p>深蓝色背景，显示所有区域</p>
-            <p>颜色深浅代表异常率或报警等级</p>
-          </div>
+          <ChinaMap @province-click="handleProvinceClick" />
         </div>
       </div>
       
@@ -182,8 +178,13 @@
 </template>
 
 <script>
+import ChinaMap from '@/components/ChinaMap.vue'
+
 export default {
   name: 'DataVisualization',
+  components: {
+    ChinaMap
+  },
   data() {
     return {
       // 全局KPI数据
@@ -417,6 +418,13 @@ export default {
           percentage: Math.round((mockData.critical / total) * 100)
         }
       ];
+    },
+    
+    // 处理省份点击事件
+    handleProvinceClick(provinceData) {
+      console.log('点击省份:', provinceData);
+      // 可以在这里添加跳转到区域详情页面的逻辑
+      // this.$router.push({ name: 'AreaDetails', params: { areaCode: provinceData.adcode } });
     }
   }
 }
@@ -615,23 +623,6 @@ export default {
   border-radius: 12px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
   overflow: hidden;
-}
-
-.map-container {
-  height: 100%;
-  background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
-  color: white;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  text-align: center;
-}
-
-.map-container p {
-  margin: 10px 0;
-  opacity: 0.9;
 }
 
 /* 信息面板 */

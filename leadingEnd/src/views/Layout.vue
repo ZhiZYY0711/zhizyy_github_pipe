@@ -36,17 +36,17 @@
       >
         <ul class="nav-menu">
           <!-- 数据可视化模块 - 可展开 -->
-          <li class="nav-item nav-parent" @click="setActiveMenu('visualization-overview')">
+          <li class="nav-item nav-parent" @click="navigateToVisualization">
             <span class="nav-text">
               数据可视化
               <i class="expand-icon" :class="{ 'expanded': expandedMenus.includes('visualization') }">▼</i>
             </span>
           </li>
           <ul class="submenu" v-show="expandedMenus.includes('visualization')">
-            <li class="nav-item nav-child" @click="setActiveMenu('data-monitoring')">
+            <li class="nav-item nav-child" @click="navigateTo('/main/data-monitoring')">
               <span class="nav-text">数据监控</span>
             </li>
-            <li class="nav-item nav-child" @click="setActiveMenu('task-details')">
+            <li class="nav-item nav-child" @click="navigateTo('/main/task-details')">
               <span class="nav-text">任务详情</span>
             </li>
           </ul>
@@ -59,32 +59,31 @@
             </span>
           </li>
           <ul class="submenu" v-show="expandedMenus.includes('dataManagement')">
-            <li class="nav-item nav-child" @click="setActiveMenu('monitoring')">
+            <li class="nav-item nav-child" @click="navigateTo('/main/monitoring')">
               <span class="nav-text">监测数据</span>
             </li>
-            <li class="nav-item nav-child" @click="setActiveMenu('equipment')">
+            <li class="nav-item nav-child" @click="navigateTo('/main/equipment')">
               <span class="nav-text">设备信息</span>
             </li>
-            <li class="nav-item nav-child" @click="setActiveMenu('tasks')">
+            <li class="nav-item nav-child" @click="navigateTo('/main/tasks')">
               <span class="nav-text">任务管理</span>
             </li>
-            <li class="nav-item nav-child" @click="setActiveMenu('maintenance')">
+            <li class="nav-item nav-child" @click="navigateTo('/main/maintenance')">
               <span class="nav-text">检修员信息</span>
             </li>
           </ul>
           
           <!-- 新增模块 -->
-          <li class="nav-item" @click="setActiveMenu('virtualExpert')">
+          <li class="nav-item" @click="navigateTo('/main/virtual-expert')">
             <span class="nav-text">虚拟专家</span>
           </li>
-          <li class="nav-item" @click="setActiveMenu('simulation')">
+          <li class="nav-item" @click="navigateTo('/main/simulation-drill')">
             <span class="nav-text">模拟与演练</span>
           </li>
-          <li class="nav-item" @click="setActiveMenu('emergency')">
+          <li class="nav-item" @click="navigateTo('/main/emergency')">
             <span class="nav-text">事故响应</span>
           </li>
-          
-          <li class="nav-item" @click="setActiveMenu('logs')">
+          <li class="nav-item" @click="navigateTo('/main/logs')">
             <span class="nav-text">日志记录</span>
           </li>
         </ul>
@@ -93,13 +92,8 @@
       <!-- 右侧内容区域 -->
       <main class="content-area">
         <div class="content-wrapper">
-          <slot>
-            <!-- 默认内容 -->
-            <div class="welcome-content">
-              <h2>欢迎使用油气管道监测管理系统</h2>
-              <p>请从左侧导航栏选择功能模块</p>
-            </div>
-          </slot>
+          <!-- 使用router-view显示子路由内容 -->
+          <router-view></router-view>
         </div>
       </main>
     </div>
@@ -108,12 +102,22 @@
 
 <script>
 export default {
-  name: 'MainLayout',
+  name: 'Layout',
   data() {
     return {
-      activeMenu: 'visualization-overview',
       expandedMenus: ['visualization'],
       sidebarVisible: false
+    }
+  },
+  computed: {
+    isVisualizationActive() {
+      const route = this.$route.path;
+      return route.includes('visualization') || 
+             route.includes('area-details') || 
+             route.includes('pipeline-details') || 
+             route.includes('task-details') ||
+             route.includes('monitoring') ||
+             route.includes('data-monitoring');
     }
   },
   mounted() {
@@ -122,30 +126,21 @@ export default {
       this.sidebarVisible = false;
     }
   },
-  computed: {
-    isVisualizationActive() {
-      return this.activeMenu.startsWith('visualization') || 
-             this.activeMenu === 'area-details' || 
-             this.activeMenu === 'pipeline-details' || 
-             this.activeMenu === 'task-details' ||
-             this.activeMenu === 'monitoring' ||
-             this.activeMenu === 'data-monitoring';
-    }
-  },
   methods: {
-    setActiveMenu(menu) {
-      this.activeMenu = menu;
-      this.$emit('menu-change', menu);
+    navigateTo(path) {
+      this.$router.push(path);
       
       // 如果选择的是数据可视化相关菜单，自动隐藏侧边栏
       if (this.isVisualizationActive) {
         this.sidebarVisible = false;
-        // 确保数据可视化子菜单展开
-        if (!this.expandedMenus.includes('visualization')) {
-          this.expandedMenus.push('visualization');
-        }
       }
     },
+    
+    navigateToVisualization() {
+      this.toggleSubmenu('visualization');
+      this.$router.push('/main/visualization');
+    },
+    
     toggleSubmenu(menuName) {
       const index = this.expandedMenus.indexOf(menuName);
       if (index > -1) {
@@ -154,11 +149,13 @@ export default {
         this.expandedMenus.push(menuName);
       }
     },
+    
     showSidebar() {
       if (this.isVisualizationActive) {
         this.sidebarVisible = true;
       }
     },
+    
     hideSidebar() {
       if (this.isVisualizationActive) {
         this.sidebarVisible = false;
@@ -386,24 +383,6 @@ export default {
   padding: 20px;
   overflow-y: auto;
   overflow-x: hidden;
-}
-
-/* 欢迎内容样式 */
-.welcome-content {
-  text-align: center;
-  padding: 50px 20px;
-  color: #333;
-}
-
-.welcome-content h2 {
-  font-size: 24px;
-  margin-bottom: 10px;
-  color: #1E3A8A;
-}
-
-.welcome-content p {
-  font-size: 16px;
-  color: #666;
 }
 
 /* 响应式设计 */

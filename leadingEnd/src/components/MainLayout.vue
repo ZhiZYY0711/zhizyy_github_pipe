@@ -15,15 +15,43 @@
 
     <!-- 主体内容区域 -->
     <div class="main-content">
+      <!-- 半圆按钮 - 仅在数据可视化模块显示 -->
+      <div 
+        v-if="isVisualizationActive && !sidebarVisible" 
+        class="sidebar-toggle-btn"
+        @click="showSidebar"
+      >
+        <i class="toggle-icon">▶</i>
+      </div>
+      
       <!-- 左侧导航栏 -->
-      <nav class="sidebar">
+      <nav 
+        class="sidebar" 
+        :class="{ 
+          'sidebar-hidden': isVisualizationActive && !sidebarVisible,
+          'sidebar-auto-hide': isVisualizationActive
+        }"
+        @mouseleave="hideSidebar"
+      >
         <ul class="nav-menu">
-          <li class="nav-item" @click="setActiveMenu('visualization')">
-            <span class="nav-text">数据可视化</span>
+          <!-- 数据可视化模块 - 可展开 -->
+          <li class="nav-item nav-parent" @click="setActiveMenu('visualization-overview')">
+            <span class="nav-text">
+              数据可视化
+              <i class="expand-icon" :class="{ 'expanded': expandedMenus.includes('visualization') }">▼</i>
+            </span>
           </li>
-          <li class="nav-item" @click="setActiveMenu('analysis')">
-            <span class="nav-text">数据分析</span>
-          </li>
+          <ul class="submenu" v-show="expandedMenus.includes('visualization')">
+            <li class="nav-item nav-child" @click="setActiveMenu('area-details')">
+              <span class="nav-text">区域详情</span>
+            </li>
+            <li class="nav-item nav-child" @click="setActiveMenu('pipeline-details')">
+              <span class="nav-text">管道详情</span>
+            </li>
+            <li class="nav-item nav-child" @click="setActiveMenu('task-details')">
+              <span class="nav-text">任务详情</span>
+            </li>
+          </ul>
           
           <!-- 数据管理模块 - 可展开 -->
           <li class="nav-item nav-parent" @click="toggleSubmenu('dataManagement')">
@@ -85,14 +113,38 @@ export default {
   name: 'MainLayout',
   data() {
     return {
-      activeMenu: 'visualization',
-      expandedMenus: []
+      activeMenu: 'visualization-overview',
+      expandedMenus: ['visualization'],
+      sidebarVisible: false
+    }
+  },
+  mounted() {
+    // 初始化时，如果是数据可视化模块，确保导航栏隐藏
+    if (this.isVisualizationActive) {
+      this.sidebarVisible = false;
+    }
+  },
+  computed: {
+    isVisualizationActive() {
+      return this.activeMenu.startsWith('visualization') || 
+             this.activeMenu === 'area-details' || 
+             this.activeMenu === 'pipeline-details' || 
+             this.activeMenu === 'task-details';
     }
   },
   methods: {
     setActiveMenu(menu) {
       this.activeMenu = menu;
       this.$emit('menu-change', menu);
+      
+      // 如果选择的是数据可视化相关菜单，自动隐藏侧边栏
+      if (this.isVisualizationActive) {
+        this.sidebarVisible = false;
+        // 确保数据可视化子菜单展开
+        if (!this.expandedMenus.includes('visualization')) {
+          this.expandedMenus.push('visualization');
+        }
+      }
     },
     toggleSubmenu(menuName) {
       const index = this.expandedMenus.indexOf(menuName);
@@ -100,6 +152,16 @@ export default {
         this.expandedMenus.splice(index, 1);
       } else {
         this.expandedMenus.push(menuName);
+      }
+    },
+    showSidebar() {
+      if (this.isVisualizationActive) {
+        this.sidebarVisible = true;
+      }
+    },
+    hideSidebar() {
+      if (this.isVisualizationActive) {
+        this.sidebarVisible = false;
       }
     }
   }
@@ -156,6 +218,44 @@ export default {
   flex: 1;
   display: flex;
   overflow: hidden;
+  position: relative;
+}
+
+/* 半圆按钮样式 */
+.sidebar-toggle-btn {
+  position: fixed;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 30px;
+  height: 60px;
+  background: linear-gradient(135deg, #1E3A8A, #3B82F6);
+  border-radius: 0 30px 30px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 1000;
+  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+}
+
+.sidebar-toggle-btn:hover {
+  width: 35px;
+  background: linear-gradient(135deg, #0F2C6B, #1E3A8A);
+  box-shadow: 3px 0 15px rgba(0, 0, 0, 0.3);
+}
+
+.toggle-icon {
+  color: white;
+  font-size: 14px;
+  font-weight: bold;
+  margin-left: 3px;
+  transition: transform 0.3s ease;
+}
+
+.sidebar-toggle-btn:hover .toggle-icon {
+  transform: scale(1.2);
 }
 
 /* 左侧导航栏样式 */
@@ -165,6 +265,34 @@ export default {
   color: #FFFFFF;
   overflow-y: auto;
   flex-shrink: 0;
+  transition: transform 0.3s ease, width 0.3s ease;
+  position: relative;
+  z-index: 100;
+}
+
+/* 数据可视化模块的自动隐藏样式 */
+.sidebar-auto-hide {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+  z-index: 200;
+}
+
+.sidebar-hidden {
+  transform: translateX(-180px);
+  width: 20px;
+}
+
+.sidebar-auto-hide.sidebar-hidden {
+  transform: translateX(-180px);
+  width: 20px;
+}
+
+.sidebar-auto-hide:not(.sidebar-hidden) {
+  transform: translateX(0);
+  width: 200px;
 }
 
 .nav-menu {

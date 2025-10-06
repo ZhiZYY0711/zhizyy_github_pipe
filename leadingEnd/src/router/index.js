@@ -14,6 +14,30 @@ const routes = [
     name: 'Dashboard',
     component: () => import('../views/Dashboard.vue'),
     meta: { requiresAuth: true }
+  },
+  {
+    path: '/visualization',
+    name: 'DataVisualization',
+    component: () => import('../views/DataVisualization.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/area-details',
+    name: 'AreaDetails',
+    component: () => import('../views/AreaDetails.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/pipeline-details',
+    name: 'PipelineDetails',
+    component: () => import('../views/PipelineDetails.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/task-details',
+    name: 'TaskDetails',
+    component: () => import('../views/TaskDetails.vue'),
+    meta: { requiresAuth: true }
   }
 ]
 

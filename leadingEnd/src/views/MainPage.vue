@@ -3,15 +3,7 @@
     <div class="main-page-content">
       <!-- 根据选中的菜单显示不同内容 -->
       <div v-if="currentMenu === 'visualization'" class="module-content">
-        <h2>数据可视化</h2>
-        <div class="content-card">
-          <p>这里将显示各种数据图表和可视化内容</p>
-          <div class="placeholder-chart">
-            <div class="chart-item">管道压力趋势图</div>
-            <div class="chart-item">流量监测图表</div>
-            <div class="chart-item">温度分布图</div>
-          </div>
-        </div>
+        <DataVisualization />
       </div>
 
       <div v-else-if="currentMenu === 'analysis'" class="module-content">
@@ -149,6 +141,7 @@ import TaskManagement from '@/components/TaskManagement.vue'
 import RepairmanInfo from '@/components/RepairmanInfo.vue'
 import LogRecord from '@/components/LogRecord.vue'
 import FlowTrendChart from '@/components/FlowTrendChart.vue'
+import DataVisualization from '@/views/DataVisualization.vue'
 
 export default {
   name: 'MainPage',
@@ -159,7 +152,8 @@ export default {
     TaskManagement,
     RepairmanInfo,
     LogRecord,
-    FlowTrendChart
+    FlowTrendChart,
+    DataVisualization
   },
   data() {
     return {

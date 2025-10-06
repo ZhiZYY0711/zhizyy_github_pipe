@@ -2,7 +2,7 @@
   <div class="data-visualization">
     <!-- 主要内容区域 - 紧凑布局 -->
     <div class="visualization-content">
-      <!-- KPI指标卡区域 -->
+      <!-- KPI指标卡区域（左侧） -->
       <div class="kpi-section">
         <div class="kpi-cards">
           <!-- 全局KPI指标卡 -->
@@ -71,12 +71,23 @@
           </div>
         </div>
       </div>
+
+      <!-- 右上角饼图面板 -->
+      <div class="pie-panel">
+        <div class="section-title">报警级别分布</div>
+        <div class="pie-card">
+          <EChartsPie 
+            :data="alertDistribution" 
+            title="传感器状态分布"
+          />
+        </div>
+      </div>
       
       <!-- 中央地图区域 -->
       <div class="map-section">
         <div class="section-title">区域监控地图</div>
         <div class="map-placeholder">
-          <ChinaMap @province-click="handleProvinceClick" />
+          <EChartsMap @province-click="handleProvinceClick" />
         </div>
       </div>
       
@@ -131,46 +142,7 @@
             </div>
           </div>
           
-          <!-- 报警级别分布区域 -->
-          <div class="alert-distribution">
-            <h3>报警级别分布</h3>
-            <div class="chart-container">
-              <div class="pie-chart" ref="pieChart">
-                <svg viewBox="0 0 200 200" class="pie-svg">
-                  <circle
-                    v-for="(segment, index) in pieSegments"
-                    :key="index"
-                    :cx="100"
-                    :cy="100"
-                    :r="80"
-                    :stroke="segment.color"
-                    :stroke-width="20"
-                    :stroke-dasharray="segment.dashArray"
-                    :stroke-dashoffset="segment.dashOffset"
-                    :transform="segment.transform"
-                    fill="transparent"
-                    class="pie-segment"
-                  />
-                  <text x="100" y="100" text-anchor="middle" dy="0.3em" class="pie-center-text">
-                    传感器状态
-                  </text>
-                </svg>
-              </div>
-              <div class="chart-legend">
-                <div 
-                  v-for="item in alertDistribution" 
-                  :key="item.level"
-                  class="legend-item"
-                >
-                  <div class="legend-color" :style="{ backgroundColor: item.color }"></div>
-                  <div class="legend-info">
-                    <div class="legend-label">{{ item.label }}</div>
-                    <div class="legend-value">{{ item.count }} ({{ item.percentage }}%)</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <!-- 报警级别分布已移至顶部右侧 -->
         </div>
       </div>
     </div>
@@ -178,12 +150,14 @@
 </template>
 
 <script>
-import ChinaMap from '@/components/ChinaMap.vue'
+import EChartsMap from '@/components/EChartsMap.vue'
+import EChartsPie from '@/components/EChartsPie.vue'
 
 export default {
   name: 'DataVisualization',
   components: {
-    ChinaMap
+    EChartsMap,
+    EChartsPie
   },
   data() {
     return {
@@ -216,33 +190,7 @@ export default {
       alertTimer: null
     }
   },
-  computed: {
-    // 计算饼图段
-    pieSegments() {
-      const total = this.alertDistribution.reduce((sum, item) => sum + item.count, 0);
-      if (total === 0) return [];
-      
-      const circumference = 2 * Math.PI * 80; // 半径为80的圆周长
-      let currentOffset = 0;
-      
-      return this.alertDistribution.map(item => {
-        const percentage = item.count / total;
-        const dashLength = circumference * percentage;
-        const dashArray = `${dashLength} ${circumference - dashLength}`;
-        const dashOffset = -currentOffset;
-        const transform = `rotate(-90 100 100)`; // 从顶部开始
-        
-        currentOffset += dashLength;
-        
-        return {
-          color: item.color,
-          dashArray,
-          dashOffset,
-          transform
-        };
-      }).filter(segment => parseFloat(segment.dashArray.split(' ')[0]) > 0);
-    }
-  },
+
   mounted() {
     console.log('数据可视化模块已加载');
     this.loadKPIData();
@@ -473,23 +421,23 @@ export default {
   border-bottom: 2px solid #e2e8f0;
 }
 
-/* KPI指标卡区域 */
+/* KPI指标卡区域（放左侧两列） */
 .kpi-section {
-  grid-column: 1 / -1;
+  grid-column: 1 / 3;
   grid-row: 1;
 }
 
 .kpi-cards {
   display: flex;
   gap: 12px;
-  justify-content: space-between;
+  justify-content: flex-start;
 }
 
 .kpi-card {
-  flex: 1;
+  flex: 0 0 48%;
   background: white;
   border-radius: 12px;
-  padding: 16px;
+  padding: 12px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
   border: 1px solid #e2e8f0;
   transition: all 0.3s ease;
@@ -623,6 +571,22 @@ export default {
   border-radius: 12px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
   overflow: hidden;
+}
+
+/* 右上角饼图面板 */
+.pie-panel {
+  grid-column: 3;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.pie-card {
+  background-color: white;
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  height: 100%;
 }
 
 /* 信息面板 */
@@ -829,30 +793,7 @@ export default {
   height: calc(100% - 60px);
 }
 
-.pie-chart {
-  flex-shrink: 0;
-  width: 200px;
-  height: 200px;
-}
 
-.pie-svg {
-  width: 100%;
-  height: 100%;
-}
-
-.pie-segment {
-  transition: stroke-width 0.3s ease;
-}
-
-.pie-segment:hover {
-  stroke-width: 25;
-}
-
-.pie-center-text {
-  font-size: 12px;
-  font-weight: 600;
-  fill: #64748b;
-}
 
 .chart-legend {
   flex: 1;

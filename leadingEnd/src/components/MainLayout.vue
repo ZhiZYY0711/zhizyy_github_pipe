@@ -42,11 +42,8 @@
             </span>
           </li>
           <ul class="submenu" v-show="expandedMenus.includes('visualization')">
-            <li class="nav-item nav-child" @click="setActiveMenu('area-details')">
-              <span class="nav-text">区域详情</span>
-            </li>
-            <li class="nav-item nav-child" @click="setActiveMenu('pipeline-details')">
-              <span class="nav-text">管道详情</span>
+            <li class="nav-item nav-child" @click="setActiveMenu('data-monitoring')">
+              <span class="nav-text">数据监控</span>
             </li>
             <li class="nav-item nav-child" @click="setActiveMenu('task-details')">
               <span class="nav-text">任务详情</span>

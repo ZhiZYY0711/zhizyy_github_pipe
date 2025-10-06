@@ -126,6 +126,10 @@
         </div>
       </div>
 
+      <div v-else-if="currentMenu === 'data-monitoring'" class="module-content">
+        <DataMonitoring />
+      </div>
+
       <div v-else-if="currentMenu === 'logs'" class="module-content">
         <LogRecord />
       </div>
@@ -142,6 +146,7 @@ import RepairmanInfo from '@/components/RepairmanInfo.vue'
 import LogRecord from '@/components/LogRecord.vue'
 import FlowTrendChart from '@/components/FlowTrendChart.vue'
 import DataVisualization from '@/views/DataVisualization.vue'
+import DataMonitoring from '@/views/DataMonitoring.vue'
 
 export default {
   name: 'MainPage',
@@ -153,7 +158,8 @@ export default {
     RepairmanInfo,
     LogRecord,
     FlowTrendChart,
-    DataVisualization
+    DataVisualization,
+    DataMonitoring
   },
   data() {
     return {

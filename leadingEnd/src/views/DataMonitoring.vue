@@ -10,6 +10,7 @@
     <PipelineDetails 
       v-if="currentPage === 'pipeline'" 
       @switch-page="switchPage"
+      @switch-to-area="switchToArea"
     />
   </div>
 </template>
@@ -32,6 +33,10 @@ export default {
   methods: {
     switchPage(pageType) {
       this.currentPage = pageType
+    },
+    
+    switchToArea() {
+      this.currentPage = 'area'
     }
   }
 }

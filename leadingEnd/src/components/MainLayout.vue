@@ -32,6 +32,7 @@
           'sidebar-auto-hide': isVisualizationActive
         }"
         @mouseleave="hideSidebar"
+        @mouseenter="showSidebar"
       >
         <ul class="nav-menu">
           <!-- 数据可视化模块 - 可展开 -->
@@ -126,7 +127,9 @@ export default {
       return this.activeMenu.startsWith('visualization') || 
              this.activeMenu === 'area-details' || 
              this.activeMenu === 'pipeline-details' || 
-             this.activeMenu === 'task-details';
+             this.activeMenu === 'task-details' ||
+             this.activeMenu === 'monitoring' ||
+             this.activeMenu === 'data-monitoring';
     }
   },
   methods: {

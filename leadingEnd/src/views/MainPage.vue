@@ -32,7 +32,7 @@
       </div>
 
       <div v-else-if="currentMenu === 'monitoring'" class="module-content">
-        <MonitoringData />
+        <DataMonitoring />
       </div>
 
       <div v-else-if="currentMenu === 'equipment'" class="module-content">
@@ -139,7 +139,6 @@
 
 <script>
 import MainLayout from '@/components/MainLayout.vue'
-import MonitoringData from '@/components/MonitoringData.vue'
 import DeviceInfo from '@/components/DeviceInfo.vue'
 import TaskManagement from '@/components/TaskManagement.vue'
 import RepairmanInfo from '@/components/RepairmanInfo.vue'
@@ -152,7 +151,6 @@ export default {
   name: 'MainPage',
   components: {
     MainLayout,
-    MonitoringData,
     DeviceInfo,
     TaskManagement,
     RepairmanInfo,

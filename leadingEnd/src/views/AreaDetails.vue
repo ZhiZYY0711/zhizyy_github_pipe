@@ -137,6 +137,9 @@ export default {
       mainChartInstance: null,
       subChartInstances: [],
       mapChartInstance: null,
+      mapRegistered: false,
+      geoNodes: [],
+      geoLinks: [],
 
       // 模拟数据
       chartData: {
@@ -413,52 +416,96 @@ export default {
       })
     },
 
-    // 更新地图
-    updateMapChart() {
+    // 更新地图（使用中国地图 JSON 资源 + 随机 geo graph）
+    async updateMapChart() {
       if (!this.mapChartInstance) return
+
+      try {
+        if (!this.mapRegistered) {
+          const chinaJson = await import('@/assets/mapjson/中华人民共和国.json')
+          const mapData = chinaJson.default || chinaJson
+          // 注册中国地图到 ECharts
+          if (typeof echarts !== 'undefined') {
+            echarts.registerMap('china', mapData)
+          }
+          this.mapRegistered = true
+          this.generateRandomGeoGraph(mapData)
+        } else if (!this.geoNodes.length) {
+          const chinaJson = await import('@/assets/mapjson/中华人民共和国.json')
+          const mapData = chinaJson.default || chinaJson
+          this.generateRandomGeoGraph(mapData)
+        }
+      } catch (e) {
+        console.error('中国地图数据加载失败:', e)
+      }
 
       const option = {
         title: {
-          text: '管道分布图',
+          text: '管道分布图（随机示例）',
+          left: 'center',
           textStyle: { fontSize: 12 }
         },
         tooltip: {
-          trigger: 'item'
-        },
-        xAxis: {
-          type: 'value',
-          show: false
-        },
-        yAxis: {
-          type: 'value',
-          show: false
-        },
-        series: [{
-          type: 'lines',
-          coordinateSystem: 'cartesian2d',
-          data: [
-            {
-              coords: [[10, 10], [50, 30]],
-              lineStyle: { color: '#1890ff', width: 3 }
-            },
-            {
-              coords: [[50, 30], [80, 60]],
-              lineStyle: { color: '#52c41a', width: 3 }
-            },
-            {
-              coords: [[80, 60], [90, 90]],
-              lineStyle: { color: '#faad14', width: 3 }
+          trigger: 'item',
+          formatter: (params) => {
+            if (params.seriesType === 'graph') {
+              const [lng, lat] = params.value || []
+              return `${params.name}<br/>坐标: [${(lng||0).toFixed(3)}, ${(lat||0).toFixed(3)}]`
             }
-          ]
-        }, {
-          type: 'scatter',
-          coordinateSystem: 'cartesian2d',
-          data: [[10, 10], [50, 30], [80, 60], [90, 90]],
-          symbolSize: 8,
-          itemStyle: { color: '#f5222d' }
-        }]
+            return params.name
+          }
+        },
+        series: [
+          {
+            type: 'graph',
+            coordinateSystem: 'geo',
+            data: this.geoNodes,
+            links: this.geoLinks,
+            roam: true,
+            label: { show: false },
+            lineStyle: { color: '#1976d2', width: 2, opacity: 0.8 },
+            emphasis: { focus: 'adjacency' }
+          }
+        ],
+        geo: {
+          map: 'china',
+          roam: true,
+          itemStyle: { areaColor: '#f3f3f3', borderColor: '#999' },
+          emphasis: { itemStyle: { areaColor: '#e6f7ff' } }
+        }
       }
       this.mapChartInstance.setOption(option)
+    }
+    ,
+    // 基于地图 JSON 生成随机的节点与连线（参考 geo-graph 示例）
+    generateRandomGeoGraph(mapJson) {
+      const features = (mapJson && mapJson.features) ? mapJson.features : []
+      const centers = features
+        .map(f => ({
+          name: f.properties && f.properties.name ? f.properties.name : '未知',
+          coord: (f.properties && f.properties.center) ? f.properties.center : (f.properties && f.properties.centroid ? f.properties.centroid : null)
+        }))
+        .filter(c => Array.isArray(c.coord) && c.coord.length === 2)
+
+      const count = Math.floor(Math.random() * 5) + 8 // 8-12 个节点
+      const pool = centers.slice()
+      const picked = []
+      while (picked.length < count && pool.length) {
+        const idx = Math.floor(Math.random() * pool.length)
+        picked.push(pool.splice(idx, 1)[0])
+      }
+
+      this.geoNodes = picked.map((p, i) => ({
+        name: p.name,
+        value: p.coord,
+        symbolSize: Math.floor(Math.random() * 6) + 8,
+        itemStyle: { color: i % 2 === 0 ? '#64b5f6' : '#81c784' }
+      }))
+
+      this.geoLinks = this.geoNodes.slice(1).map((n, i) => ({
+        source: this.geoNodes[i].name,
+        target: n.name
+      }))
     }
   }
 }

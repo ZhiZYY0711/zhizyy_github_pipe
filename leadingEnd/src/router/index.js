@@ -16,85 +16,77 @@ const routes = [
     children: [
       {
         path: '',
-        redirect: 'dashboard'
+        redirect: 'visualization'
       },
-      {
-        path: 'dashboard',
-        name: 'Dashboard',
-        component: () => import('../views/Dashboard.vue')
-      },
+
       {
         path: 'visualization',
         name: 'DataVisualization',
-        component: () => import('../views/DataVisualization.vue')
+        component: () => import('../views/data-visualization/DataVisualization.vue')
       },
       {
         path: 'data-monitoring',
         name: 'DataMonitoring',
-        component: () => import('../views/DataMonitoring.vue')
+        component: () => import('../views/data-visualization/DataMonitoring.vue')
       },
       {
         path: 'area-details',
         name: 'AreaDetails',
-        component: () => import('../views/AreaDetails.vue')
+        component: () => import('../views/data-visualization/details/AreaDetails.vue')
       },
       {
         path: 'pipeline-details',
         name: 'PipelineDetails',
-        component: () => import('../views/PipelineDetails.vue')
+        component: () => import('../views/data-visualization/details/PipelineDetails.vue')
       },
       {
         path: 'task-details',
         name: 'TaskDetails',
-        component: () => import('../views/TaskDetails.vue')
+        component: () => import('../views/data-visualization/TaskDetails.vue')
       },
       {
         path: 'monitoring',
         name: 'Monitoring',
-        component: () => import('../views/Monitoring.vue')
+        component: () => import('../views/data-management/Monitoring.vue')
       },
       {
         path: 'equipment',
         name: 'Equipment',
-        component: () => import('../views/Equipment.vue')
+        component: () => import('../views/data-management/Equipment.vue')
       },
       {
         path: 'tasks',
         name: 'Tasks',
-        component: () => import('../views/Tasks.vue')
+        component: () => import('../views/data-management/Tasks.vue')
       },
       {
         path: 'maintenance',
         name: 'Maintenance',
-        component: () => import('../views/Maintenance.vue')
+        component: () => import('../views/data-management/Maintenance.vue')
       },
       {
         path: 'virtual-expert',
         name: 'VirtualExpert',
-        component: () => import('../views/VirtualExpert.vue')
+        component: () => import('../views/virtual-expert/VirtualExpert.vue')
       },
       {
         path: 'simulation-drill',
         name: 'SimulationDrill',
-        component: () => import('../views/SimulationDrill.vue')
+        component: () => import('../views/simulation-drill/SimulationDrill.vue')
       },
       {
         path: 'emergency',
         name: 'Emergency',
-        component: () => import('../views/AccidentResponse.vue')
+        component: () => import('../views/emergency/AccidentResponse.vue')
       },
       {
         path: 'logs',
         name: 'Logs',
-        component: () => import('../views/LogRecording.vue')
+        component: () => import('../views/logs/LogRecording.vue')
       }
     ]
   },
   // 保持向后兼容的路由
-  {
-    path: '/dashboard',
-    redirect: '/main/dashboard'
-  },
   {
     path: '/visualization',
     redirect: '/main/visualization'
@@ -114,7 +106,7 @@ const router = new VueRouter({
 // 路由守卫，检查用户是否已登录
 router.beforeEach((to, from, next) => {
   const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true'
-  
+
   if (to.matched.some(record => record.meta.requiresAuth)) {
     // 需要登录的页面
     if (!isLoggedIn) {
@@ -125,7 +117,7 @@ router.beforeEach((to, from, next) => {
   } else {
     // 不需要登录的页面
     if (isLoggedIn && to.name === 'Login') {
-      next('/main/dashboard')
+      next('/main/visualization')
     } else {
       next()
     }

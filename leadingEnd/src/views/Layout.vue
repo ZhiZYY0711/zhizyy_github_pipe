@@ -128,7 +128,9 @@ export default {
   },
   methods: {
     navigateTo(path) {
-      this.$router.push(path);
+      if (this.$route.path !== path) {
+        this.$router.push(path);
+      }
       
       // 如果选择的是数据可视化相关菜单，自动隐藏侧边栏
       if (this.isVisualizationActive) {
@@ -138,7 +140,9 @@ export default {
     
     navigateToVisualization() {
       this.toggleSubmenu('visualization');
-      this.$router.push('/main/visualization');
+      if (this.$route.path !== '/main/visualization') {
+        this.$router.push('/main/visualization');
+      }
     },
     
     toggleSubmenu(menuName) {

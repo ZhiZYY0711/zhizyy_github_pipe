@@ -16,8 +16,8 @@
 </template>
 
 <script>
-import AreaDetails from './AreaDetails.vue'
-import PipelineDetails from './PipelineDetails.vue'
+import AreaDetails from './details/AreaDetails.vue'
+import PipelineDetails from './details/PipelineDetails.vue'
 
 export default {
   name: 'DataMonitoring',

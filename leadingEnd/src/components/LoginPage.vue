@@ -119,8 +119,8 @@ export default {
             localStorage.setItem('isLoggedIn', 'true')
             localStorage.setItem('adminType', this.loginForm.adminType)
             
-            // 跳转到仪表盘页面
-            this.$router.push('/dashboard')
+            // 跳转到数据可视化页面
+            this.$router.push('/main/visualization')
           })
           .catch(error => {
             console.error('登录失败', error)

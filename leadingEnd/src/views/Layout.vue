@@ -31,7 +31,7 @@
           'sidebar-hidden': isVisualizationActive && !sidebarVisible,
           'sidebar-auto-hide': isVisualizationActive
         }"
-        @mouseleave="hideSidebar"
+        @mouseleave="handleSidebarMouseLeave"
         @mouseenter="showSidebar"
       >
         <ul class="nav-menu">
@@ -42,14 +42,16 @@
               <i class="expand-icon" :class="{ 'expanded': expandedMenus.includes('visualization') }">▼</i>
             </span>
           </li>
-          <ul class="submenu" v-show="expandedMenus.includes('visualization')">
-            <li class="nav-item nav-child" @click="navigateTo('/main/data-monitoring')">
-              <span class="nav-text">数据监控</span>
-            </li>
-            <li class="nav-item nav-child" @click="navigateTo('/main/task-details')">
-              <span class="nav-text">任务详情</span>
-            </li>
-          </ul>
+          <transition name="submenu-slide">
+            <ul class="submenu" v-show="expandedMenus.includes('visualization')">
+              <li class="nav-item nav-child" @click="navigateTo('/main/data-monitoring')">
+                <span class="nav-text">数据监控</span>
+              </li>
+              <li class="nav-item nav-child" @click="navigateTo('/main/task-details')">
+                <span class="nav-text">任务详情</span>
+              </li>
+            </ul>
+          </transition>
           
           <!-- 数据管理模块 - 可展开 -->
           <li class="nav-item nav-parent" @click="toggleSubmenu('dataManagement')">
@@ -58,20 +60,22 @@
               <i class="expand-icon" :class="{ 'expanded': expandedMenus.includes('dataManagement') }">▼</i>
             </span>
           </li>
-          <ul class="submenu" v-show="expandedMenus.includes('dataManagement')">
-            <li class="nav-item nav-child" @click="navigateTo('/main/monitoring')">
-              <span class="nav-text">监测数据</span>
-            </li>
-            <li class="nav-item nav-child" @click="navigateTo('/main/equipment')">
-              <span class="nav-text">设备信息</span>
-            </li>
-            <li class="nav-item nav-child" @click="navigateTo('/main/tasks')">
-              <span class="nav-text">任务管理</span>
-            </li>
-            <li class="nav-item nav-child" @click="navigateTo('/main/maintenance')">
-              <span class="nav-text">检修员信息</span>
-            </li>
-          </ul>
+          <transition name="submenu-slide">
+            <ul class="submenu" v-show="expandedMenus.includes('dataManagement')">
+              <li class="nav-item nav-child" @click="navigateTo('/main/monitoring')">
+                <span class="nav-text">监测数据</span>
+              </li>
+              <li class="nav-item nav-child" @click="navigateTo('/main/equipment')">
+                <span class="nav-text">设备信息</span>
+              </li>
+              <li class="nav-item nav-child" @click="navigateTo('/main/tasks')">
+                <span class="nav-text">任务管理</span>
+              </li>
+              <li class="nav-item nav-child" @click="navigateTo('/main/maintenance')">
+                <span class="nav-text">检修员信息</span>
+              </li>
+            </ul>
+          </transition>
           
           <!-- 新增模块 -->
           <li class="nav-item" @click="navigateTo('/main/virtual-expert')">
@@ -106,18 +110,15 @@ export default {
   data() {
     return {
       expandedMenus: ['visualization'],
-      sidebarVisible: false
+      sidebarVisible: false,
+      waitingForClickToHide: false, // 新增：标记是否处于等待点击隐藏的状态
+      documentClickListener: null // 新增：存储全局点击事件的引用
     }
   },
   computed: {
     isVisualizationActive() {
       const route = this.$route.path;
-      return route.includes('visualization') || 
-             route.includes('area-details') || 
-             route.includes('pipeline-details') || 
-             route.includes('task-details') ||
-             route.includes('monitoring') ||
-             route.includes('data-monitoring');
+      return this.isPathInVisualization(route);
     }
   },
   mounted() {
@@ -127,42 +128,120 @@ export default {
     }
   },
   methods: {
+    isPathInVisualization(path) {
+      return path.includes('visualization') || 
+             path.includes('area-details') || 
+             path.includes('pipeline-details') || 
+             path.includes('task-details') ||
+             path.includes('data-monitoring');
+    },
+    isPathInDataManagement(path) {
+      return path.includes('monitoring') ||
+             path.includes('equipment') ||
+             path.includes('tasks') ||
+             path.includes('maintenance');
+    },
     navigateTo(path) {
       if (this.$route.path !== path) {
         this.$router.push(path);
       }
-      
-      // 如果选择的是数据可视化相关菜单，自动隐藏侧边栏
-      if (this.isVisualizationActive) {
-        this.sidebarVisible = false;
+  
+      // 根据导航路径自动展开或收起菜单
+      if (this.isPathInVisualization(path)) {
+        if (!this.expandedMenus.includes('visualization')) {
+          this.expandedMenus.push('visualization');
+        }
+        const dataManagementIndex = this.expandedMenus.indexOf('dataManagement');
+        if (dataManagementIndex > -1) {
+          this.expandedMenus.splice(dataManagementIndex, 1);
+        }
+        this.showSidebar();
+      } else if (this.isPathInDataManagement(path)) {
+        if (!this.expandedMenus.includes('dataManagement')) {
+          this.expandedMenus.push('dataManagement');
+        }
+        const visualizationIndex = this.expandedMenus.indexOf('visualization');
+        if (visualizationIndex > -1) {
+          this.expandedMenus.splice(visualizationIndex, 1);
+        }
+        this.showSidebar();
+      } else {
+        // 如果导航到非数据可视化和非数据管理相关菜单，收起所有父级菜单
+        this.expandedMenus = [];
+        this.hideSidebar();
       }
     },
-    
+
     navigateToVisualization() {
-      this.toggleSubmenu('visualization');
+      // 确保数据可视化菜单始终展开
+      if (!this.expandedMenus.includes('visualization')) {
+        this.expandedMenus.push('visualization');
+      }
+      // 收起数据管理菜单
+      const dataManagementIndex = this.expandedMenus.indexOf('dataManagement');
+      if (dataManagementIndex > -1) {
+        this.expandedMenus.splice(dataManagementIndex, 1);
+      }
+  
       if (this.$route.path !== '/main/visualization') {
         this.$router.push('/main/visualization');
       }
+      this.showSidebar();
     },
-    
+
     toggleSubmenu(menuName) {
-      const index = this.expandedMenus.indexOf(menuName);
-      if (index > -1) {
+      // 如果点击的菜单已经展开，则收起；否则展开当前菜单并收起其他菜单
+      if (this.expandedMenus.includes(menuName)) {
+        const index = this.expandedMenus.indexOf(menuName);
         this.expandedMenus.splice(index, 1);
       } else {
-        this.expandedMenus.push(menuName);
+        this.expandedMenus = [menuName];
       }
     },
-    
+
     showSidebar() {
       if (this.isVisualizationActive) {
         this.sidebarVisible = true;
+        this.waitingForClickToHide = false; // 侧边栏显示时，取消等待点击隐藏的状态
+        // 移除可能存在的全局点击监听器
+        if (this.documentClickListener) {
+          document.body.removeEventListener('click', this.documentClickListener);
+          this.documentClickListener = null;
+        }
       }
     },
-    
+
     hideSidebar() {
       if (this.isVisualizationActive) {
         this.sidebarVisible = false;
+        this.waitingForClickToHide = false; // 侧边栏隐藏时，取消等待点击隐藏的状态
+        // 移除可能存在的全局点击监听器
+        if (this.documentClickListener) {
+          document.body.removeEventListener('click', this.documentClickListener);
+          this.documentClickListener = null;
+        }
+      }
+    },
+
+    // 新增方法：处理鼠标移出侧边栏事件
+    handleSidebarMouseLeave() {
+      if (this.isVisualizationActive) {
+        this.waitingForClickToHide = true;
+        // 只有在没有监听器的情况下才添加
+        if (!this.documentClickListener) {
+          this.documentClickListener = (event) => {
+            const sidebarElement = this.$el.querySelector('.sidebar');
+            const toggleButtonElement = this.$el.querySelector('.sidebar-toggle-btn');
+
+            // 如果处于等待隐藏状态，且点击目标不在侧边栏和切换按钮内部，则隐藏侧边栏
+            if (this.waitingForClickToHide &&
+                sidebarElement && !sidebarElement.contains(event.target) &&
+                (!toggleButtonElement || !toggleButtonElement.contains(event.target))) {
+              this.hideSidebar();
+            }
+          };
+          document.body.addEventListener('click', this.documentClickListener);
+        }
       }
     }
   }
@@ -337,35 +416,67 @@ export default {
   font-weight: 600;
 }
 
-/* 展开图标样式 */
+/* 展开图标样式 - 优化版本 */
 .expand-icon {
   font-size: 10px;
-  transition: transform 0.3s ease;
+  transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   margin-left: 10px;
+  transform-origin: center;
+  will-change: transform;
 }
 
 .expand-icon.expanded {
   transform: rotate(180deg);
 }
 
-/* 子菜单样式 */
+/* 子菜单样式 - 优化版本 */
 .submenu {
   list-style: none;
   padding: 0;
   margin: 0;
-  background-color: rgba(255, 255, 255, 0.05);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
   border-left: 3px solid #3B82F6;
+  border-radius: 0 8px 8px 0;
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 2px 8px rgba(0, 0, 0, 0.1);
+  max-height: 200px;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+  margin: 2px 0;
+}
+
+.submenu[style*="display: none"] {
+  max-height: 0;
 }
 
 .nav-child {
   padding: 12px 20px 12px 40px;
   font-size: 13px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  position: relative;
+}
+
+.nav-child:last-child {
+  border-bottom: none;
 }
 
 .nav-child:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-  transform: translateX(5px);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.08));
+  transform: translateX(8px);
+  box-shadow: 0 2px 12px rgba(59, 130, 246, 0.2);
+}
+
+.nav-child:hover::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(to bottom, #60A5FA, #3B82F6);
+  border-radius: 0 2px 2px 0;
 }
 
 .nav-child .nav-text {
@@ -432,5 +543,65 @@ export default {
 .content-wrapper {
   scrollbar-width: none;
   -ms-overflow-style: none;
+}
+
+/* 子菜单动画效果 - 优化版本 */
+.submenu-slide-enter-active {
+  transition: all 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  overflow: hidden;
+  will-change: max-height, opacity, transform;
+}
+
+.submenu-slide-leave-active {
+  transition: all 0.35s cubic-bezier(0.55, 0.06, 0.68, 0.19);
+  overflow: hidden;
+  will-change: max-height, opacity, transform;
+}
+
+.submenu-slide-enter-from {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-12px) scale(0.98);
+  filter: blur(1px);
+}
+
+.submenu-slide-enter-to {
+  max-height: 200px;
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  filter: blur(0);
+}
+
+.submenu-slide-leave-from {
+  max-height: 200px;
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  filter: blur(0);
+}
+
+.submenu-slide-leave-to {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-8px) scale(0.95);
+  filter: blur(1px);
+}
+
+/* 子菜单项的交错动画效果 */
+.submenu-slide-enter-active .nav-child {
+  animation: slideInStagger 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  opacity: 0;
+  transform: translateX(-20px);
+}
+
+.submenu-slide-enter-active .nav-child:nth-child(1) { animation-delay: 0.1s; }
+.submenu-slide-enter-active .nav-child:nth-child(2) { animation-delay: 0.15s; }
+.submenu-slide-enter-active .nav-child:nth-child(3) { animation-delay: 0.2s; }
+.submenu-slide-enter-active .nav-child:nth-child(4) { animation-delay: 0.25s; }
+
+@keyframes slideInStagger {
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 </style>

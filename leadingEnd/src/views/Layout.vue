@@ -6,6 +6,7 @@
         <h1 class="system-title">油气管道监测管理系统</h1>
       </div>
       <div class="header-right">
+        <WeatherDate />
         <div class="user-info">
           <span class="user-name">管理员</span>
           <span class="user-role">系统管理员</span>
@@ -107,8 +108,13 @@
 </template>
 
 <script>
+import WeatherDate from '@/components/WeatherDate.vue';
+
 export default {
   name: 'Layout',
+  components: {
+    WeatherDate
+  },
   data() {
     return {
       expandedMenus: ['visualization'],
@@ -296,6 +302,13 @@ export default {
   z-index: 1000;
 }
 
+.header-right {
+  display: flex;
+  justify-content: flex-end; /* 整体靠右对齐 */
+  align-items: center;
+  gap: 15px; /* 调整天气日期和用户信息之间的间距 */
+}
+
 .header-left .system-title {
   font-size: 20px;
   font-weight: bold;
@@ -306,6 +319,7 @@ export default {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
+  padding: 6px 0; /* 添加垂直内边距 */
 }
 
 .user-name {

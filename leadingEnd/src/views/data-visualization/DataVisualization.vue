@@ -2,9 +2,11 @@
   <div class="data-visualization">
     <!-- 主要内容区域 - 紧凑布局 -->
     <div class="visualization-content">
-      <!-- KPI指标卡区域（左侧） -->
-      <div class="kpi-section">
-        <div class="kpi-cards">
+      <!-- 左侧大容器：KPI 与 地图 -->
+      <div class="left-pane">
+        <!-- KPI指标卡区域（左侧） -->
+        <div class="kpi-section">
+          <div class="kpi-cards">
           <!-- 全局KPI指标卡 -->
           <div class="kpi-card global-kpi">
             <div class="kpi-header">
@@ -69,33 +71,34 @@
               </div>
             </div>
           </div>
+          </div>
+        </div>
+
+        <!-- 中央地图区域 -->
+        <div class="map-section">
+          <div class="section-title">区域监控地图</div>
+          <div class="map-placeholder">
+            <EChartsMap @province-click="handleProvinceClick" />
+          </div>
         </div>
       </div>
 
-      <!-- 右上角饼图面板 -->
-      <div class="pie-panel">
-        <div class="section-title">报警级别分布</div>
-        <div class="pie-card">
-          <EChartsPie 
-            :data="alertDistribution" 
-            title="传感器状态分布"
-          />
+      <!-- 右侧大容器：饼图与报警流水 -->
+      <div class="right-pane">
+        <!-- 右上角饼图面板 -->
+        <div class="pie-panel">
+          <div class="section-title">报警级别分布</div>
+          <div class="pie-card small-height">
+            <EChartsPie 
+              :data="alertDistribution"
+            />
+          </div>
         </div>
-      </div>
-      
-      <!-- 中央地图区域 -->
-      <div class="map-section">
-        <div class="section-title">区域监控地图</div>
-        <div class="map-placeholder">
-          <EChartsMap @province-click="handleProvinceClick" />
-        </div>
-      </div>
-      
-      <!-- 右侧信息面板 -->
-      <div class="info-panel">
-        <div class="section-title">实时信息</div>
-        <div class="panel-placeholder">
-          <!-- 实时报警流水区域 -->
+
+        <!-- 右下角信息面板（仅报警流水） -->
+        <div class="info-panel">
+          <div class="section-title">实时信息</div>
+          <!-- 实时报警流水区域（紧凑版） -->
           <div class="alert-stream">
             <h3>实时报警流水</h3>
             <div class="alert-list" ref="alertList">
@@ -107,11 +110,17 @@
                   :class="alert.level"
                 >
                   <div class="alert-time">{{ formatTime(alert.time) }}</div>
-                  <div class="alert-content">
-                    <div class="alert-sensor">{{ alert.sensorId }}</div>
-                    <div class="alert-location">{{ alert.location }}</div>
-                    <div class="alert-message">{{ alert.message }}</div>
-                    <div class="alert-area">{{ alert.area }}</div>
+                  <div class="alert-content compact">
+                    <div class="row">
+                      <span class="alert-sensor">{{ alert.sensorId }}</span>
+                      <span class="divider">|</span>
+                      <span class="alert-location">{{ alert.location }}</span>
+                      <span class="divider">|</span>
+                      <span class="alert-area">{{ alert.area }}</span>
+                    </div>
+                    <div class="row message">
+                      <span class="alert-message">{{ alert.message }}</span>
+                    </div>
                   </div>
                   <div class="alert-level-badge" :class="alert.level">
                     {{ getLevelText(alert.level) }}
@@ -125,11 +134,17 @@
                   :class="alert.level"
                 >
                   <div class="alert-time">{{ formatTime(alert.time) }}</div>
-                  <div class="alert-content">
-                    <div class="alert-sensor">{{ alert.sensorId }}</div>
-                    <div class="alert-location">{{ alert.location }}</div>
-                    <div class="alert-message">{{ alert.message }}</div>
-                    <div class="alert-area">{{ alert.area }}</div>
+                  <div class="alert-content compact">
+                    <div class="row">
+                      <span class="alert-sensor">{{ alert.sensorId }}</span>
+                      <span class="divider">|</span>
+                      <span class="alert-location">{{ alert.location }}</span>
+                      <span class="divider">|</span>
+                      <span class="alert-area">{{ alert.area }}</span>
+                    </div>
+                    <div class="row message">
+                      <span class="alert-message">{{ alert.message }}</span>
+                    </div>
                   </div>
                   <div class="alert-level-badge" :class="alert.level">
                     {{ getLevelText(alert.level) }}
@@ -141,8 +156,6 @@
               </div>
             </div>
           </div>
-          
-          <!-- 报警级别分布已移至顶部右侧 -->
         </div>
       </div>
     </div>
@@ -405,11 +418,24 @@ export default {
 
 .visualization-content {
   display: grid;
-  grid-template-columns: 1fr 2fr 1fr;
-  grid-template-rows: auto 1fr;
+  grid-template-columns: 2fr 1fr; /* 左右两列：左侧大容器 2fr，右侧大容器 1fr */
+  grid-template-rows: 1fr;
   gap: 12px;
   height: calc(100vh - 80px);
   min-height: 500px;
+}
+
+/* 新增：左右大容器布局 */
+.left-pane {
+  display: grid;
+  grid-template-rows: auto 1fr; /* 上方 KPI， 下方地图 */
+  gap: 12px;
+}
+
+.right-pane {
+  display: grid;
+  grid-template-rows: auto 1fr; /* 上方饼图稍小， 下方报警流水更高 */
+  gap: 12px;
 }
 
 .section-title {
@@ -421,11 +447,8 @@ export default {
   border-bottom: 2px solid #e2e8f0;
 }
 
-/* KPI指标卡区域（放左侧两列） */
-.kpi-section {
-  grid-column: 1 / 3;
-  grid-row: 1;
-}
+/* KPI指标卡区域 */
+.kpi-section {}
 
 .kpi-cards {
   display: flex;
@@ -560,10 +583,7 @@ export default {
 }
 
 /* 地图区域 */
-.map-section {
-  grid-column: 1 / 3;
-  grid-row: 2;
-}
+.map-section {}
 
 .map-placeholder {
   height: 100%;
@@ -575,8 +595,6 @@ export default {
 
 /* 右上角饼图面板 */
 .pie-panel {
-  grid-column: 3;
-  grid-row: 1;
   display: flex;
   flex-direction: column;
 }
@@ -587,22 +605,23 @@ export default {
   padding: 12px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
   height: 100%;
+  display: flex;
+  align-items: stretch;
+}
+
+/* 缩短饼图容器高度 */
+.pie-card.small-height {
+  min-height: 240px;
+  height: 260px;
 }
 
 /* 信息面板 */
 .info-panel {
-  grid-column: 3;
-  grid-row: 2;
   display: flex;
   flex-direction: column;
 }
 
-.panel-placeholder {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
+.panel-placeholder { display: none; }
 
 .alert-stream,
 .alert-distribution {
@@ -623,14 +642,14 @@ export default {
 
 /* 实时报警流水样式 */
 .alert-list {
-  height: 100%;
+  height: 360px; /* 增加报警流水高度，显示更多数据 */
   overflow: hidden;
-  padding-right: 8px;
+  padding-right: 6px; /* 更紧凑 */
   position: relative;
 }
 
 .alert-list-container {
-  animation: autoScroll 20s linear infinite;
+  animation: autoScrollUp 60s linear infinite; /* 再降低滚动速度，仅正序向上滚动 */
   transition: animation-play-state 0.3s ease;
 }
 
@@ -638,15 +657,12 @@ export default {
   animation-play-state: paused;
 }
 
-@keyframes autoScroll {
+@keyframes autoScrollUp {
   0% {
     transform: translateY(0);
   }
-  50% {
-    transform: translateY(-50%);
-  }
   100% {
-    transform: translateY(0);
+    transform: translateY(-50%);
   }
 }
 
@@ -671,8 +687,8 @@ export default {
 .alert-item {
   background: #f8fafc;
   border-radius: 8px;
-  padding: 12px;
-  margin-bottom: 8px;
+  padding: 6px; /* 更紧凑 */
+  margin-bottom: 5px; /* 更紧凑 */
   border-left: 4px solid #e2e8f0;
   transition: all 0.3s ease;
   cursor: pointer;
@@ -702,38 +718,50 @@ export default {
 }
 
 .alert-time {
-  font-size: 10px;
+  font-size: 9px; /* 更紧凑 */
   color: #64748b;
-  margin-bottom: 6px;
+  margin-bottom: 4px; /* 更紧凑 */
   font-weight: 500;
 }
 
 .alert-content {
-  margin-bottom: 8px;
+  margin-bottom: 4px; /* 更紧凑 */
+}
+.alert-content.compact .row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  line-height: 1.2;
+}
+.alert-content.compact .row.message {
+  margin-top: 2px;
+}
+.divider {
+  color: #cbd5e1;
 }
 
 .alert-sensor {
-  font-size: 12px;
+  font-size: 11px; /* 更紧凑 */
   font-weight: 600;
   color: #1e293b;
   margin-bottom: 2px;
 }
 
 .alert-location {
-  font-size: 11px;
+  font-size: 10px; /* 更紧凑 */
   color: #475569;
   margin-bottom: 2px;
 }
 
 .alert-message {
-  font-size: 12px;
+  font-size: 11px; /* 更紧凑 */
   color: #dc2626;
   font-weight: 500;
   margin-bottom: 2px;
 }
 
 .alert-area {
-  font-size: 10px;
+  font-size: 9px; /* 更紧凑 */
   color: #64748b;
 }
 
@@ -855,27 +883,10 @@ export default {
 @media (max-width: 1200px) {
   .visualization-content {
     grid-template-columns: 1fr;
-    grid-template-rows: auto auto auto;
+    grid-template-rows: auto auto; /* 左右容器改为上下布局 */
   }
-  
-  .kpi-section {
-    grid-column: 1;
-    grid-row: 1;
-  }
-  
-  .map-section {
-    grid-column: 1;
-    grid-row: 2;
-  }
-  
-  .info-panel {
-    grid-column: 1;
-    grid-row: 3;
-  }
-  
-  .panel-placeholder {
-    flex-direction: row;
-  }
+  .left-pane { grid-row: 1; }
+  .right-pane { grid-row: 2; }
 }
 
 @media (max-width: 768px) {
@@ -896,9 +907,6 @@ export default {
   .metric-item:last-child {
     border-bottom: none;
   }
-  
-  .panel-placeholder {
-    flex-direction: column;
-  }
+  .alert-list { height: 200px; }
 }
 </style>

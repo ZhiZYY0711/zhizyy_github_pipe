@@ -58,16 +58,6 @@ export default {
       
       const option = {
         backgroundColor: 'transparent',
-        title: {
-          text: this.title,
-          left: 'center',
-          top: '10px',
-          textStyle: {
-            color: '#64748b',
-            fontSize: 14,
-            fontWeight: 600
-          }
-        },
         tooltip: {
           trigger: 'item',
           backgroundColor: 'rgba(0, 0, 0, 0.9)',
@@ -99,51 +89,32 @@ export default {
           }
         },
         legend: {
-          orient: 'vertical',
-          left: 'right',
-          top: 'center',
+          top: '5%',
+          left: 'center',
           textStyle: {
             color: '#64748b',
             fontSize: 12
-          },
-          formatter: (name) => {
-            const item = this.data.find(d => d.label === name)
-            if (item) {
-              const percentage = ((item.count / total) * 100).toFixed(1)
-              return `${name} (${percentage}%)`
-            }
-            return name
           }
         },
         series: [
           {
-            name: this.title,
+            name: '状态分布',
             type: 'pie',
-            radius: ['30%', '70%'],
-            center: ['40%', '55%'],
-            roseType: 'area',
+            radius: ['40%', '70%'],
+            center: ['50%', '55%'],
+            avoidLabelOverlap: false,
+            padAngle: 5,
             itemStyle: {
-              borderRadius: 5,
+              borderRadius: 10,
               borderColor: '#fff',
               borderWidth: 2
             },
             label: {
-              show: true,
-              position: 'outside',
-              color: '#64748b',
-              fontSize: 11,
-              formatter: (params) => {
-                const percentage = ((params.value / total) * 100).toFixed(1)
-                return `${params.name}\n${percentage}%`
-              }
+              show: false,
+              position: 'center'
             },
             labelLine: {
-              show: true,
-              length: 15,
-              length2: 10,
-              lineStyle: {
-                color: '#64748b'
-              }
+              show: false
             },
             emphasis: {
               itemStyle: {
@@ -152,7 +123,8 @@ export default {
                 shadowColor: 'rgba(0, 0, 0, 0.5)'
               },
               label: {
-                fontSize: 12,
+                show: true,
+                fontSize: 18,
                 fontWeight: 'bold'
               }
             },

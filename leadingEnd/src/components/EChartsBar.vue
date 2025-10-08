@@ -1,6 +1,6 @@
 <template>
   <div class="echarts-bar">
-    <div ref="barChart" class="bar-chart"></div>
+    <div ref="barChart" class="bar-chart" :style="barStyle"></div>
   </div>
 </template>
 
@@ -21,12 +21,22 @@ export default {
     },
     title: {
       type: String,
-      default: '传感器状态分布'
+      default: '' // 标题由外部容器负责显示
+    },
+    height: {
+      type: [String, Number],
+      default: '100%'
     }
   },
   data() {
     return {
       chart: null
+    }
+  },
+  computed: {
+    barStyle() {
+      const h = typeof this.height === 'number' ? `${this.height}px` : this.height
+      return { height: h }
     }
   },
   mounted() {

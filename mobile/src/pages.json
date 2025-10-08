@@ -38,6 +38,14 @@
 			}
 		},
 		{
+			"path": "pages/task/detail",
+			"style": {
+				"navigationBarTitleText": "任务详情",
+				"backgroundColor": "#F5F7FA",
+				"navigationStyle": "custom"
+			}
+		},
+		{
 			"path": "pages/performance/performance",
 			"style": {
 				"navigationBarTitleText": "绩效",
@@ -53,12 +61,8 @@
 		"backgroundColor": "#FFFFFF",
 		"list": [
 			{
-				"pagePath": "pages/home/home",
-				"text": "主页"
-			},
-			{
 				"pagePath": "pages/data/data",
-				"text": "数据"
+				"text": "主页"
 			},
 			{
 				"pagePath": "pages/task/task",
@@ -67,6 +71,10 @@
 			{
 				"pagePath": "pages/performance/performance",
 				"text": "绩效"
+			},
+			{
+				"pagePath": "pages/home/home",
+				"text": "我的"
 			}
 		]
 	},

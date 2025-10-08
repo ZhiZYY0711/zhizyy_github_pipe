@@ -22,14 +22,6 @@
 			}
 		},
 		{
-			"path": "pages/data/data",
-			"style": {
-				"navigationBarTitleText": "数据",
-				"backgroundColor": "#F5F7FA",
-				"navigationStyle": "custom"
-			}
-		},
-		{
 			"path": "pages/task/task",
 			"style": {
 				"navigationBarTitleText": "任务",
@@ -52,6 +44,14 @@
 				"backgroundColor": "#F5F7FA",
 				"navigationStyle": "custom"
 			}
+		},
+		{
+			"path": "pages/mine/mine",
+			"style": {
+				"navigationBarTitleText": "我的",
+				"backgroundColor": "#F5F7FA",
+				"navigationStyle": "custom"
+			}
 		}
 	],
 	"tabBar": {
@@ -61,7 +61,7 @@
 		"backgroundColor": "#FFFFFF",
 		"list": [
 			{
-				"pagePath": "pages/data/data",
+				"pagePath": "pages/home/home",
 				"text": "主页"
 			},
 			{
@@ -73,7 +73,7 @@
 				"text": "绩效"
 			},
 			{
-				"pagePath": "pages/home/home",
+				"pagePath": "pages/mine/mine",
 				"text": "我的"
 			}
 		]

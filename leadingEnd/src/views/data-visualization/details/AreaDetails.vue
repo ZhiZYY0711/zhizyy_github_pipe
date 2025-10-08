@@ -151,9 +151,9 @@ export default {
     }
   },
   mounted() {
-    this.initCharts()
+    // 先生成数据，再初始化图表。图表初始化完成后再统一触发更新，避免首次进入页面时图表未渲染。
     this.generateMockData()
-    this.updateCharts()
+    this.initCharts()
   },
   beforeDestroy() {
     this.destroyCharts()
@@ -257,12 +257,13 @@ export default {
           this.mainChartInstance = echarts.init(this.$refs.mainChart)
         }
 
-        // 子图表
+        // 子图表（兼容 ref 返回值为元素或数组的情况）
         this.subChartInstances = []
         for (let i = 0; i < 3; i++) {
           const ref = this.$refs[`subChart${i}`]
-          if (ref && ref[0]) {
-            this.subChartInstances[i] = echarts.init(ref[0])
+          const el = Array.isArray(ref) ? ref && ref[0] : ref
+          if (el) {
+            this.subChartInstances[i] = echarts.init(el)
           }
         }
 
@@ -273,6 +274,9 @@ export default {
 
         // 监听窗口大小变化
         window.addEventListener('resize', this.handleResize)
+
+        // 图表实例创建完成后再触发渲染，避免首次进入页面时不显示数据
+        this.updateCharts()
       })
     },
 

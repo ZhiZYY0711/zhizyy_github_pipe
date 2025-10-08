@@ -52,6 +52,30 @@
 				"backgroundColor": "#F5F7FA",
 				"navigationStyle": "custom"
 			}
+		},
+		{
+			"path": "pages/mine/settings",
+			"style": {
+				"navigationBarTitleText": "设置",
+				"backgroundColor": "#F5F7FA",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/mine/reports",
+			"style": {
+				"navigationBarTitleText": "我的报告",
+				"backgroundColor": "#F5F7FA",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/mine/favorites",
+			"style": {
+				"navigationBarTitleText": "我的收藏",
+				"backgroundColor": "#F5F7FA",
+				"navigationStyle": "custom"
+			}
 		}
 	],
 	"tabBar": {

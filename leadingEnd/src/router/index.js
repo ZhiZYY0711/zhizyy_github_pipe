@@ -60,9 +60,9 @@ const routes = [
         component: () => import('../views/data-management/Tasks.vue')
       },
       {
-        path: 'maintenance',
-        name: 'Maintenance',
-        component: () => import('../views/data-management/Maintenance.vue')
+        path: 'repairman',
+        name: 'Repairman',
+        component: () => import('../views/data-management/Repairman.vue')
       },
       {
         path: 'virtual-expert',
@@ -98,7 +98,7 @@ const routes = [
 ]
 
 const router = new VueRouter({
-  mode: 'history',
+  mode: 'hash',
   base: process.env.BASE_URL,
   routes
 })

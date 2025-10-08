@@ -71,7 +71,7 @@
               <li class="nav-item nav-child" @click="navigateTo('/main/tasks')">
                 <span class="nav-text">任务管理</span>
               </li>
-              <li class="nav-item nav-child" @click="navigateTo('/main/maintenance')">
+              <li class="nav-item nav-child" @click="navigateTo('/main/repairman')">
                 <span class="nav-text">检修员信息</span>
               </li>
             </ul>

@@ -447,8 +447,7 @@ export default {
   border-bottom: 2px solid #e2e8f0;
 }
 
-/* KPI指标卡区域 */
-.kpi-section {}
+
 
 .kpi-cards {
   display: flex;
@@ -582,8 +581,7 @@ export default {
   color: #059669;
 }
 
-/* 地图区域 */
-.map-section {}
+
 
 .map-placeholder {
   height: 100%;

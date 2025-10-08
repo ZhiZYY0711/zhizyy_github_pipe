@@ -16,7 +16,7 @@
       </div>
       <!-- 切换按钮 -->
       <div class="switch-button">
-        <button class="switch-btn" @click="switchToPage('pipeline')">
+        <button class="switch-btn no-sidebar-hide" @click="switchToPage('pipeline')">
           <i class="switch-icon">🔄</i>
           <span>管道详情</span>
         </button>

@@ -14,7 +14,7 @@
     </header>
 
     <!-- 主体内容区域 -->
-    <div class="main-content">
+    <div class="main-content" :class="{ 'content-shifted': isVisualizationActive && sidebarVisible }">
       <!-- 半圆按钮 - 仅在数据可视化模块显示 -->
       <div 
         v-if="isVisualizationActive && !sidebarVisible" 
@@ -36,7 +36,7 @@
       >
         <ul class="nav-menu">
           <!-- 数据可视化模块 - 可展开 -->
-          <li class="nav-item nav-parent" @click="navigateToVisualization">
+          <li class="nav-item nav-parent" :class="{ active: isActiveVisualization }" @click="navigateToVisualization">
             <span class="nav-text">
               数据可视化
               <i class="expand-icon" :class="{ 'expanded': expandedMenus.includes('visualization') }">▼</i>
@@ -44,17 +44,17 @@
           </li>
           <transition name="submenu-slide">
             <ul class="submenu" v-show="expandedMenus.includes('visualization')">
-              <li class="nav-item nav-child" @click="navigateTo('/main/data-monitoring')">
+              <li class="nav-item nav-child" :class="{ active: isActivePath('/main/data-monitoring') }" @click="navigateTo('/main/data-monitoring')">
                 <span class="nav-text">数据监控</span>
               </li>
-              <li class="nav-item nav-child" @click="navigateTo('/main/task-details')">
+              <li class="nav-item nav-child" :class="{ active: isActivePath('/main/task-details') }" @click="navigateTo('/main/task-details')">
                 <span class="nav-text">任务详情</span>
               </li>
             </ul>
           </transition>
           
           <!-- 数据管理模块 - 可展开 -->
-          <li class="nav-item nav-parent" @click="toggleSubmenu('dataManagement')">
+          <li class="nav-item nav-parent" :class="{ active: isActiveDataManagement }" @click="toggleSubmenu('dataManagement')">
             <span class="nav-text">
               数据管理
               <i class="expand-icon" :class="{ 'expanded': expandedMenus.includes('dataManagement') }">▼</i>
@@ -62,32 +62,32 @@
           </li>
           <transition name="submenu-slide">
             <ul class="submenu" v-show="expandedMenus.includes('dataManagement')">
-              <li class="nav-item nav-child" @click="navigateTo('/main/monitoring')">
+              <li class="nav-item nav-child" :class="{ active: isActivePath('/main/monitoring') }" @click="navigateTo('/main/monitoring')">
                 <span class="nav-text">监测数据</span>
               </li>
-              <li class="nav-item nav-child" @click="navigateTo('/main/equipment')">
+              <li class="nav-item nav-child" :class="{ active: isActivePath('/main/equipment') }" @click="navigateTo('/main/equipment')">
                 <span class="nav-text">设备信息</span>
               </li>
-              <li class="nav-item nav-child" @click="navigateTo('/main/tasks')">
+              <li class="nav-item nav-child" :class="{ active: isActivePath('/main/tasks') }" @click="navigateTo('/main/tasks')">
                 <span class="nav-text">任务管理</span>
               </li>
-              <li class="nav-item nav-child" @click="navigateTo('/main/repairman')">
+              <li class="nav-item nav-child" :class="{ active: isActivePath('/main/repairman') }" @click="navigateTo('/main/repairman')">
                 <span class="nav-text">检修员信息</span>
               </li>
             </ul>
           </transition>
           
           <!-- 新增模块 -->
-          <li class="nav-item" @click="navigateTo('/main/virtual-expert')">
+          <li class="nav-item" :class="{ active: isActivePath('/main/virtual-expert') }" @click="navigateTo('/main/virtual-expert')">
             <span class="nav-text">虚拟专家</span>
           </li>
-          <li class="nav-item" @click="navigateTo('/main/simulation-drill')">
+          <li class="nav-item" :class="{ active: isActivePath('/main/simulation-drill') }" @click="navigateTo('/main/simulation-drill')">
             <span class="nav-text">模拟与演练</span>
           </li>
-          <li class="nav-item" @click="navigateTo('/main/emergency')">
+          <li class="nav-item" :class="{ active: isActivePath('/main/emergency') }" @click="navigateTo('/main/emergency')">
             <span class="nav-text">事故响应</span>
           </li>
-          <li class="nav-item" @click="navigateTo('/main/logs')">
+          <li class="nav-item" :class="{ active: isActivePath('/main/logs') }" @click="navigateTo('/main/logs')">
             <span class="nav-text">日志记录</span>
           </li>
         </ul>
@@ -121,6 +121,13 @@ export default {
     isVisualizationActive() {
       const route = this.$route.path;
       return this.isPathInVisualization(route);
+    },
+    // 父级菜单选中状态：用于高亮父级“数据可视化/数据管理”
+    isActiveVisualization() {
+      return this.isPathInVisualization(this.$route.path);
+    },
+    isActiveDataManagement() {
+      return this.isPathInDataManagement(this.$route.path);
     }
   },
   mounted() {
@@ -130,29 +137,41 @@ export default {
     }
   },
   methods: {
+    // 判断具体路径是否为当前选中，用于子菜单与普通菜单项高亮
+    isActivePath(path) {
+      return this.$route.path === path;
+    },
     isPathInVisualization(path) {
-      return path.includes('visualization') || 
-             path.includes('area-details') || 
-             path.includes('pipeline-details') || 
-             path.includes('task-details') ||
-             path.includes('data-monitoring');
+      const visualizationPaths = [
+        '/main/visualization',
+        '/main/area-details',
+        '/main/pipeline-details',
+        '/main/task-details',
+        '/main/data-monitoring'
+      ];
+      return visualizationPaths.includes(path);
     },
     isPathInDataManagement(path) {
-      return path.includes('monitoring') ||
-             path.includes('equipment') ||
-             path.includes('tasks') ||
-             path.includes('maintenance');
+      const dataManagementPaths = [
+        '/main/monitoring',
+        '/main/equipment',
+        '/main/tasks',
+        '/main/maintenance',
+        '/main/repairman'
+      ];
+      return dataManagementPaths.includes(path);
     },
     navigateTo(path) {
       if (this.$route.path !== path) {
         this.$router.push(path);
       }
   
-      // 根据导航路径自动展开或收起菜单
+      // 根据导航路径自动展开对应菜单，并收起另一父级菜单（满足交互要求）
       if (this.isPathInVisualization(path)) {
         if (!this.expandedMenus.includes('visualization')) {
           this.expandedMenus.push('visualization');
         }
+        // 收起数据管理模块
         const dataManagementIndex = this.expandedMenus.indexOf('dataManagement');
         if (dataManagementIndex > -1) {
           this.expandedMenus.splice(dataManagementIndex, 1);
@@ -162,6 +181,7 @@ export default {
         if (!this.expandedMenus.includes('dataManagement')) {
           this.expandedMenus.push('dataManagement');
         }
+        // 收起数据可视化模块
         const visualizationIndex = this.expandedMenus.indexOf('visualization');
         if (visualizationIndex > -1) {
           this.expandedMenus.splice(visualizationIndex, 1);
@@ -197,7 +217,8 @@ export default {
         const index = this.expandedMenus.indexOf(menuName);
         this.expandedMenus.splice(index, 1);
       } else {
-        this.expandedMenus = [menuName];
+        // 允许多个父级菜单同时展开
+        this.expandedMenus.push(menuName);
       }
     },
 
@@ -234,11 +255,13 @@ export default {
           this.documentClickListener = (event) => {
             const sidebarElement = this.$el.querySelector('.sidebar');
             const toggleButtonElement = this.$el.querySelector('.sidebar-toggle-btn');
+            const noHideElement = event.target && (event.target.closest && event.target.closest('.no-sidebar-hide'));
 
             // 如果处于等待隐藏状态，且点击目标不在侧边栏和切换按钮内部，则隐藏侧边栏
             if (this.waitingForClickToHide &&
                 sidebarElement && !sidebarElement.contains(event.target) &&
-                (!toggleButtonElement || !toggleButtonElement.contains(event.target))) {
+                (!toggleButtonElement || !toggleButtonElement.contains(event.target)) &&
+                !noHideElement) {
               this.hideSidebar();
             }
           };
@@ -347,7 +370,8 @@ export default {
   color: #FFFFFF;
   overflow-y: auto;
   flex-shrink: 0;
-  transition: transform 0.3s ease, width 0.3s ease;
+  transition: transform 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94), width 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  will-change: transform, width;
   position: relative;
   z-index: 100;
 }
@@ -436,7 +460,7 @@ export default {
   list-style: none;
   padding: 0;
   margin: 0;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
+  /* background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03)); */
   border-left: 3px solid #3B82F6;
   border-radius: 0 8px 8px 0;
   box-shadow: 
@@ -478,7 +502,7 @@ export default {
   bottom: 0;
   width: 3px;
   background: linear-gradient(to bottom, #60A5FA, #3B82F6);
-  border-radius: 0 2px 2px 0;
+  border-radius: 0;
 }
 
 .nav-child .nav-text {
@@ -493,6 +517,9 @@ export default {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  /* 平滑过渡内容区域的左右间距变化 */
+  transition: margin-left 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  will-change: margin-left;
 }
 
 .content-wrapper {
@@ -500,6 +527,23 @@ export default {
   padding: 20px;
   overflow-y: auto;
   overflow-x: hidden;
+}
+
+/* 当数据可视化模块的侧边栏显示时，让出对应宽度 */
+.main-content.content-shifted .content-area {
+  margin-left: 200px;
+}
+
+@media (max-width: 768px) {
+  .main-content.content-shifted .content-area {
+    margin-left: 180px;
+  }
+}
+
+@media (max-width: 480px) {
+  .main-content.content-shifted .content-area {
+    margin-left: 160px;
+  }
 }
 
 /* 响应式设计 */
@@ -623,4 +667,28 @@ export default {
   transform: translateY(8px);
   filter: blur(1px);
 }
+
+/* 选中态高亮与圆角覆盖样式（追加在末尾提高优先级） */
+.nav-item.active {
+  background: linear-gradient(135deg, #3B82F6, #1E3A8A);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+}
+.nav-item.active .nav-text { color: #E6F0FF; }
+.nav-child.active {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.12));
+}
+.nav-child.active::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: linear-gradient(to bottom, #93C5FD, #3B82F6);
+  border-radius: 0 2px 2px 0;
+}
+
+/* 圆角增强（覆盖原样式） */
+.sidebar { border-radius: 0; }
+.submenu { border-radius: 0; }
+.nav-item { border-radius: 0; }
+.nav-child { border-radius: 0; }
 </style>

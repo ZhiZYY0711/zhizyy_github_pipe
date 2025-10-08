@@ -2,7 +2,7 @@
   <div class="pipeline-details">
     <!-- 右上角返回按钮 -->
     <div class="back-button-container">
-      <button class="back-button" @click="goBackToArea">
+      <button class="back-button no-sidebar-hide" @click="goBackToArea">
         <i class="back-icon">←</i>
         返回区域详情
       </button>
@@ -104,6 +104,7 @@ export default {
   name: 'PipelineDetails',
   data() {
     return {
+      resizeObserver: null,
       mapChart: null,
       temperatureChart: null,
       flowChart: null,
@@ -124,6 +125,21 @@ export default {
   mounted() {
     this.$nextTick(() => {
       this.initCharts()
+      // 监听容器尺寸变化，保证图表在侧边栏显示/隐藏或窗口调整时自适应
+      const container = this.$el.querySelector('.main-content') || this.$el
+      if (window.ResizeObserver && container) {
+        this.resizeObserver = new ResizeObserver(() => {
+          this.mapChart && this.mapChart.resize()
+          this.temperatureChart && this.temperatureChart.resize()
+          this.flowChart && this.flowChart.resize()
+          this.pressureChart && this.pressureChart.resize()
+          this.vibrationChart && this.vibrationChart.resize()
+        })
+        this.resizeObserver.observe(container)
+      } else {
+        // 退化处理：窗口resize时自适应
+        window.addEventListener('resize', this.handleWindowResize)
+      }
     })
   },
   beforeDestroy() {
@@ -133,8 +149,21 @@ export default {
     if (this.flowChart) this.flowChart.dispose()
     if (this.pressureChart) this.pressureChart.dispose()
     if (this.vibrationChart) this.vibrationChart.dispose()
+    // 解绑观察者和事件
+    if (this.resizeObserver) {
+      try { this.resizeObserver.disconnect() } catch (e) {}
+      this.resizeObserver = null
+    }
+    window.removeEventListener('resize', this.handleWindowResize)
   },
   methods: {
+    handleWindowResize() {
+      this.mapChart && this.mapChart.resize()
+      this.temperatureChart && this.temperatureChart.resize()
+      this.flowChart && this.flowChart.resize()
+      this.pressureChart && this.pressureChart.resize()
+      this.vibrationChart && this.vibrationChart.resize()
+    },
     initCharts() {
       this.initMapChart()
       this.initLineCharts()
@@ -688,6 +717,7 @@ export default {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   padding: 20px;
   flex: 1;
+  overflow: hidden;
 }
 
 .section-title {
@@ -702,6 +732,7 @@ export default {
 .map-chart {
   height: 450px;
   min-height: 400px;
+  width: 100%;
 }
 
 /* 右侧统计图表区域 */

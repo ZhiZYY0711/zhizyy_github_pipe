@@ -4,20 +4,82 @@
 			"path": "pages/login/login",
 			"style": {
 				"navigationBarTitleText": "登录",
+				"navigationStyle": "custom",
+				"backgroundColor": "#F5F7FA",
+				"app-plus": {
+					"titleNView": {
+						"backgroundColor": "#1A3366"
+					}
+				}
+			}
+		},
+		{
+			"path": "pages/home/home",
+			"style": {
+				"navigationBarTitleText": "主页",
+				"backgroundColor": "#F5F7FA",
 				"navigationStyle": "custom"
 			}
 		},
 		{
-			"path": "pages/index/index",
+			"path": "pages/data/data",
 			"style": {
-				"navigationBarTitleText": "油气管道监控系统"
+				"navigationBarTitleText": "数据",
+				"backgroundColor": "#F5F7FA",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/task/task",
+			"style": {
+				"navigationBarTitleText": "任务",
+				"backgroundColor": "#F5F7FA",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/performance/performance",
+			"style": {
+				"navigationBarTitleText": "绩效",
+				"backgroundColor": "#F5F7FA",
+				"navigationStyle": "custom"
 			}
 		}
 	],
+	"tabBar": {
+		"color": "#7A7E83",
+		"selectedColor": "#1A3366",
+		"borderStyle": "white",
+		"backgroundColor": "#FFFFFF",
+		"list": [
+			{
+				"pagePath": "pages/home/home",
+				"text": "主页"
+			},
+			{
+				"pagePath": "pages/data/data",
+				"text": "数据"
+			},
+			{
+				"pagePath": "pages/task/task",
+				"text": "任务"
+			},
+			{
+				"pagePath": "pages/performance/performance",
+				"text": "绩效"
+			}
+		]
+	},
 	"globalStyle": {
 		"navigationBarTextStyle": "white",
 		"navigationBarTitleText": "油气管道监控系统",
 		"navigationBarBackgroundColor": "#1A3366",
-		"backgroundColor": "#FFFFFF"
+		"backgroundColor": "#F5F7FA",
+		"fontFamily": "PingFang SC, Microsoft YaHei, sans-serif",
+		"app-plus": {
+			"titleNView": {
+				"backgroundColor": "#1A3366"
+			}
+		}
 	}
 }

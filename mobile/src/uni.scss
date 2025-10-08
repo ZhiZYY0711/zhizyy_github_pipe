@@ -74,3 +74,66 @@ $uni-color-subtitle: #555; // 二级标题颜色
 $uni-font-size-subtitle: 18px;
 $uni-color-paragraph: #3f536e; // 文章段落颜色
 $uni-font-size-paragraph: 15px;
+
+/* 自定义主题颜色 */
+$primary-color: #1A3366;
+$primary-light: #2B4A7A;
+$secondary-color: #F5F7FA;
+$text-color-light: #7A7E83;
+$success-color: #52C41A;
+$warning-color: #FA8C16;
+$error-color: #F44336;
+
+/* 页面切换动画 */
+.page-enter-active, .page-leave-active {
+  transition: all 0.3s ease;
+}
+
+.page-enter-from {
+  opacity: 0;
+  transform: translateX(100%);
+}
+
+.page-leave-to {
+  opacity: 0;
+  transform: translateX(-100%);
+}
+
+/* TabBar 增强动画效果 */
+.uni-tabbar {
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1) !important;
+  transition: all 0.3s ease !important;
+}
+
+.uni-tabbar-item {
+  transition: all 0.2s ease !important;
+}
+
+.uni-tabbar-item:active {
+  transform: scale(0.95) !important;
+}
+
+.uni-tabbar-item.uni-tabbar-item-active {
+  animation: tabbar-bounce 0.3s ease !important;
+}
+
+@keyframes tabbar-bounce {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+/* 全局页面动画 */
+page {
+  transition: all 0.3s ease;
+}
+
+/* 卡片悬浮效果 */
+.card-hover {
+  transition: all 0.3s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}

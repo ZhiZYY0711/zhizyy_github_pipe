@@ -145,7 +145,7 @@ export default {
       // 跳转到首页
       setTimeout(() => {
         uni.switchTab({
-          url: '/pages/index/index'
+          url: '/pages/home/home'
         });
       }, 1500);
     }

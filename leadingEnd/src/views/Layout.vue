@@ -97,7 +97,9 @@
       <main class="content-area">
         <div class="content-wrapper">
           <!-- 使用router-view显示子路由内容 -->
-          <router-view></router-view>
+          <transition name="page-fade" mode="out-in">
+            <router-view :key="$route.fullPath"></router-view>
+          </transition>
         </div>
       </main>
     </div>
@@ -603,5 +605,22 @@ export default {
     opacity: 1;
     transform: translateX(0);
   }
+}
+
+/* 页面切换动画（右侧内容区域） */
+.page-fade-enter-active,
+.page-fade-leave-active {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  will-change: opacity, transform;
+}
+.page-fade-enter {
+  opacity: 0;
+  transform: translateY(8px);
+  filter: blur(1px);
+}
+.page-fade-leave-to {
+  opacity: 0;
+  transform: translateY(8px);
+  filter: blur(1px);
 }
 </style>

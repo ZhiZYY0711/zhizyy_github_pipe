@@ -1,17 +1,14 @@
 <template>
   <div class="data-monitoring">
-    <!-- 区域详情页面 -->
-    <AreaDetails 
-      v-if="currentPage === 'area'" 
-      @switch-page="switchPage"
-    />
-    
-    <!-- 管道详情页面 -->
-    <PipelineDetails 
-      v-if="currentPage === 'pipeline'" 
-      @switch-page="switchPage"
-      @switch-to-area="switchToArea"
-    />
+    <transition name="page-fade" mode="out-in">
+      <!-- 根据当前页面类型切换组件，并应用淡入淡出过渡效果 -->
+      <component
+        :is="currentPage === 'area' ? 'AreaDetails' : 'PipelineDetails'"
+        :key="currentPage"
+        @switch-page="switchPage"
+        @switch-to-area="switchToArea"
+      />
+    </transition>
   </div>
 </template>
 

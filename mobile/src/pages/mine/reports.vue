@@ -33,10 +33,10 @@
         @click="viewReport(report)"
       >
         <view class="report-header">
-          <view class="report-type" :class="getTypeClass(report.type)">
+          <view :class="['report-type', 'type-' + report.type]">
             {{ getTypeLabel(report.type) }}
           </view>
-          <view class="report-status" :class="getStatusClass(report.status)">
+          <view :class="['report-status', 'status-' + report.status]">
             {{ getStatusLabel(report.status) }}
           </view>
         </view>

@@ -3,7 +3,7 @@
     <!-- 顶部标题栏 -->
     <header class="header">
       <div class="header-left">
-        <h1 class="system-title">油气管道监测管理系统</h1>
+        <h1 class="system-title zhi-mang-xing-regular">油气管道监测管理系统</h1>
       </div>
       <div class="header-right">
         <WeatherDate />
@@ -302,17 +302,24 @@ export default {
   z-index: 1000;
 }
 
+.zhi-mang-xing-regular {
+  font-family: "Zhi Mang Xing", cursive;
+  font-weight: 400;
+  font-style: normal;
+}
+
+.header-left .system-title {
+  font-size: 28px; /* 增大字号 */
+  font-weight: bold;
+  margin: 0;
+  margin-left: 20px; /* 向右移动 */
+}
+
 .header-right {
   display: flex;
   justify-content: flex-end; /* 整体靠右对齐 */
   align-items: center;
-  gap: 15px; /* 调整天气日期和用户信息之间的间距 */
-}
-
-.header-left .system-title {
-  font-size: 20px;
-  font-weight: bold;
-  margin: 0;
+  gap: 30px; /* 调整天气日期和用户信息之间的间距，增大 */
 }
 
 .header-right .user-info {
@@ -320,6 +327,7 @@ export default {
   flex-direction: column;
   align-items: flex-end;
   padding: 6px 0; /* 添加垂直内边距 */
+  margin-right: 20px; /* 向左移动 */
 }
 
 .user-name {

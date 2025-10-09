@@ -67,7 +67,7 @@ export default {
 .weather-date {
   display: flex;
   align-items: center;
-  gap: 10px; /* 调整天气信息和日期信息之间的间距 */
+  gap: 20px; /* 调整天气信息和日期信息之间的间距 */
   color: #E6F0FF;
   font-size: 14px;
 }

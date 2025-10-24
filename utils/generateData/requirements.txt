@@ -1,0 +1,23 @@
+# MySQL数据库连接
+PyMySQL==1.1.0
+mysql-connector-python==8.2.0
+
+# 数据处理
+pandas==2.1.4
+numpy==1.24.3
+
+# 配置文件处理
+python-dotenv==1.0.0
+PyYAML==6.0.1
+
+# 日志记录
+loguru==0.7.2
+
+# 数据生成和模拟
+Faker==20.1.0
+
+# 时间处理
+python-dateutil==2.8.2
+
+# 数据验证
+pydantic==2.5.2

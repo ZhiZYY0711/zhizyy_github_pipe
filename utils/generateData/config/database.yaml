@@ -1,0 +1,39 @@
+# 数据库配置文件
+database:
+  # 主数据库配置
+  primary:
+    host: ${DB_HOST:localhost}
+    port: ${DB_PORT:3306}
+    user: ${DB_USER:root}
+    password: ${DB_PASSWORD:}
+    database: ${DB_NAME:pipeline_management}
+    charset: utf8mb4
+    
+  # 连接池配置
+  pool:
+    pool_size: ${DB_POOL_SIZE:10}
+    max_overflow: ${DB_MAX_OVERFLOW:20}
+    pool_timeout: ${DB_POOL_TIMEOUT:30}
+    pool_recycle: 3600
+    pool_pre_ping: true
+    
+  # 连接选项
+  options:
+    autocommit: false
+    connect_timeout: 10
+    read_timeout: 30
+    write_timeout: 30
+    
+# 日志配置
+logging:
+  level: ${LOG_LEVEL:INFO}
+  file: ${LOG_FILE:logs/app.log}
+  format: "{time:YYYY-MM-DD HH:mm:ss} | {level} | {name}:{function}:{line} | {message}"
+  rotation: "1 day"
+  retention: "30 days"
+  
+# 应用配置
+app:
+  batch_size: ${BATCH_SIZE:1000}
+  max_records: ${MAX_RECORDS:10000}
+  timezone: "Asia/Shanghai"

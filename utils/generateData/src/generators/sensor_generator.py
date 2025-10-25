@@ -65,7 +65,7 @@ class SensorGenerator(BaseGenerator):
             result = db_manager.execute_query(query)
             
             if result:
-                return [row[0] for row in result]
+                return [row['id'] for row in result]
             else:
                 return [1, 2, 3]
         except Exception as e:
@@ -82,7 +82,7 @@ class SensorGenerator(BaseGenerator):
             result = db_manager.execute_query(query)
             
             if result:
-                return [row[0] for row in result]
+                return [row['id'] for row in result]
             else:
                 return []
         except Exception as e:

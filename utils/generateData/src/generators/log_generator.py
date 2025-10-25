@@ -3,10 +3,11 @@
 日志表数据生成器
 """
 
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Tuple
 from datetime import datetime, timedelta
 import random
 import ipaddress
+import logging
 from .base_generator import BaseGenerator
 from loguru import logger
 
@@ -31,6 +32,10 @@ class LogGenerator(BaseGenerator):
         # 用户配置
         self.user_config = self.custom_config.get('user', {})
         self.user_id_range = self.user_config.get('id_range', [1, 1000])
+        
+        # 管理员和检修员ID范围配置
+        self.admin_id_range = self.user_config.get('admin_id_range', [1, 10])
+        self.repairman_id_range = self.user_config.get('repairman_id_range', [1, 500])
         
         # 操作类型配置
         self.operation_config = self.custom_config.get('operation', {})
@@ -86,17 +91,26 @@ class LogGenerator(BaseGenerator):
         """获取表名"""
         return 'log'
     
-    def _generate_user_id(self) -> int:
-        """生成用户ID"""
-        return random.randint(self.user_id_range[0], self.user_id_range[1])
-    
-    def _generate_type(self) -> int:
+    def _generate_type_and_user_id(self) -> Tuple[int, int]:
         """
-        生成操作员类型
-        0: 管理员
-        1: 检修员
+        生成操作员类型和对应的用户ID
+        
+        Returns:
+            tuple: (type, user_id)
+                - type 0: 管理员，user_id范围可配置（默认1-10）
+                - type 1: 检修员，user_id范围可配置（默认1-500）
         """
-        return random.choice([0, 1])
+        user_type = random.choice([0, 1])
+        
+        if user_type == 0:  # 管理员
+            user_id = random.randint(self.admin_id_range[0], self.admin_id_range[1])
+        elif user_type == 1:  # 检修员
+            user_id = random.randint(self.repairman_id_range[0], self.repairman_id_range[1])
+        else:
+            # 如果有其他类型，使用原始配置范围
+            user_id = random.randint(self.user_id_range[0], self.user_id_range[1])
+        
+        return user_type, user_id
     
     def _generate_operate(self) -> str:
         """生成操作类型"""
@@ -220,8 +234,7 @@ class LogGenerator(BaseGenerator):
         """生成单条日志记录"""
         try:
             # 生成基础字段
-            user_id = self._generate_user_id()
-            user_type = self._generate_type()
+            user_type, user_id = self._generate_type_and_user_id()
             operate = self._generate_operate()
             status = self._generate_status()
             ip_address = self._generate_ip_address()
@@ -272,7 +285,9 @@ class LogGenerator(BaseGenerator):
         """获取配置示例"""
         return {
             'user': {
-                'id_range': [1, 1000]
+                'id_range': [1, 1000],
+                'admin_id_range': [1, 10],
+                'repairman_id_range': [1, 500]
             },
             'operation': {
                 'operations': [

@@ -20,6 +20,7 @@
 | 巡检数据 | `inspection` | 生成巡检监测数据 |
 | 检修员登录数据 | `repairman_registration` | 生成检修员登录记录数据 |
 | 管理员登录数据 | `admin_registration` | 生成管理员登录记录数据 |
+| 日志数据 | `log` | 生成系统操作日志数据 |
 | 所有数据 | `all` | 生成所有类型的数据 |
 
 ## 安装和配置
@@ -85,6 +86,9 @@ python main.py --type repairman_registration --count 20
 # 生成10条管理员登录数据
 python main.py --type admin_registration --count 10
 
+# 生成15条日志数据
+python main.py --type log --count 15
+
 # 生成所有类型的数据，每种10条
 python main.py --type all --count 10
 ```
@@ -107,7 +111,7 @@ python main.py --template
 
 #### 参数说明
 
-- `--type, -t`: 指定生成数据类型 (pipeline/sensor/inspection/repairman_registration/admin_registration/all)
+- `--type, -t`: 指定生成数据类型 (pipeline/sensor/inspection/repairman_registration/admin_registration/log/all)
 - `--count, -c`: 生成记录数量 (默认: 100)
 - `--if-exists`: 如果表存在的处理方式 (append/replace/fail, 默认: append)
 - `--config`: 自定义配置文件路径
@@ -155,6 +159,13 @@ inspection:
 repairman_registration:
   username_patterns: ["repair_", "tech_", "maint_"]
   password_complexity: "medium"  # 密码复杂度
+
+# 日志数据配置
+log:
+  user_id_range: [1, 100]        # 用户ID范围
+  operation_types: ["登录", "查看", "修改", "删除", "导出"]
+  status_weights: [0.8, 0.15, 0.05]  # 成功、失败、异常的权重
+  ip_patterns: ["192.168.1.", "10.0.0.", "172.16.0."]
 ```
 
 ### 使用自定义配置
@@ -200,6 +211,19 @@ python main.py --type pipeline --count 100 --config my_config.yaml
 - `password_hash`: 密码哈希
 - `last_login_time`: 最后登录时间
 - `password_update_time`: 密码更新时间
+- `create_time`: 创建时间
+- `update_time`: 更新时间
+
+### 日志表 (log)
+- `id`: 主键
+- `user_id`: 用户ID
+- `type`: 操作类型
+- `operate`: 具体操作
+- `status`: 操作状态 (0:成功, 1:失败, 2:异常)
+- `ip_address`: IP地址
+- `details`: 操作详情
+- `period`: 操作时长(秒)
+- `operation_time`: 操作时间
 - `create_time`: 创建时间
 - `update_time`: 更新时间
 
@@ -261,7 +285,9 @@ generateData/
 │   │   ├── pipeline_generator.py
 │   │   ├── sensor_generator.py
 │   │   ├── inspection_generator.py
-│   │   └── repairman_registration_generator.py
+│   │   ├── repairman_registration_generator.py
+│   │   ├── admin_registration_generator.py
+│   │   └── log_generator.py
 │   ├── config.py          # 配置管理
 │   ├── database.py        # 数据库操作
 │   └── logger.py          # 日志配置

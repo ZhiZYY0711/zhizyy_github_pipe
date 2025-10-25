@@ -32,8 +32,8 @@ class PipelineGenerator(BaseGenerator):
     
     def generate_record(self) -> Dict[str, Any]:
         """生成单条管道记录"""
-        # 从数据库获取有效的area ID列表
-        area_ids = self._get_valid_area_ids()
+        # 使用缓存获取有效的area ID列表
+        area_ids = self.get_cached_foreign_keys('area')
         
         if len(area_ids) < 2:
             # 如果area表中的记录太少，使用默认值
@@ -55,21 +55,3 @@ class PipelineGenerator(BaseGenerator):
             'create_time': self.fake.date_time_between(start_date='-2y', end_date='now'),
             'update_time': self.fake.date_time_between(start_date='-1y', end_date='now')
         }
-    
-    def _get_valid_area_ids(self):
-        """获取数据库中有效的area ID列表"""
-        try:
-            from database import DatabaseManager
-            db_manager = DatabaseManager()
-            
-            # 查询area表中的所有ID
-            query = "SELECT id FROM area LIMIT 1000"
-            result = db_manager.execute_query(query)
-            
-            if result:
-                return [row['id'] for row in result]
-            else:
-                return [1, 2, 3]  # 默认值
-        except Exception as e:
-            print(f"获取area ID时出错: {e}")
-            return [1, 2, 3]  # 默认值

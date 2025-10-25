@@ -152,7 +152,7 @@ class RepairmanGenerator(BaseGenerator):
         Returns:
             区域ID
         """
-        area_ids = self._get_valid_area_ids()
+        area_ids = self.get_cached_foreign_keys('area')
         return random.choice(area_ids) if area_ids else 1
     
     def generate_create_time(self) -> datetime:
@@ -202,29 +202,7 @@ class RepairmanGenerator(BaseGenerator):
             'update_time': update_time
         }
     
-    def _get_valid_area_ids(self) -> List[int]:
-        """
-        获取数据库中有效的area ID列表
-        
-        Returns:
-            area ID列表
-        """
-        try:
-            from database import DatabaseManager
-            db_manager = DatabaseManager()
-            
-            query = "SELECT id FROM area LIMIT 1000"
-            result = db_manager.execute_query(query)
-            
-            if result:
-                return [row['id'] for row in result]
-            else:
-                # 如果没有area数据，返回默认值
-                return [1, 2, 3, 4, 5]
-        except Exception as e:
-            print(f"获取area ID时出错: {e}")
-            # 返回默认的area ID
-            return [1, 2, 3, 4, 5]
+
     
     def get_field_info(self) -> Dict[str, str]:
         """

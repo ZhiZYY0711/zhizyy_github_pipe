@@ -31,7 +31,17 @@ class InspectionGenerator(BaseGenerator):
         return 'inspection'
     
     def generate_record(self) -> Dict[str, Any]:
-        """生成单条监测记录"""
+        """生成单条巡检记录"""
+        # 使用缓存获取有效的传感器ID
+        sensor_ids = self.get_cached_foreign_keys('sensor')
+        sensor_id = random.choice(sensor_ids) if sensor_ids else 1
+        
+        # 生成巡检数据
+        inspection_type = random.choice(self.inspection_types)
+        status = random.choice(self.statuses)
+        result = random.choice(self.results)
+        risk_level = random.choice(self.risk_levels)
+        
         # 生成监测数据
         pressure = round(random.uniform(0.1, 10.0), 2)  # 压力值
         temperature = round(random.uniform(-20, 80), 1)  # 温度
@@ -44,10 +54,6 @@ class InspectionGenerator(BaseGenerator):
         # 实时图片路径（可选）
         realtime_picture = f"/images/sensor_{self.fake.random_int(min=1000, max=9999)}.jpg" if random.random() > 0.5 else None
         
-        # 从数据库获取有效的sensor_id
-        sensor_ids = self._get_valid_sensor_ids()
-        sensor_id = random.choice(sensor_ids) if sensor_ids else 1
-        
         return {
             'pressure': pressure,
             'temperature': temperature,
@@ -59,20 +65,3 @@ class InspectionGenerator(BaseGenerator):
             'create_time': self.fake.date_time_between(start_date='-2y', end_date='now'),
             'update_time': self.fake.date_time_between(start_date='-1y', end_date='now')
         }
-    
-    def _get_valid_sensor_ids(self):
-        """获取数据库中有效的sensor ID列表"""
-        try:
-            from database import DatabaseManager
-            db_manager = DatabaseManager()
-            
-            query = "SELECT id FROM sensor LIMIT 1000"
-            result = db_manager.execute_query(query)
-            
-            if result:
-                return [row['id'] for row in result]
-            else:
-                return [1, 2, 3]  # 默认值
-        except Exception as e:
-            print(f"获取sensor ID时出错: {e}")
-            return [1, 2, 3]  # 默认值

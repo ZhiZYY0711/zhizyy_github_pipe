@@ -23,11 +23,13 @@ from generators import (
     SensorGenerator,
     AdminRegistrationGenerator,
     LogGenerator,
-    RepairmanGenerator
+    RepairmanGenerator,
+    TaskGenerator
 )
 from logger import setup_logger
 from loguru import logger
 from config import config
+from foreign_key_cache import foreign_key_cache
 
 
 class DataGeneratorManager:
@@ -70,6 +72,11 @@ class DataGeneratorManager:
                 'name': '日志数据',
                 'class': LogGenerator,
                 'description': '生成系统操作日志数据'
+            },
+            'task': {
+                'name': '任务数据',
+                'class': TaskGenerator,
+                'description': '生成任务管理数据'
             }
         }
     
@@ -87,6 +94,7 @@ class DataGeneratorManager:
             print()
         
         print("  all                     - 生成所有类型数据")
+        print("  cache                   - 缓存管理")
         print("  exit                    - 退出程序")
         print("="*60)
     
@@ -183,8 +191,8 @@ class DataGeneratorManager:
         """
         logger.info("开始生成所有类型数据")
         
-        # 按依赖关系排序：管道 -> 传感器 -> 巡检数据 -> 检修员 -> 检修员登录数据和管理员登录数据，日志数据最后生成
-        generation_order = ['pipeline', 'sensor', 'inspection', 'repairman', 'repairman_registration', 'admin_registration', 'log']
+        # 按依赖关系排序：管道 -> 传感器 -> 巡检数据 -> 检修员 -> 任务 -> 检修员登录数据和管理员登录数据，日志数据最后生成
+        generation_order = ['pipeline', 'sensor', 'inspection', 'repairman', 'task', 'repairman_registration', 'admin_registration', 'log']
         
         success_count = 0
         total_count = len(generation_order)
@@ -201,6 +209,53 @@ class DataGeneratorManager:
         
         logger.info(f"批量生成完成: {success_count}/{total_count} 个类型成功")
         return success_count == total_count
+    
+    def manage_cache(self):
+        """缓存管理"""
+        while True:
+            print("\n" + "="*50)
+            print("           外键缓存管理")
+            print("="*50)
+            print("1. 查看缓存状态")
+            print("2. 清空缓存")
+            print("3. 预热缓存")
+            print("4. 返回主菜单")
+            print("="*50)
+            
+            choice = input("请选择操作: ").strip()
+            
+            if choice == '1':
+                # 查看缓存状态
+                cache_info = foreign_key_cache.get_cache_info()
+                print("\n缓存状态:")
+                for table, info in cache_info.items():
+                    print(f"  {table}: {info['count']} 条记录, 最后更新: {info['last_updated']}")
+                    
+            elif choice == '2':
+                # 清空缓存
+                foreign_key_cache.clear_cache()
+                logger.info("缓存已清空")
+                
+            elif choice == '3':
+                # 预热缓存
+                print("\n预热缓存中...")
+                tables = ['area', 'pipe', 'sensor', 'repairman']
+                for table in tables:
+                    try:
+                        ids = foreign_key_cache.get_foreign_keys(table)
+                        logger.info(f"已预热 {table} 缓存: {len(ids)} 条记录")
+                    except Exception as e:
+                        logger.warning(f"预热 {table} 缓存失败: {e}")
+                logger.success("缓存预热完成")
+                
+            elif choice == '4':
+                break
+                
+            else:
+                print("无效选择，请重新输入")
+            
+            if choice != '4':
+                input("\n按回车键继续...")
     
     def show_table_status(self):
         """显示各表的当前记录数"""
@@ -237,6 +292,10 @@ class DataGeneratorManager:
                     print("\n生成所有类型数据")
                     options = self.get_generation_options()
                     self.generate_all_data(options)
+                    
+                elif choice == 'cache':
+                    self.manage_cache()
+                    continue
                     
                 elif choice in self.generators:
                     generator_info = self.generators[choice]
@@ -298,7 +357,7 @@ def main():
     
     parser.add_argument(
         '--type', '-t',
-        choices=['pipeline', 'sensor', 'inspection', 'repairman_registration', 'repairman', 'admin_registration', 'log', 'all'],
+        choices=['pipeline', 'sensor', 'inspection', 'repairman', 'task', 'repairman_registration', 'admin_registration', 'log', 'all'],
         help='指定生成数据类型'
     )
     

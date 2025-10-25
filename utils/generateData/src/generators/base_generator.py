@@ -13,6 +13,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from database import db_manager
 from config import config
+from foreign_key_cache import foreign_key_cache
 
 
 class BaseGenerator(ABC):
@@ -166,3 +167,25 @@ class BaseGenerator(ABC):
             return 0
             
         return db_manager.get_table_count(table_name)
+    
+    def get_cached_foreign_keys(self, table_name: str, limit: int = 1000) -> List[int]:
+        """
+        获取缓存的外键ID列表
+        
+        Args:
+            table_name: 表名
+            limit: 查询限制数量
+            
+        Returns:
+            外键ID列表
+        """
+        return foreign_key_cache.get_foreign_keys(table_name, limit)
+    
+    def clear_foreign_key_cache(self, table_name: Optional[str] = None):
+        """
+        清空外键缓存
+        
+        Args:
+            table_name: 指定表名清空，None则清空所有缓存
+        """
+        foreign_key_cache.clear_cache(table_name)

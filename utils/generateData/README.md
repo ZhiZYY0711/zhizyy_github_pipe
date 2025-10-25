@@ -19,6 +19,7 @@
 | 传感器数据 | `sensor` | 生成传感器设备数据 |
 | 巡检数据 | `inspection` | 生成巡检监测数据 |
 | 检修员数据 | `repairman` | 生成检修员基础信息数据 |
+| 任务数据 | `task` | 生成任务管理数据 |
 | 检修员登录数据 | `repairman_registration` | 生成检修员登录记录数据 |
 | 管理员登录数据 | `admin_registration` | 生成管理员登录记录数据 |
 | 日志数据 | `log` | 生成系统操作日志数据 |
@@ -84,6 +85,9 @@ python main.py --type inspection --count 30
 # 生成25条检修员数据
 python main.py --type repairman --count 25
 
+# 生成20条任务数据
+python main.py --type task --count 20
+
 # 生成20条检修员登录数据
 python main.py --type repairman_registration --count 20
 
@@ -115,7 +119,7 @@ python main.py --template
 
 #### 参数说明
 
-- `--type, -t`: 指定生成数据类型 (pipeline/sensor/inspection/repairman/repairman_registration/admin_registration/log/all)
+- `--type, -t`: 指定生成数据类型 (pipeline/sensor/inspection/repairman/task/repairman_registration/admin_registration/log/all)
 - `--count, -c`: 生成记录数量 (默认: 100)
 - `--if-exists`: 如果表存在的处理方式 (append/replace/fail, 默认: append)
 - `--config`: 自定义配置文件路径
@@ -309,6 +313,8 @@ generateData/
 │   │   ├── pipeline_generator.py
 │   │   ├── sensor_generator.py
 │   │   ├── inspection_generator.py
+│   │   ├── repairman_generator.py
+│   │   ├── task_generator.py
 │   │   ├── repairman_registration_generator.py
 │   │   ├── admin_registration_generator.py
 │   │   └── log_generator.py

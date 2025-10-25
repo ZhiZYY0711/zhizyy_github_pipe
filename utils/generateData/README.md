@@ -20,6 +20,7 @@
 | 巡检数据 | `inspection` | 生成巡检监测数据 |
 | 检修员数据 | `repairman` | 生成检修员基础信息数据 |
 | 任务数据 | `task` | 生成任务管理数据 |
+| 演习数据 | `manoeuvre` | 生成演习训练数据 |
 | 检修员登录数据 | `repairman_registration` | 生成检修员登录记录数据 |
 | 管理员登录数据 | `admin_registration` | 生成管理员登录记录数据 |
 | 日志数据 | `log` | 生成系统操作日志数据 |
@@ -88,6 +89,9 @@ python main.py --type repairman --count 25
 # 生成20条任务数据
 python main.py --type task --count 20
 
+# 生成15条演习数据
+python main.py --type manoeuvre --count 15
+
 # 生成20条检修员登录数据
 python main.py --type repairman_registration --count 20
 
@@ -119,7 +123,7 @@ python main.py --template
 
 #### 参数说明
 
-- `--type, -t`: 指定生成数据类型 (pipeline/sensor/inspection/repairman/task/repairman_registration/admin_registration/log/all)
+- `--type, -t`: 指定生成数据类型 (pipeline/sensor/inspection/repairman/task/manoeuvre/repairman_registration/admin_registration/log/all)
 - `--count, -c`: 生成记录数量 (默认: 100)
 - `--if-exists`: 如果表存在的处理方式 (append/replace/fail, 默认: append)
 - `--config`: 自定义配置文件路径
@@ -175,6 +179,16 @@ repairman:
 repairman_registration:
   username_patterns: ["repair_", "tech_", "maint_"]
   password_complexity: "medium"  # 密码复杂度
+
+# 演习数据配置
+manoeuvre:
+  status_weights: [0.7, 0.15, 0.15]  # 成功、失败、进行中的权重
+  type_weights: [0.3, 0.25, 0.15, 0.3]  # 状态模拟、事故模拟、紧急事故、日常作训的权重
+  duration_ranges:  # 各类型演习持续时间范围(小时)
+    0: [1, 4]    # 状态模拟
+    1: [2, 8]    # 事故模拟
+    2: [4, 24]   # 紧急事故
+    3: [0.5, 2]  # 日常作训
 
 # 日志数据配置
 log:
@@ -241,6 +255,17 @@ python main.py --type pipeline --count 100 --config my_config.yaml
 - `password_update_time`: 密码更新时间
 - `create_time`: 创建时间
 - `update_time`: 更新时间
+
+### 演习表 (manoeuvre)
+- `id`: 主键
+- `area_id`: 演练所属区域ID
+- `start_time`: 演练开始时间
+- `end_time`: 演练结束时间
+- `status`: 演练状态 (0:成功, 1:失败, 2:进行中)
+- `type`: 演练类型 (0:状态模拟, 1:事故模拟, 2:紧急事故, 3:日常作训)
+- `details`: 演练描述
+- `create_time`: 演习创建时间
+- `update_time`: 演习更新时间
 
 ### 日志表 (log)
 - `id`: 主键

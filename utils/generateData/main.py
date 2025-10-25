@@ -24,7 +24,8 @@ from generators import (
     AdminRegistrationGenerator,
     LogGenerator,
     RepairmanGenerator,
-    TaskGenerator
+    TaskGenerator,
+    ManoeuvreGenerator
 )
 from logger import setup_logger
 from loguru import logger
@@ -77,6 +78,11 @@ class DataGeneratorManager:
                 'name': '任务数据',
                 'class': TaskGenerator,
                 'description': '生成任务管理数据'
+            },
+            'manoeuvre': {
+                'name': '演习数据',
+                'class': ManoeuvreGenerator,
+                'description': '生成演习训练数据'
             }
         }
     
@@ -357,7 +363,7 @@ def main():
     
     parser.add_argument(
         '--type', '-t',
-        choices=['pipeline', 'sensor', 'inspection', 'repairman', 'task', 'repairman_registration', 'admin_registration', 'log', 'all'],
+        choices=['pipeline', 'sensor', 'inspection', 'repairman', 'task', 'repairman_registration', 'admin_registration', 'log', 'manoeuvre', 'all'],
         help='指定生成数据类型'
     )
     

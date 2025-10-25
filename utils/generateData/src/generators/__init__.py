@@ -8,11 +8,13 @@ from .pipeline_generator import PipelineGenerator
 from .inspection_generator import InspectionGenerator
 from .repairman_registration_generator import RepairmanRegistrationGenerator
 from .sensor_generator import SensorGenerator
+from .admin_registration_generator import AdminRegistrationGenerator
 
 __all__ = [
     'BaseGenerator',
     'PipelineGenerator',
     'InspectionGenerator',
     'RepairmanRegistrationGenerator',
-    'SensorGenerator'
+    'SensorGenerator',
+    'AdminRegistrationGenerator'
 ]

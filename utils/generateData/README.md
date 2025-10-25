@@ -19,6 +19,7 @@
 | 传感器数据 | `sensor` | 生成传感器设备数据 |
 | 巡检数据 | `inspection` | 生成巡检监测数据 |
 | 检修员登录数据 | `repairman_registration` | 生成检修员登录记录数据 |
+| 管理员登录数据 | `admin_registration` | 生成管理员登录记录数据 |
 | 所有数据 | `all` | 生成所有类型的数据 |
 
 ## 安装和配置
@@ -81,6 +82,9 @@ python main.py --type inspection --count 30
 # 生成20条检修员登录数据
 python main.py --type repairman_registration --count 20
 
+# 生成10条管理员登录数据
+python main.py --type admin_registration --count 10
+
 # 生成所有类型的数据，每种10条
 python main.py --type all --count 10
 ```
@@ -103,7 +107,7 @@ python main.py --template
 
 #### 参数说明
 
-- `--type, -t`: 指定生成数据类型 (pipeline/sensor/inspection/repairman_registration/all)
+- `--type, -t`: 指定生成数据类型 (pipeline/sensor/inspection/repairman_registration/admin_registration/all)
 - `--count, -c`: 生成记录数量 (默认: 100)
 - `--if-exists`: 如果表存在的处理方式 (append/replace/fail, 默认: append)
 - `--config`: 自定义配置文件路径

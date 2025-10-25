@@ -20,7 +20,8 @@ from generators import (
     PipelineGenerator,
     InspectionGenerator, 
     RepairmanRegistrationGenerator,
-    SensorGenerator
+    SensorGenerator,
+    AdminRegistrationGenerator
 )
 from logger import setup_logger
 from loguru import logger
@@ -52,6 +53,11 @@ class DataGeneratorManager:
                 'name': '检修员登录数据',
                 'class': RepairmanRegistrationGenerator,
                 'description': '生成检修员登录记录数据'
+            },
+            'admin_registration': {
+                'name': '管理员登录数据',
+                'class': AdminRegistrationGenerator,
+                'description': '生成管理员登录记录数据'
             }
         }
     
@@ -165,8 +171,8 @@ class DataGeneratorManager:
         """
         logger.info("开始生成所有类型数据")
         
-        # 按依赖关系排序：管道 -> 传感器 -> 巡检数据，检修员登录数据独立
-        generation_order = ['pipeline', 'sensor', 'inspection', 'repairman_registration']
+        # 按依赖关系排序：管道 -> 传感器 -> 巡检数据，检修员登录数据和管理员登录数据独立
+        generation_order = ['pipeline', 'sensor', 'inspection', 'repairman_registration', 'admin_registration']
         
         success_count = 0
         total_count = len(generation_order)
@@ -280,7 +286,7 @@ def main():
     
     parser.add_argument(
         '--type', '-t',
-        choices=['pipeline', 'sensor', 'inspection', 'repairman_registration', 'all'],
+        choices=['pipeline', 'sensor', 'inspection', 'repairman_registration', 'admin_registration', 'all'],
         help='指定生成数据类型'
     )
     

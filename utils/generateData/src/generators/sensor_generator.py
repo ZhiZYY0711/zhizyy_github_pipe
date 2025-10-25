@@ -41,13 +41,17 @@ class SensorGenerator(BaseGenerator):
         else:
             pipeline_id = random.choice(pipe_ids)
         
+        # 获取有效的检修员ID
+        repairman_ids = self._get_valid_repairman_ids()
+        repairman_id = random.choice(repairman_ids) if repairman_ids else 1
+        
         # 生成检修时间（可能为空）
         last_overhaul_time = self.fake.date_time_between(start_date='-1y', end_date='now') if random.random() > 0.4 else None
         
         return {
             'area_id': area_id,
             'pipeline_id': pipeline_id,
-            'repairman_id': 1,  # 使用默认值，因为还没有repairman数据
+            'repairman_id': repairman_id,
             'status': random.choice(self.sensor_status),
             'type': random.choice(self.sensor_types),
             'last_overhaul_time': last_overhaul_time,
@@ -88,3 +92,20 @@ class SensorGenerator(BaseGenerator):
         except Exception as e:
             print(f"获取pipe ID时出错: {e}")
             return []
+    
+    def _get_valid_repairman_ids(self):
+        """获取数据库中有效的repairman ID列表"""
+        try:
+            from database import DatabaseManager
+            db_manager = DatabaseManager()
+            
+            query = "SELECT id FROM repairman LIMIT 1000"
+            result = db_manager.execute_query(query)
+            
+            if result:
+                return [row['id'] for row in result]
+            else:
+                return [1, 2, 3]  # 默认值
+        except Exception as e:
+            print(f"获取repairman ID时出错: {e}")
+            return [1, 2, 3]  # 默认值

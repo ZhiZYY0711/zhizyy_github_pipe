@@ -18,6 +18,7 @@
 | 管道数据 | `pipeline` | 生成管道基础信息数据 |
 | 传感器数据 | `sensor` | 生成传感器设备数据 |
 | 巡检数据 | `inspection` | 生成巡检监测数据 |
+| 检修员数据 | `repairman` | 生成检修员基础信息数据 |
 | 检修员登录数据 | `repairman_registration` | 生成检修员登录记录数据 |
 | 管理员登录数据 | `admin_registration` | 生成管理员登录记录数据 |
 | 日志数据 | `log` | 生成系统操作日志数据 |
@@ -80,6 +81,9 @@ python main.py --type sensor --count 50
 # 生成30条巡检数据
 python main.py --type inspection --count 30
 
+# 生成25条检修员数据
+python main.py --type repairman --count 25
+
 # 生成20条检修员登录数据
 python main.py --type repairman_registration --count 20
 
@@ -111,7 +115,7 @@ python main.py --template
 
 #### 参数说明
 
-- `--type, -t`: 指定生成数据类型 (pipeline/sensor/inspection/repairman_registration/admin_registration/log/all)
+- `--type, -t`: 指定生成数据类型 (pipeline/sensor/inspection/repairman/repairman_registration/admin_registration/log/all)
 - `--count, -c`: 生成记录数量 (默认: 100)
 - `--if-exists`: 如果表存在的处理方式 (append/replace/fail, 默认: append)
 - `--config`: 自定义配置文件路径
@@ -155,6 +159,14 @@ sensor:
 inspection:
   result_types: [0, 1, 2]  # 巡检结果类型
   
+# 检修员数据配置
+repairman:
+  age_range: [25, 55]           # 年龄范围
+  sex_weights: {0: 0.8, 1: 0.15, 2: 0.05}  # 性别权重
+  entry_time_range: [-3, 0]     # 入职时间范围(年)
+  phone_patterns: ["13{8}", "15{8}", "18{8}"]
+  email_domains: ["company.com", "work.cn"]
+
 # 检修员登录数据配置
 repairman_registration:
   username_patterns: ["repair_", "tech_", "maint_"]
@@ -202,6 +214,18 @@ python main.py --type pipeline --count 100 --config my_config.yaml
 - `id`: 主键
 - `sensor_id`: 传感器ID
 - `result`: 巡检结果
+- `create_time`: 创建时间
+- `update_time`: 更新时间
+
+### 检修员表 (repairman)
+- `id`: 主键
+- `name`: 姓名
+- `age`: 年龄
+- `sex`: 性别 (0:男, 1:女, 2:未知)
+- `phone`: 联系方式
+- `email`: 邮箱
+- `entry_time`: 入职时间
+- `area_id`: 所属区域ID
 - `create_time`: 创建时间
 - `update_time`: 更新时间
 

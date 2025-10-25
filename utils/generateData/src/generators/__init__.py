@@ -10,6 +10,7 @@ from .repairman_registration_generator import RepairmanRegistrationGenerator
 from .sensor_generator import SensorGenerator
 from .admin_registration_generator import AdminRegistrationGenerator
 from .log_generator import LogGenerator
+from .repairman_generator import RepairmanGenerator
 
 __all__ = [
     'BaseGenerator',
@@ -18,5 +19,6 @@ __all__ = [
     'RepairmanRegistrationGenerator',
     'SensorGenerator',
     'AdminRegistrationGenerator',
-    'LogGenerator'
+    'LogGenerator',
+    'RepairmanGenerator'
 ]

@@ -1,0 +1,69 @@
+# 检修员登录表数据生成配置文件
+repairman_registration:
+  # 用户名配置
+  username:
+    prefix: "repair"                    # 用户名前缀，默认为 "repair"
+    suffix_length: 4                    # 后缀数字长度，默认4位数字
+    patterns:                           # 自定义用户名模式（可选）
+      # 可以是简单的字符串
+      - "admin001"
+      - "supervisor001"
+      - "manager001"
+      # 也可以是包含前缀和后缀长度的对象
+      - prefix: "tech"
+        suffix_length: 3
+      - prefix: "senior"
+        suffix_length: 2
+      - prefix: "junior"
+        suffix_length: 5
+  
+  # 密码配置
+  password:
+    default: "password123"              # 默认密码
+    patterns:                           # 自定义密码列表（可选）
+      - "password123"
+      - "admin123"
+      - "repair456"
+      - "tech789"
+      - "supervisor999"
+      - "manager888"
+  
+  # 时间配置
+  time:
+    login_time_range_days: 30           # 上次登录时间范围（天），在当前时间前30天内随机
+    password_update_range_days: 90      # 密码更新时间范围（天），在当前时间前90天内随机
+  
+  # 数据量配置
+  data:
+    default_count: 100                  # 默认生成数量
+
+# 示例配置：生成不同类型的检修员账户
+# repairman_registration:
+#   username:
+#     patterns:
+#       # 管理员账户
+#       - "admin001"
+#       - "admin002"
+#       - "admin003"
+#       # 高级技术员
+#       - prefix: "senior_tech"
+#         suffix_length: 2
+#       # 普通技术员
+#       - prefix: "tech"
+#         suffix_length: 3
+#       # 实习生
+#       - prefix: "intern"
+#         suffix_length: 4
+#   
+#   password:
+#     patterns:
+#       - "admin_secure_2024"
+#       - "tech_password_123"
+#       - "intern_temp_456"
+#   
+#   time:
+#     login_time_range_days: 7          # 最近一周内登录
+#     password_update_range_days: 30    # 最近一个月内更新密码
+#   
+#   data:
+#     default_count: 50                 # 生成50个账户

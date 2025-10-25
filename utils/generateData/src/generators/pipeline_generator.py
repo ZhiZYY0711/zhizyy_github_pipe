@@ -5,7 +5,7 @@
 
 from typing import Dict, Any
 import random
-from base_generator import BaseGenerator
+from .base_generator import BaseGenerator
 
 
 class PipelineGenerator(BaseGenerator):
@@ -49,8 +49,8 @@ class PipelineGenerator(BaseGenerator):
         pipe_name = f"{random.choice(pipe_types)}{self.fake.random_int(min=1, max=999)}"
         
         return {
-            'start': start_area_id,
-            'end': end_area_id,
+            'start_area_id': start_area_id,
+            'end_area_id': end_area_id,
             'name': pipe_name,
             'create_time': self.fake.date_time_between(start_date='-2y', end_date='now'),
             'update_time': self.fake.date_time_between(start_date='-1y', end_date='now')

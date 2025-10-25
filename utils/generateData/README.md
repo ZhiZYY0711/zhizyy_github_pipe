@@ -1,268 +1,284 @@
-# 管道监测管理系统 - 数据生成工具
+# 管道监测系统数据生成工具
 
-这是一个用于管道监测管理系统的MySQL数据库连接和数据生成脚手架工具。
+这是一个用于生成管道监测系统测试数据的统一工具，支持生成管道、传感器、巡检和检修员登录等多种类型的数据。
 
 ## 功能特性
 
-- 🔗 **数据库连接管理**: 支持MySQL连接池，自动重连和错误处理
-- 📊 **数据生成器**: 内置多种数据生成器，支持区域、管道、巡检等数据
-- ⚙️ **配置管理**: 支持YAML配置文件和环境变量
-- 📝 **日志系统**: 基于loguru的完整日志记录
-- 🐍 **虚拟环境**: 完整的Python虚拟环境配置
-- 🔧 **扩展性**: 易于扩展的模块化设计
+- 🚀 **统一主程序**: 一个程序支持所有数据类型的生成
+- 🎯 **命令行支持**: 支持命令行参数和交互式操作
+- 📊 **多种数据类型**: 支持管道、传感器、巡检、检修员登录数据生成
+- 🔧 **灵活配置**: 支持自定义配置文件
+- 📈 **实时状态**: 显示数据库表状态和记录数量
+- 🛡️ **错误处理**: 完善的错误处理和日志记录
 
-## 项目结构
+## 支持的数据类型
 
-```
-generateData/
-├── config/                 # 配置文件目录
-│   └── database.yaml      # 数据库配置文件
-├── src/                   # 源代码目录
-│   ├── __init__.py
-│   ├── config.py          # 配置管理模块
-│   ├── database.py        # 数据库连接管理
-│   ├── logger.py          # 日志配置
-│   └── generators/        # 数据生成器
-│       ├── __init__.py
-│       ├── base_generator.py      # 基础生成器
-│       ├── area_generator.py      # 区域数据生成器
-│       ├── pipeline_generator.py  # 管道数据生成器
-│       └── inspection_generator.py # 巡检数据生成器
-├── examples/              # 示例脚本
-│   ├── generate_sample_data.py    # 示例数据生成
-│   └── test_connection.py         # 连接测试
-├── logs/                  # 日志文件目录（自动创建）
-├── venv/                  # Python虚拟环境（运行脚本后创建）
-├── requirements.txt       # Python依赖包
-├── setup.py              # 安装配置
-├── create_venv.bat       # 虚拟环境创建脚本
-├── .env.example          # 环境变量示例
-└── README.md             # 项目说明
-```
+| 数据类型 | 命令行参数 | 描述 |
+|---------|-----------|------|
+| 管道数据 | `pipeline` | 生成管道基础信息数据 |
+| 传感器数据 | `sensor` | 生成传感器设备数据 |
+| 巡检数据 | `inspection` | 生成巡检监测数据 |
+| 检修员登录数据 | `repairman_registration` | 生成检修员登录记录数据 |
+| 所有数据 | `all` | 生成所有类型的数据 |
 
-## 快速开始
+## 安装和配置
 
 ### 1. 环境准备
 
-确保你的系统已安装：
-- Python 3.8+
-- MySQL 5.7+ 或 MySQL 8.0+
-
-### 2. 创建虚拟环境
-
-运行批处理脚本自动创建虚拟环境：
-
 ```bash
-# Windows
-create_venv.bat
-
-# 或手动创建
+# 创建虚拟环境
 python -m venv venv
+
+# 激活虚拟环境 (Windows)
 venv\Scripts\activate
+
+# 激活虚拟环境 (Linux/Mac)
+source venv/bin/activate
+
+# 安装依赖
 pip install -r requirements.txt
 ```
 
-### 3. 配置数据库
+### 2. 数据库配置
 
-1. 复制环境变量示例文件：
+复制 `.env.example` 为 `.env` 并配置数据库连接信息：
+
 ```bash
-copy .env.example .env
+cp .env.example .env
 ```
 
-2. 编辑 `.env` 文件，配置你的数据库连接信息：
+编辑 `.env` 文件：
+
 ```env
+# 数据库配置
 DB_HOST=localhost
 DB_PORT=3306
-DB_USER=root
+DB_USER=your_username
 DB_PASSWORD=your_password
-DB_NAME=pipeline_management
+DB_NAME=pipeline_monitoring_system
+
+# 日志配置
+LOG_LEVEL=INFO
+LOG_FILE=logs/app.log
 ```
 
-3. 或者直接编辑 `config/database.yaml` 文件。
+## 使用方法
 
-### 4. 测试连接
+### 命令行模式
+
+#### 基本用法
 
 ```bash
-# 激活虚拟环境
-venv\Scripts\activate
+# 生成100条管道数据
+python main.py --type pipeline --count 100
 
-# 测试数据库连接
-python examples/test_connection.py
+# 生成50条传感器数据
+python main.py --type sensor --count 50
+
+# 生成30条巡检数据
+python main.py --type inspection --count 30
+
+# 生成20条检修员登录数据
+python main.py --type repairman_registration --count 20
+
+# 生成所有类型的数据，每种10条
+python main.py --type all --count 10
 ```
 
-### 5. 生成示例数据
+#### 高级选项
 
 ```bash
-# 生成示例数据
-python examples/generate_sample_data.py
+# 指定处理已存在表的方式
+python main.py --type pipeline --count 100 --if-exists replace
+
+# 使用自定义配置文件
+python main.py --type sensor --count 50 --config custom_config.yaml
+
+# 设置日志级别
+python main.py --type inspection --count 30 --log-level DEBUG
+
+# 显示配置文件模板
+python main.py --template
 ```
 
-## 使用指南
+#### 参数说明
 
-### 数据库连接
+- `--type, -t`: 指定生成数据类型 (pipeline/sensor/inspection/repairman_registration/all)
+- `--count, -c`: 生成记录数量 (默认: 100)
+- `--if-exists`: 如果表存在的处理方式 (append/replace/fail, 默认: append)
+- `--config`: 自定义配置文件路径
+- `--template`: 显示配置文件模板
+- `--log-level`: 日志级别 (DEBUG/INFO/WARNING/ERROR, 默认: INFO)
+- `--help, -h`: 显示帮助信息
 
-```python
-from src.database import db_manager
+### 交互式模式
 
-# 测试连接
-if db_manager.test_connection():
-    print("连接成功")
+直接运行程序进入交互式模式：
 
-# 执行查询
-results = db_manager.execute_query("SELECT * FROM area LIMIT 10")
-
-# 执行更新
-affected_rows = db_manager.execute_update("UPDATE area SET status = %s WHERE area_code = %s", ('active', 123456))
-
-# 批量插入
-import pandas as pd
-df = pd.DataFrame([...])
-db_manager.insert_dataframe(df, 'area')
+```bash
+python main.py
 ```
 
-### 数据生成
+交互式模式提供：
+- 📋 数据类型选择菜单
+- 📊 数据库表状态显示
+- ⚙️ 生成选项配置
+- 🔄 批量数据生成
 
-```python
-from src.generators import AreaGenerator, PipelineGenerator
+## 自定义配置
 
-# 创建区域数据生成器
-area_gen = AreaGenerator()
+### 配置文件格式
 
-# 生成单条记录
-record = area_gen.generate_record()
-
-# 生成并保存批量数据
-area_gen.generate_and_save(count=100)
-
-# 获取表记录数
-count = area_gen.get_table_count()
-```
-
-### 自定义数据生成器
-
-继承 `BaseGenerator` 类创建自定义生成器：
-
-```python
-from src.generators.base_generator import BaseGenerator
-
-class CustomGenerator(BaseGenerator):
-    def get_table_name(self) -> str:
-        return 'custom_table'
-    
-    def generate_record(self) -> dict:
-        return {
-            'id': self.fake.random_int(min=1, max=999999),
-            'name': self.fake.name(),
-            'created_at': self.fake.date_time()
-        }
-
-# 使用自定义生成器
-custom_gen = CustomGenerator()
-custom_gen.generate_and_save(count=50)
-```
-
-## 配置说明
-
-### 数据库配置
-
-在 `config/database.yaml` 中配置数据库连接：
+创建 YAML 格式的配置文件来自定义数据生成规则：
 
 ```yaml
-database:
-  primary:
-    host: ${DB_HOST:localhost}
-    port: ${DB_PORT:3306}
-    user: ${DB_USER:root}
-    password: ${DB_PASSWORD:}
-    database: ${DB_NAME:pipeline_management}
-    charset: utf8mb4
-    
-  pool:
-    pool_size: ${DB_POOL_SIZE:10}
-    max_overflow: ${DB_MAX_OVERFLOW:20}
-    pool_timeout: ${DB_POOL_TIMEOUT:30}
+# 管道数据配置
+pipeline:
+  diameter_range: [100, 1000]  # 管径范围(mm)
+  length_range: [1000, 50000]  # 长度范围(m)
+  materials: ["钢管", "塑料管", "复合管"]
+  
+# 传感器数据配置  
+sensor:
+  types: [0, 1, 2, 3, 4]  # 传感器类型
+  status: [0, 1, 2]       # 传感器状态
+  
+# 巡检数据配置
+inspection:
+  result_types: [0, 1, 2]  # 巡检结果类型
+  
+# 检修员登录数据配置
+repairman_registration:
+  username_patterns: ["repair_", "tech_", "maint_"]
+  password_complexity: "medium"  # 密码复杂度
 ```
 
-### 环境变量
+### 使用自定义配置
 
-支持的环境变量：
-
-| 变量名 | 默认值 | 说明 |
-|--------|--------|------|
-| DB_HOST | localhost | 数据库主机 |
-| DB_PORT | 3306 | 数据库端口 |
-| DB_USER | root | 数据库用户名 |
-| DB_PASSWORD | | 数据库密码 |
-| DB_NAME | pipeline_management | 数据库名 |
-| DB_POOL_SIZE | 10 | 连接池大小 |
-| LOG_LEVEL | INFO | 日志级别 |
-| BATCH_SIZE | 1000 | 批处理大小 |
-
-## 依赖包说明
-
-| 包名 | 版本 | 用途 |
-|------|------|------|
-| PyMySQL | 1.1.0 | MySQL数据库连接 |
-| mysql-connector-python | 8.2.0 | MySQL官方连接器 |
-| pandas | 2.1.4 | 数据处理 |
-| python-dotenv | 1.0.0 | 环境变量管理 |
-| PyYAML | 6.0.1 | YAML配置文件解析 |
-| loguru | 0.7.2 | 日志记录 |
-| Faker | 20.1.0 | 测试数据生成 |
-| pydantic | 2.5.2 | 数据验证 |
-
-## 常见问题
-
-### 1. 数据库连接失败
-
-- 检查数据库服务是否启动
-- 验证连接参数是否正确
-- 确认数据库用户权限
-- 检查防火墙设置
-
-### 2. 表不存在错误
-
-在生成数据前，请确保数据库中已创建相应的表结构。
-
-### 3. 编码问题
-
-确保数据库和连接都使用 UTF-8 编码：
-```sql
-CREATE DATABASE pipeline_management CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-```
-
-### 4. 虚拟环境问题
-
-如果虚拟环境创建失败，请手动执行：
 ```bash
-python -m venv venv
-venv\Scripts\activate
-pip install --upgrade pip
-pip install -r requirements.txt
+python main.py --type pipeline --count 100 --config my_config.yaml
 ```
 
-## 开发指南
+## 数据库表结构
 
-### 添加新的数据生成器
+### 管道表 (pipe)
+- `id`: 主键
+- `name`: 管道名称
+- `diameter`: 管径
+- `length`: 长度
+- `material`: 材质
+- `start_area_id`: 起始区域ID
+- `end_area_id`: 结束区域ID
+- `create_time`: 创建时间
+- `update_time`: 更新时间
 
-1. 在 `src/generators/` 目录下创建新的生成器文件
-2. 继承 `BaseGenerator` 类
-3. 实现 `get_table_name()` 和 `generate_record()` 方法
-4. 在 `src/generators/__init__.py` 中导入新生成器
+### 传感器表 (sensor)
+- `id`: 主键
+- `area_id`: 区域ID
+- `pipeline_id`: 管道ID
+- `repairman_id`: 检修员ID
+- `status`: 状态
+- `type`: 类型
+- `last_overhaul_time`: 最后检修时间
+- `create_time`: 创建时间
+- `update_time`: 更新时间
 
-### 扩展配置
+### 巡检表 (inspection)
+- `id`: 主键
+- `sensor_id`: 传感器ID
+- `result`: 巡检结果
+- `create_time`: 创建时间
+- `update_time`: 更新时间
 
-在 `config/database.yaml` 中添加新的配置项，并在 `src/config.py` 中添加相应的配置类。
+### 检修员登录表 (repairman_registration)
+- `id`: 主键
+- `username`: 用户名
+- `password_hash`: 密码哈希
+- `last_login_time`: 最后登录时间
+- `password_update_time`: 密码更新时间
+- `create_time`: 创建时间
+- `update_time`: 更新时间
+
+## 日志和监控
+
+程序提供详细的日志记录：
+
+- **INFO**: 正常操作信息
+- **WARNING**: 警告信息
+- **ERROR**: 错误信息
+- **DEBUG**: 调试信息
+
+日志文件位置：`logs/app.log`
+
+## 故障排除
+
+### 常见问题
+
+1. **数据库连接失败**
+   - 检查 `.env` 文件中的数据库配置
+   - 确认数据库服务正在运行
+   - 验证用户名和密码
+
+2. **表不存在错误**
+   - 确保数据库中已创建相应的表
+   - 运行数据库初始化脚本
+
+3. **字段不匹配错误**
+   - 检查数据库表结构是否与生成器匹配
+   - 更新表结构或修改生成器配置
+
+4. **依赖包缺失**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+### 调试模式
+
+使用调试模式获取详细信息：
+
+```bash
+python main.py --type pipeline --count 10 --log-level DEBUG
+```
+
+## 开发说明
+
+### 项目结构
+
+```
+generateData/
+├── main.py                 # 主程序入口
+├── requirements.txt        # 依赖包列表
+├── .env.example           # 环境变量模板
+├── README.md              # 项目说明
+├── src/                   # 源代码目录
+│   ├── generators/        # 数据生成器
+│   │   ├── __init__.py
+│   │   ├── base_generator.py
+│   │   ├── pipeline_generator.py
+│   │   ├── sensor_generator.py
+│   │   ├── inspection_generator.py
+│   │   └── repairman_registration_generator.py
+│   ├── config.py          # 配置管理
+│   ├── database.py        # 数据库操作
+│   └── logger.py          # 日志配置
+└── logs/                  # 日志文件目录
+```
+
+### 扩展新的数据生成器
+
+1. 继承 `BaseGenerator` 类
+2. 实现 `get_table_name()` 和 `generate_record()` 方法
+3. 在 `main.py` 中注册新的生成器
+4. 更新命令行参数选项
 
 ## 许可证
 
-MIT License
+本项目采用 MIT 许可证。
 
 ## 贡献
 
-欢迎提交 Issue 和 Pull Request！
+欢迎提交 Issue 和 Pull Request 来改进这个项目。
 
-## 联系方式
+---
 
-- 项目维护者: Pipeline Team
-- 邮箱: team@pipeline.com
+**注意**: 请确保在生产环境中使用前充分测试，并根据实际需求调整数据生成规则。

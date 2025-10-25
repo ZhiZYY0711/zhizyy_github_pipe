@@ -6,7 +6,7 @@
 
 from typing import Dict, Any
 import random
-from base_generator import BaseGenerator
+from .base_generator import BaseGenerator
 
 
 class SensorGenerator(BaseGenerator):
@@ -34,13 +34,12 @@ class SensorGenerator(BaseGenerator):
         # 选择area_id
         area_id = random.choice(area_ids) if area_ids else 1
         
-        # 选择pipeline_id（可能为空）
-        pipeline_id = random.choice(pipe_ids) if pipe_ids and random.random() > 0.3 else None
-        
-        # 生成位置坐标
-        latitude = round(random.uniform(20.0, 50.0), 6)
-        longitude = round(random.uniform(80.0, 130.0), 6)
-        position = f"{latitude},{longitude}"
+        # 选择pipeline_id（不能为空）
+        if not pipe_ids:
+            # 如果没有管道数据，使用默认值
+            pipeline_id = 1
+        else:
+            pipeline_id = random.choice(pipe_ids)
         
         # 生成检修时间（可能为空）
         last_overhaul_time = self.fake.date_time_between(start_date='-1y', end_date='now') if random.random() > 0.4 else None
@@ -48,11 +47,10 @@ class SensorGenerator(BaseGenerator):
         return {
             'area_id': area_id,
             'pipeline_id': pipeline_id,
-            'repairman_id': None,  # 暂时设为空，因为还没有repairman数据
+            'repairman_id': 1,  # 使用默认值，因为还没有repairman数据
             'status': random.choice(self.sensor_status),
             'type': random.choice(self.sensor_types),
             'last_overhaul_time': last_overhaul_time,
-            'position': position,
             'create_time': self.fake.date_time_between(start_date='-2y', end_date='now'),
             'update_time': self.fake.date_time_between(start_date='-1y', end_date='now')
         }

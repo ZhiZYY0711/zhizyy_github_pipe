@@ -5,7 +5,7 @@
 
 from typing import Dict, Any
 import random
-from base_generator import BaseGenerator
+from .base_generator import BaseGenerator
 
 
 class InspectionGenerator(BaseGenerator):

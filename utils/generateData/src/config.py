@@ -16,8 +16,8 @@ class DatabaseConfig(BaseModel):
     host: str = Field(default="localhost", description="数据库主机")
     port: int = Field(default=3306, description="数据库端口")
     user: str = Field(default="root", description="数据库用户名")
-    password: str = Field(default="", description="数据库密码")
-    database: str = Field(default="pipeline_management", description="数据库名")
+    password: str = Field(default="root", description="数据库密码")
+    database: str = Field(default="pipeline_management_system", description="数据库名")
     charset: str = Field(default="utf8mb4", description="字符集")
 
 

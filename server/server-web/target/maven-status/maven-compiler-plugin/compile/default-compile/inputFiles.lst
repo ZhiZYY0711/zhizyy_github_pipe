@@ -17,6 +17,7 @@ F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\p
 F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\mapper\AdminRegistrationMapper.java
 F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\mapper\AreaMapper.java
 F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\mapper\LogMapper.java
+F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\mapper\MonitoringDataMapper.java
 F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\mapper\RepairmanMapper.java
 F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\mapper\TaskMapper.java
 F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\PipelineManagementWebApplication.java
@@ -25,8 +26,10 @@ F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\p
 F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\service\impl\AdminRegistrationServiceImpl.java
 F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\service\impl\AreaServiceImple.java
 F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\service\impl\LogServiceImpl.java
+F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\service\impl\MonitoringDataServiceImpl.java
 F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\service\impl\RepairmanServiceImpl.java
 F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\service\impl\TaskServiceImpl.java
 F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\service\LogService.java
+F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\service\MonitoringDataService.java
 F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\service\RepairmanService.java
 F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\service\TaskService.java

@@ -1,5 +1,6 @@
 package com.gxa.pipe.pojo.dto.request;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -18,30 +19,35 @@ public class TaskAddRequest {
     /**
      * 检查ID
      */
+    @JsonProperty("inspection_id")
     private Long inspectionId;
     
     /**
      * 检修员ID
      */
     @NotNull(message = "检修员ID不能为空")
+    @JsonProperty("repairman_id")
     private Long repairmanId;
     
     /**
      * 区域ID
      */
     @NotNull(message = "区域ID不能为空")
+    @JsonProperty("area_id")
     private Long areaId;
     
     /**
      * 管道ID
      */
     @NotNull(message = "管道ID不能为空")
+    @JsonProperty("pipe_id")
     private Long pipeId;
     
     /**
      * 任务名称
      */
     @NotBlank(message = "任务名称不能为空")
+    @JsonProperty("task_name")
     private String taskName;
     
     /**
@@ -64,5 +70,6 @@ public class TaskAddRequest {
     /**
      * 反馈信息
      */
+    @JsonProperty("feedback_information")
     private String feedbackInformation;
 }

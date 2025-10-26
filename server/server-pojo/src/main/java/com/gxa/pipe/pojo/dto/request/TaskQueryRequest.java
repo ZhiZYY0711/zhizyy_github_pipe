@@ -1,5 +1,6 @@
 package com.gxa.pipe.pojo.dto.request;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -20,26 +21,31 @@ public class TaskQueryRequest {
     /**
      * 每页大小
      */
+    @JsonProperty("page_size")
     private Integer pageSize;
     
     /**
      * 检查ID
      */
+    @JsonProperty("inspection_id")
     private Long inspectionId;
     
     /**
      * 检修员ID
      */
+    @JsonProperty("repairman_id")
     private Long repairmanId;
     
     /**
      * 区域ID
      */
+    @JsonProperty("area_id")
     private Long areaId;
     
     /**
      * 管道ID
      */
+    @JsonProperty("pipe_id")
     private Long pipeId;
     
     /**
@@ -60,10 +66,12 @@ public class TaskQueryRequest {
     /**
      * 开始时间
      */
+    @JsonProperty("start_time")
     private String startTime;
     
     /**
      * 结束时间
      */
+    @JsonProperty("end_time")
     private String endTime;
 }

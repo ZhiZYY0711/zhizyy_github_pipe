@@ -12,6 +12,8 @@ com\gxa\pipe\controller\virtualExpertController.class
 com\gxa\pipe\controller\dataManagement\EquipmentController.class
 com\gxa\pipe\mapper\RepairmanMapper.class
 com\gxa\pipe\controller\dataManagement\TaskController.class
+com\gxa\pipe\mapper\MonitoringDataMapper.class
+com\gxa\pipe\service\MonitoringDataService.class
 com\gxa\pipe\controller\LogController.class
 com\gxa\pipe\service\impl\RepairmanServiceImpl.class
 com\gxa\pipe\handler\GlobalExceptionHandler.class
@@ -28,5 +30,6 @@ com\gxa\pipe\service\LogService.class
 com\gxa\pipe\controller\dataVsualization\TaskDetailsController.class
 com\gxa\pipe\mapper\TaskMapper.class
 com\gxa\pipe\service\impl\LogServiceImpl.class
+com\gxa\pipe\service\impl\MonitoringDataServiceImpl.class
 com\gxa\pipe\service\RepairmanService.class
 com\gxa\pipe\mapper\AdminRegistrationMapper.class

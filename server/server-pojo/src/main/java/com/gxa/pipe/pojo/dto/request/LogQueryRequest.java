@@ -1,5 +1,6 @@
 package com.gxa.pipe.pojo.dto.request;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -20,11 +21,13 @@ public class LogQueryRequest {
     /**
      * 每页大小
      */
+    @JsonProperty("page_size")
     private Integer pageSize;
     
     /**
      * 用户ID
      */
+    @JsonProperty("user_id")
     private Long userId;
     
     /**
@@ -40,15 +43,18 @@ public class LogQueryRequest {
     /**
      * IP地址
      */
+    @JsonProperty("ip_address")
     private String ipAddress;
     
     /**
      * 开始时间
      */
+    @JsonProperty("start_time")
     private String startTime;
     
     /**
      * 结束时间
      */
+    @JsonProperty("end_time")
     private String endTime;
 }

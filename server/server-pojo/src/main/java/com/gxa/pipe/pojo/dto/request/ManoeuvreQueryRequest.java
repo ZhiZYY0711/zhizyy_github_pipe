@@ -1,5 +1,6 @@
 package com.gxa.pipe.pojo.dto.request;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -20,11 +21,13 @@ public class ManoeuvreQueryRequest {
     /**
      * 每页大小
      */
+    @JsonProperty("page_size")
     private Integer pageSize;
     
     /**
      * 区域ID
      */
+    @JsonProperty("area_id")
     private Long areaId;
     
     /**
@@ -40,10 +43,12 @@ public class ManoeuvreQueryRequest {
     /**
      * 开始时间
      */
+    @JsonProperty("start_time")
     private String startTime;
     
     /**
      * 结束时间
      */
+    @JsonProperty("end_time")
     private String endTime;
 }

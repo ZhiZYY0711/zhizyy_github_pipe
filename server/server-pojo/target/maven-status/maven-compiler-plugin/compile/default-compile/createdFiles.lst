@@ -12,6 +12,7 @@ com\gxa\pipe\pojo\entity\Sensor.class
 com\gxa\pipe\pojo\dto\request\TaskQueryRequest.class
 com\gxa\pipe\pojo\entity\Manoeuvre.class
 com\gxa\pipe\pojo\dto\response\WholeKpiResponse.class
+com\gxa\pipe\pojo\dto\response\MonitoringDataQueryResponse.class
 com\gxa\pipe\pojo\dto\request\AdminLoginRequest.class
 com\gxa\pipe\pojo\dto\request\LogQueryRequest.class
 com\gxa\pipe\pojo\dto\response\RunningWaterAlarmResponse.class

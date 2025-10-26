@@ -1,5 +1,6 @@
 package com.gxa.pipe.pojo.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -23,8 +24,9 @@ public class RunningWaterAlarmResponse {
     private String time;
     
     /**
-     * 传感器id
+     * 传感器ID
      */
+    @JsonProperty("sensor_id")
     private String sensorId;
     
     /**

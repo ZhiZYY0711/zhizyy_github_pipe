@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gxa.pipe.mapper.MonitoringDataMapper">
+
+    <!-- 结果映射 -->
+    <resultMap id="MonitoringDataQueryResultMap" type="com.gxa.pipe.pojo.dto.response.MonitoringDataQueryResponse">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="pressure" property="pressure" jdbcType="DECIMAL"/>
+        <result column="flow" property="flow" jdbcType="DECIMAL"/>
+        <result column="temperature" property="temperature" jdbcType="DECIMAL"/>
+        <result column="vibration" property="vibration" jdbcType="DECIMAL"/>
+        <result column="data_status" property="dataStatus" jdbcType="INTEGER"/>
+        <result column="sensor_id" property="sensorId" jdbcType="BIGINT"/>
+        <result column="area_name" property="areaName" jdbcType="VARCHAR"/>
+        <result column="pipeline_name" property="pipelineName" jdbcType="VARCHAR"/>
+        <result column="monitor_time" property="monitorTime" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <!-- 分页查询监测数据 -->
+    <select id="getByPage" resultMap="MonitoringDataQueryResultMap">
+        SELECT 
+            i.id,
+            i.pressure,
+            i.traffic as flow,
+            i.temperature,
+            i.shake as vibration,
+            i.data_status,
+            i.sensor_id,
+            CONCAT(a.province, a.city, a.district) as area_name,
+            p.name as pipeline_name,
+            i.create_time as monitor_time
+        FROM inspection i
+        LEFT JOIN sensor s ON i.sensor_id = s.id
+        LEFT JOIN area a ON s.area_id = a.id
+        LEFT JOIN pipe p ON s.pipeline_id = p.id
+        <where>
+            <if test="minPressure != null">
+                AND i.pressure >= #{minPressure}
+            </if>
+            <if test="maxPressure != null">
+                AND i.pressure &lt;= #{maxPressure}
+            </if>
+            <if test="minFlow != null">
+                AND i.traffic >= #{minFlow}
+            </if>
+            <if test="maxFlow != null">
+                AND i.traffic &lt;= #{maxFlow}
+            </if>
+            <if test="minTemperature != null">
+                AND i.temperature >= #{minTemperature}
+            </if>
+            <if test="maxTemperature != null">
+                AND i.temperature &lt;= #{maxTemperature}
+            </if>
+            <if test="minVibration != null">
+                AND i.shake >= #{minVibration}
+            </if>
+            <if test="maxVibration != null">
+                AND i.shake &lt;= #{maxVibration}
+            </if>
+            <if test="dataStatus != null">
+                AND i.data_status = #{dataStatus}
+            </if>
+            <if test="sensorId != null">
+                AND i.sensor_id = #{sensorId}
+            </if>
+            <if test="pipelineName != null and pipelineName != ''">
+                AND p.name LIKE CONCAT('%', #{pipelineName}, '%')
+            </if>
+            <if test="monitorStartTime != null">
+                AND i.create_time >= #{monitorStartTime}
+            </if>
+            <if test="monitorEndTime != null">
+                AND i.create_time &lt;= #{monitorEndTime}
+            </if>
+        </where>
+        ORDER BY i.create_time DESC
+    </select>
+
+    <!-- 通过ID查询监测数据 -->
+    <select id="getById" resultMap="MonitoringDataQueryResultMap">
+        SELECT 
+            i.id,
+            i.pressure,
+            i.traffic as flow,
+            i.temperature,
+            i.shake as vibration,
+            i.data_status,
+            i.sensor_id,
+            CONCAT(a.province, a.city, a.district) as area_name,
+            p.name as pipeline_name,
+            i.create_time as monitor_time
+        FROM inspection i
+        LEFT JOIN sensor s ON i.sensor_id = s.id
+        LEFT JOIN area a ON s.area_id = a.id
+        LEFT JOIN pipe p ON s.pipeline_id = p.id
+        WHERE i.id = #{id}
+        ORDER BY i.create_time DESC
+    </select>
+
+    <!-- 添加监测数据 -->
+    <insert id="addData">
+        INSERT INTO inspection (
+            pressure, 
+            traffic, 
+            temperature, 
+            shake, 
+            data_status, 
+            realtime_picture, 
+            sensor_id,
+            create_time,
+            update_time
+        ) VALUES (
+            #{pressure}, 
+            #{flow}, 
+            #{temperature}, 
+            #{vibration}, 
+            #{dataStatus}, 
+            #{realtimePicture}, 
+            #{sensorId},
+            NOW(),
+            NOW()
+        )
+    </insert>
+
+    <!-- 修改监测数据 -->
+    <update id="updateData">
+        UPDATE inspection 
+        SET 
+            pressure = #{pressure},
+            traffic = #{flow},
+            temperature = #{temperature},
+            shake = #{vibration},
+            sensor_id = #{sensorId},
+            update_time = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <!-- 删除监测数据 -->
+    <delete id="deleteData">
+        DELETE FROM inspection 
+        WHERE id IN
+        <foreach collection="idList" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <!-- 监测数据指标卡结果映射 -->
+    <resultMap id="MonitoringDataIndicatorResultMap" type="com.gxa.pipe.pojo.dto.response.MonitoringDataIndicatorResponse">
+        <result column="total" property="total" jdbcType="VARCHAR"/>
+        <result column="normal" property="normal" jdbcType="VARCHAR"/>
+        <result column="abnormal" property="abnormal" jdbcType="VARCHAR"/>
+        <result column="today" property="today" jdbcType="VARCHAR"/>
+    </resultMap>
+
+    <!-- 获取监测数据指标卡 -->
+    <select id="getIndicatorCard" resultMap="MonitoringDataIndicatorResultMap">
+        SELECT 
+            CAST(COUNT(*) AS CHAR) as total,
+            CAST(SUM(CASE WHEN i.data_status = 1 THEN 1 ELSE 0 END) AS CHAR) as normal,
+            CAST(SUM(CASE WHEN i.data_status = 0 THEN 1 ELSE 0 END) AS CHAR) as abnormal,
+            CAST(SUM(CASE WHEN DATE(i.create_time) = CURDATE() THEN 1 ELSE 0 END) AS CHAR) as today
+        FROM inspection i
+        <if test="areaId != null and areaId != ''">
+            LEFT JOIN sensor s ON i.sensor_id = s.id
+            WHERE s.area_id = #{areaId}
+        </if>
+    </select>
+
+</mapper>

@@ -9,7 +9,6 @@ com\gxa\pipe\service\impl\TaskServiceImpl.class
 com\gxa\pipe\service\impl\AreaServiceImple.class
 com\gxa\pipe\config\WebConfig.class
 com\gxa\pipe\controller\virtualExpertController.class
-com\gxa\pipe\controller\dataManagement\EquipmentController.class
 com\gxa\pipe\mapper\RepairmanMapper.class
 com\gxa\pipe\controller\dataManagement\TaskController.class
 com\gxa\pipe\mapper\MonitoringDataMapper.class

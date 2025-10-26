@@ -3,7 +3,7 @@
 <mapper namespace="com.gxa.pipe.mapper.MonitoringDataMapper">
 
     <!-- 结果映射 -->
-    <resultMap id="MonitoringDataQueryResultMap" type="com.gxa.pipe.pojo.dto.response.MonitoringDataQueryResponse">
+    <resultMap id="MonitoringDataQueryResultMap" type="com.gxa.pipe.pojo.dto.response.dataManagement.monitoring.MonitoringDataQueryResponse">
         <id column="id" property="id" jdbcType="BIGINT"/>
         <result column="pressure" property="pressure" jdbcType="DECIMAL"/>
         <result column="flow" property="flow" jdbcType="DECIMAL"/>
@@ -146,7 +146,7 @@
     </delete>
 
     <!-- 监测数据指标卡结果映射 -->
-    <resultMap id="MonitoringDataIndicatorResultMap" type="com.gxa.pipe.pojo.dto.response.MonitoringDataIndicatorResponse">
+    <resultMap id="MonitoringDataIndicatorResultMap" type="com.gxa.pipe.pojo.dto.response.dataManagement.monitoring.MonitoringDataIndicatorResponse">
         <result column="total" property="total" jdbcType="VARCHAR"/>
         <result column="normal" property="normal" jdbcType="VARCHAR"/>
         <result column="abnormal" property="abnormal" jdbcType="VARCHAR"/>

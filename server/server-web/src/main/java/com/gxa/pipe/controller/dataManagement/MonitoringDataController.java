@@ -6,7 +6,7 @@ import com.gxa.pipe.pojo.dto.request.dataManagement.monitoring.MonitoringDataQue
 import com.gxa.pipe.pojo.dto.request.dataManagement.monitoring.MonitoringDataUpdateRequest;
 import com.gxa.pipe.pojo.dto.response.dataManagement.monitoring.MonitoringDataIndicatorResponse;
 import com.gxa.pipe.pojo.dto.response.dataManagement.monitoring.MonitoringDataQueryResponse;
-import com.gxa.pipe.service.MonitoringDataService;
+import com.gxa.pipe.service.dataManagement.MonitoringDataService;
 import com.gxa.pipe.utils.PageResult;
 import com.gxa.pipe.utils.Result;
 import lombok.RequiredArgsConstructor;

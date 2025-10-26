@@ -1,6 +1,5 @@
 package com.gxa.pipe.pojo.dto.request.dataManagement.monitoring;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;

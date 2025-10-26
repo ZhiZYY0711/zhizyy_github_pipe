@@ -1,6 +1,6 @@
+F:\projects\pipeline_management_system\server\server-pojo\src\main\java\com\gxa\pipe\pojo\dto\request\AdminLoginRequest.java
 F:\projects\pipeline_management_system\server\server-pojo\src\main\java\com\gxa\pipe\pojo\dto\request\EquipmentQueryRequest.java
 F:\projects\pipeline_management_system\server\server-pojo\src\main\java\com\gxa\pipe\pojo\dto\request\LogQueryRequest.java
-F:\projects\pipeline_management_system\server\server-pojo\src\main\java\com\gxa\pipe\pojo\dto\request\ManagerLoginRequest.java
 F:\projects\pipeline_management_system\server\server-pojo\src\main\java\com\gxa\pipe\pojo\dto\request\ManoeuvreAddRequest.java
 F:\projects\pipeline_management_system\server\server-pojo\src\main\java\com\gxa\pipe\pojo\dto\request\ManoeuvreQueryRequest.java
 F:\projects\pipeline_management_system\server\server-pojo\src\main\java\com\gxa\pipe\pojo\dto\request\MonitoringDataAddRequest.java
@@ -8,7 +8,8 @@ F:\projects\pipeline_management_system\server\server-pojo\src\main\java\com\gxa\
 F:\projects\pipeline_management_system\server\server-pojo\src\main\java\com\gxa\pipe\pojo\dto\request\RepairmanQueryRequest.java
 F:\projects\pipeline_management_system\server\server-pojo\src\main\java\com\gxa\pipe\pojo\dto\request\TaskAddRequest.java
 F:\projects\pipeline_management_system\server\server-pojo\src\main\java\com\gxa\pipe\pojo\dto\request\TaskQueryRequest.java
-F:\projects\pipeline_management_system\server\server-pojo\src\main\java\com\gxa\pipe\pojo\dto\response\ManagerLoginResponse.java
+F:\projects\pipeline_management_system\server\server-pojo\src\main\java\com\gxa\pipe\pojo\dto\response\AdminLoginResponse.java
+F:\projects\pipeline_management_system\server\server-pojo\src\main\java\com\gxa\pipe\pojo\dto\response\AreaResponse.java
 F:\projects\pipeline_management_system\server\server-pojo\src\main\java\com\gxa\pipe\pojo\dto\response\RepairmanKpiResponse.java
 F:\projects\pipeline_management_system\server\server-pojo\src\main\java\com\gxa\pipe\pojo\dto\response\RunningWaterAlarmResponse.java
 F:\projects\pipeline_management_system\server\server-pojo\src\main\java\com\gxa\pipe\pojo\dto\response\WholeKpiResponse.java
@@ -17,9 +18,7 @@ F:\projects\pipeline_management_system\server\server-pojo\src\main\java\com\gxa\
 F:\projects\pipeline_management_system\server\server-pojo\src\main\java\com\gxa\pipe\pojo\entity\ConnManoeuvreRepairman.java
 F:\projects\pipeline_management_system\server\server-pojo\src\main\java\com\gxa\pipe\pojo\entity\Inspection.java
 F:\projects\pipeline_management_system\server\server-pojo\src\main\java\com\gxa\pipe\pojo\entity\Log.java
-F:\projects\pipeline_management_system\server\server-pojo\src\main\java\com\gxa\pipe\pojo\entity\Manager.java
 F:\projects\pipeline_management_system\server\server-pojo\src\main\java\com\gxa\pipe\pojo\entity\Manoeuvre.java
-F:\projects\pipeline_management_system\server\server-pojo\src\main\java\com\gxa\pipe\pojo\entity\MonitoringData.java
 F:\projects\pipeline_management_system\server\server-pojo\src\main\java\com\gxa\pipe\pojo\entity\Pipe.java
 F:\projects\pipeline_management_system\server\server-pojo\src\main\java\com\gxa\pipe\pojo\entity\Repairman.java
 F:\projects\pipeline_management_system\server\server-pojo\src\main\java\com\gxa\pipe\pojo\entity\RepairmanRegistration.java

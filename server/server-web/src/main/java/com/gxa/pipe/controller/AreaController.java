@@ -20,13 +20,14 @@ import java.util.List;
 
 @Slf4j
 @RestController
-@RequestMapping("/domain/manager/data_visualization/data_monitoring/area_details")
+@RequestMapping("/area_details")
 @RequiredArgsConstructor
 public class AreaController {
   private final AreaService areaService;
 
   /**
    * 获取省份信息
+   * 
    * @return 省份列表
    */
   @GetMapping("/provinces")
@@ -38,6 +39,7 @@ public class AreaController {
 
   /**
    * 根据省份代码获取城市信息
+   * 
    * @param provinceCode 省份代码
    * @return 城市列表
    */
@@ -50,6 +52,7 @@ public class AreaController {
 
   /**
    * 根据城市代码获取区县信息
+   * 
    * @param cityCode 城市代码
    * @return 区县列表
    */

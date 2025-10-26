@@ -52,10 +52,8 @@ public class ManagerServiceImpl implements ManagerService {
         
         // 构建响应
         ManagerLoginResponse response = new ManagerLoginResponse();
-        response.setId(manager.getId());
         response.setUsername(manager.getUsername());
-        response.setName(manager.getName());
-        response.setToken(token);
+        response.setJwt(token);
         
         log.info("管理员登录成功，用户名：{}", request.getUsername());
         return response;

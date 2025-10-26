@@ -17,10 +17,9 @@ import jakarta.servlet.http.HttpServletResponse;
 @Component
 public class JwtInterceptor implements HandlerInterceptor {
 
-
-
     @Override
-    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler)
+            throws Exception {
         // 获取请求路径
         String requestURI = request.getRequestURI();
         log.info("JWT拦截器拦截到请求：{}", requestURI);
@@ -32,7 +31,7 @@ public class JwtInterceptor implements HandlerInterceptor {
 
         // 从请求头中获取token
         String token = request.getHeader("Authorization");
-        
+
         // 如果没有token，尝试从参数中获取
         if (!StringUtils.hasText(token)) {
             token = request.getParameter("token");
@@ -65,7 +64,7 @@ public class JwtInterceptor implements HandlerInterceptor {
             // 从token中获取用户信息并设置到请求属性中
             String username = JwtUtils.getUsernameFromToken(token);
             request.setAttribute("currentUser", username);
-            
+
             log.info("JWT验证成功，用户：{}", username);
             return true;
 

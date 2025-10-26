@@ -73,11 +73,11 @@ public class DataVisualizationController {
             int totalTasks = taskService.countTodayTasks();
             int completedTasks = taskService.countCompletedTasks();
             double taskRate = totalTasks > 0 ? (double) completedTasks / totalTasks * 100 : 0.0;
-            response.setTaskRate(taskRate);
+            response.setTaskRate((int) Math.round(taskRate));
             
             // 获取平均完成时间
             BigDecimal avgTime = repairmanService.calculateAverageCompletionTime();
-            response.setAverageTime(avgTime != null ? avgTime.doubleValue() : 0.0);
+            response.setAverageTime(avgTime != null ? avgTime.intValue() : 0);
             
             return Result.success(response);
         } catch (Exception e) {
@@ -96,17 +96,17 @@ public class DataVisualizationController {
         try {
             // 构建模拟报警数据（实际项目中应该从数据库获取）
             RunningWaterAlarmResponse alarm1 = new RunningWaterAlarmResponse();
-            alarm1.setId(1L);
-            alarm1.setTime(LocalDateTime.now().minusHours(2));
-            alarm1.setSensorId(101L);
+            alarm1.setId("1");
+            alarm1.setTime(LocalDateTime.now().minusHours(2).toString());
+            alarm1.setSensorId("101");
             alarm1.setLocation("管道A区段1");
             alarm1.setLevel("高");
             alarm1.setType("压力异常");
             
             RunningWaterAlarmResponse alarm2 = new RunningWaterAlarmResponse();
-            alarm2.setId(2L);
-            alarm2.setTime(LocalDateTime.now().minusHours(1));
-            alarm2.setSensorId(102L);
+            alarm2.setId("2");
+            alarm2.setTime(LocalDateTime.now().minusHours(1).toString());
+            alarm2.setSensorId("102");
             alarm2.setLocation("管道B区段3");
             alarm2.setLevel("中");
             alarm2.setType("温度异常");
@@ -119,17 +119,17 @@ public class DataVisualizationController {
             
             // 如果获取失败，返回模拟数据作为降级处理
             RunningWaterAlarmResponse alarm1 = new RunningWaterAlarmResponse();
-            alarm1.setId(1L);
-            alarm1.setTime(LocalDateTime.now().minusHours(2));
-            alarm1.setSensorId(101L);
+            alarm1.setId("1");
+            alarm1.setTime(LocalDateTime.now().minusHours(2).toString());
+            alarm1.setSensorId("101");
             alarm1.setLocation("管道A区段1");
             alarm1.setLevel("高");
             alarm1.setType("压力异常");
             
             RunningWaterAlarmResponse alarm2 = new RunningWaterAlarmResponse();
-            alarm2.setId(2L);
-            alarm2.setTime(LocalDateTime.now().minusHours(1));
-            alarm2.setSensorId(102L);
+            alarm2.setId("2");
+            alarm2.setTime(LocalDateTime.now().minusHours(1).toString());
+            alarm2.setSensorId("102");
             alarm2.setLocation("管道B区段3");
             alarm2.setLevel("中");
             alarm2.setType("温度异常");

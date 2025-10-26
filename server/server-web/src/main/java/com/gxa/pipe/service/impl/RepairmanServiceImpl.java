@@ -29,8 +29,7 @@ public class RepairmanServiceImpl implements RepairmanService {
         log.info("分页查询维修工，请求参数：{}", request);
         
         // 设置分页参数
--        PageHelper.startPage(request.getPageNum(), request.getPageSize());
-+        PageHelper.startPage(request.getPage(), request.getPageSize());
+        PageHelper.startPage(request.getPage(), request.getPageSize());
         
         // 查询数据
         Page<Repairman> page = (Page<Repairman>) repairmanMapper.selectByPage(request);
@@ -39,8 +38,7 @@ public class RepairmanServiceImpl implements RepairmanService {
         PageResult<Repairman> result = new PageResult<>();
         result.setTotal(page.getTotal());
         result.setRecords(page.getResult());
--        result.setPageNum(request.getPageNum());
-+        result.setPageNum(request.getPage());
+        result.setPageNum(request.getPage());
         result.setPageSize(request.getPageSize());
         
         return result;
@@ -78,8 +76,7 @@ public class RepairmanServiceImpl implements RepairmanService {
     
     @Override
     public BigDecimal calculateAverageCompletionTime() {
--        return repairmanMapper.calculateAverageCompletionTime();
-+        Double avg = repairmanMapper.calculateAverageCompletionTime();
-+        return avg == null ? BigDecimal.ZERO : BigDecimal.valueOf(avg);
+        Double avg = repairmanMapper.calculateAverageCompletionTime();
+        return avg == null ? BigDecimal.ZERO : BigDecimal.valueOf(avg);
     }
 }

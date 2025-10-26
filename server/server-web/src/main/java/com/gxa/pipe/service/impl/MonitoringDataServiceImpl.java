@@ -29,8 +29,7 @@ public class MonitoringDataServiceImpl implements MonitoringDataService {
         log.info("分页查询监测数据，请求参数：{}", request);
         
         // 设置分页参数
--        PageHelper.startPage(request.getPageNum(), request.getPageSize());
-+        PageHelper.startPage(request.getPage(), request.getPageSize());
+        PageHelper.startPage(request.getPage(), request.getPageSize());
         
         // 查询数据
         Page<MonitoringData> page = (Page<MonitoringData>) monitoringDataMapper.selectByPage(request);
@@ -39,8 +38,7 @@ public class MonitoringDataServiceImpl implements MonitoringDataService {
         PageResult<MonitoringData> result = new PageResult<>();
         result.setTotal(page.getTotal());
         result.setRecords(page.getResult());
--        result.setPageNum(request.getPageNum());
-+        result.setPageNum(request.getPage());
+        result.setPageNum(request.getPage());
         result.setPageSize(request.getPageSize());
         
         return result;

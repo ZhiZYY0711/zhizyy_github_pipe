@@ -1,7 +1,7 @@
 package com.gxa.pipe.controller.dataManagement;
 
+import com.gxa.pipe.pojo.dto.request.dataManagement.task.TaskQueryRequest;
 import com.gxa.pipe.pojo.entity.Task;
-import com.gxa.pipe.pojo.dto.request.TaskQueryRequest;
 import com.gxa.pipe.service.TaskService;
 import com.gxa.pipe.utils.Result;
 import com.gxa.pipe.utils.PageResult;

@@ -106,7 +106,7 @@
             temperature, 
             shake, 
             data_status, 
-            realtime_picture, 
+            <if test="realtimePicture != null">realtime_picture,</if>
             sensor_id,
             create_time,
             update_time
@@ -115,8 +115,8 @@
             #{flow}, 
             #{temperature}, 
             #{vibration}, 
-            #{dataStatus}, 
-            #{realtimePicture}, 
+            #{dataStatus},
+            <if test="realtimePicture != null">#{realtimePicture},</if>
             #{sensorId},
             NOW(),
             NOW()

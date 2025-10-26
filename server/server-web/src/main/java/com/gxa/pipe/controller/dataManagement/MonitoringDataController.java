@@ -1,11 +1,11 @@
 package com.gxa.pipe.controller.dataManagement;
 
-import com.gxa.pipe.pojo.dto.request.MonitoringDataAddRequest;
-import com.gxa.pipe.pojo.dto.request.MonitoringDataByIdRequest;
-import com.gxa.pipe.pojo.dto.request.MonitoringDataQueryRequest;
-import com.gxa.pipe.pojo.dto.request.MonitoringDataUpdateRequest;
-import com.gxa.pipe.pojo.dto.response.MonitoringDataIndicatorResponse;
-import com.gxa.pipe.pojo.dto.response.MonitoringDataQueryResponse;
+import com.gxa.pipe.pojo.dto.request.dataManagement.monitoring.MonitoringDataAddRequest;
+import com.gxa.pipe.pojo.dto.request.dataManagement.monitoring.MonitoringDataByIdRequest;
+import com.gxa.pipe.pojo.dto.request.dataManagement.monitoring.MonitoringDataQueryRequest;
+import com.gxa.pipe.pojo.dto.request.dataManagement.monitoring.MonitoringDataUpdateRequest;
+import com.gxa.pipe.pojo.dto.response.dataManagement.monitoring.MonitoringDataIndicatorResponse;
+import com.gxa.pipe.pojo.dto.response.dataManagement.monitoring.MonitoringDataQueryResponse;
 import com.gxa.pipe.service.MonitoringDataService;
 import com.gxa.pipe.utils.PageResult;
 import com.gxa.pipe.utils.Result;
@@ -106,15 +106,15 @@ public class MonitoringDataController {
   /**
    * 监测数据指标卡
    * 
-   * @param areaId 区域id（可选）
+   * @param area_id 区域id（可选）
    * @return 指标卡数据
    */
-  @GetMapping("/Indicator_card")
+  @GetMapping("/indicator_card")
   public Result<MonitoringDataIndicatorResponse> getIndicatorCard(
-      @RequestParam(required = false) String areaId) {
-    log.info("获取监测数据指标卡，区域ID：{}", areaId);
+      @RequestParam(value = "area_id", required = false) String area_id) {
+    log.info("获取监测数据指标卡，区域ID：{}", area_id);
 
-    MonitoringDataIndicatorResponse result = monitoringDataService.getIndicatorCard(areaId);
+    MonitoringDataIndicatorResponse result = monitoringDataService.getIndicatorCard(area_id);
 
     return Result.success(result);
   }

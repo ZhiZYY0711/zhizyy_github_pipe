@@ -22,7 +22,7 @@ public class WebConfig implements WebMvcConfigurer {
                 // 拦截所有请求
                 .addPathPatterns("/**")
                 // 排除登录接口
-                .excludePathPatterns("/api/manager/login")
+                .excludePathPatterns("/login")
                 // 排除静态资源
                 .excludePathPatterns("/static/**")
                 .excludePathPatterns("/css/**")

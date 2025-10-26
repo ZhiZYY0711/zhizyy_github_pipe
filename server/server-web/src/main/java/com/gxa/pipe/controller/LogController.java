@@ -19,16 +19,16 @@ import jakarta.validation.Valid;
 @RequiredArgsConstructor
 @Slf4j
 public class LogController {
-    
+
     private final LogService logService;
-    
+
     /**
      * 分页查询日志
      */
     @GetMapping("/page")
     public Result<PageResult<Log>> getLogsByPage(@Valid LogQueryRequest request) {
         log.info("分页查询日志，请求参数：{}", request);
-        
+
         try {
             PageResult<Log> result = logService.getByPage(request);
             return Result.success(result);
@@ -37,14 +37,14 @@ public class LogController {
             return Result.error("查询日志失败");
         }
     }
-    
+
     /**
      * 根据ID查询日志
      */
     @GetMapping("/{id}")
     public Result<Log> getLogById(@PathVariable Long id) {
         log.info("根据ID查询日志，ID：{}", id);
-        
+
         try {
             Log logData = logService.getById(id);
             if (logData == null) {
@@ -56,14 +56,14 @@ public class LogController {
             return Result.error("查询日志失败");
         }
     }
-    
+
     /**
      * 创建日志
      */
     @PostMapping
     public Result<String> createLog(@Valid @RequestBody Log logData) {
         log.info("创建日志，日志信息：{}", logData);
-        
+
         try {
             boolean success = logService.create(logData);
             if (success) {
@@ -76,14 +76,14 @@ public class LogController {
             return Result.error("创建日志失败");
         }
     }
-    
+
     /**
      * 更新日志
      */
     @PutMapping("/{id}")
     public Result<String> updateLog(@PathVariable Long id, @Valid @RequestBody Log logData) {
         log.info("更新日志，ID：{}，日志信息：{}", id, logData);
-        
+
         try {
             logData.setId(id);
             boolean success = logService.update(logData);
@@ -97,14 +97,14 @@ public class LogController {
             return Result.error("更新日志失败");
         }
     }
-    
+
     /**
      * 删除日志
      */
     @DeleteMapping("/{id}")
     public Result<String> deleteLog(@PathVariable Long id) {
         log.info("删除日志，ID：{}", id);
-        
+
         try {
             boolean success = logService.delete(id);
             if (success) {

@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gxa.pipe.mapper.RepairmanMapper">
+
+    <!-- 结果映射 -->
+    <resultMap id="BaseResultMap" type="com.gxa.pipe.pojo.entity.Repairman">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="name" property="name" jdbcType="VARCHAR"/>
+        <result column="age" property="age" jdbcType="INTEGER"/>
+        <result column="sex" property="sex" jdbcType="INTEGER"/>
+        <result column="phone" property="phone" jdbcType="VARCHAR"/>
+        <result column="email" property="email" jdbcType="VARCHAR"/>
+        <result column="area_id" property="areaId" jdbcType="BIGINT"/>
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
+        <result column="update_time" property="updateTime" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <!-- 基础字段 -->
+    <sql id="Base_Column_List">
+        id, name, age, sex, phone, email, area_id, create_time, update_time
+    </sql>
+
+    <!-- 分页查询维修工 -->
+    <select id="selectByPage" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM repairman
+        <where>
+            <if test="name != null and name != ''">
+                AND name LIKE CONCAT('%', #{name}, '%')
+            </if>
+            <if test="age != null">
+                AND age = #{age}
+            </if>
+            <if test="sex != null">
+                AND sex = #{sex}
+            </if>
+            <if test="phone != null and phone != ''">
+                AND phone LIKE CONCAT('%', #{phone}, '%')
+            </if>
+            <if test="email != null and email != ''">
+                AND email LIKE CONCAT('%', #{email}, '%')
+            </if>
+            <if test="areaId != null">
+                AND area_id = #{areaId}
+            </if>
+        </where>
+        ORDER BY create_time DESC
+    </select>
+
+    <!-- 根据ID查询维修工 -->
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM repairman
+        WHERE id = #{id}
+    </select>
+
+    <!-- 插入维修工 -->
+    <insert id="insert" parameterType="com.gxa.pipe.pojo.entity.Repairman" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO repairman (name, age, sex, phone, email, area_id, create_time, update_time)
+        VALUES (#{name}, #{age}, #{sex}, #{phone}, #{email}, #{areaId}, #{createTime}, #{updateTime})
+    </insert>
+
+    <!-- 更新维修工 -->
+    <update id="update" parameterType="com.gxa.pipe.pojo.entity.Repairman">
+        UPDATE repairman
+        <set>
+            <if test="name != null">name = #{name},</if>
+            <if test="age != null">age = #{age},</if>
+            <if test="sex != null">sex = #{sex},</if>
+            <if test="phone != null">phone = #{phone},</if>
+            <if test="email != null">email = #{email},</if>
+            <if test="areaId != null">area_id = #{areaId},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <!-- 删除维修工 -->
+    <delete id="deleteById">
+        DELETE FROM repairman WHERE id = #{id}
+    </delete>
+
+    <!-- 统计维修工总数 -->
+    <select id="countTotal" resultType="int">
+        SELECT COUNT(*) FROM repairman
+    </select>
+
+    <!-- 计算平均完成时间 -->
+    <select id="calculateAverageCompletionTime" resultType="double">
+        SELECT AVG(TIMESTAMPDIFF(HOUR, t.create_time, t.update_time))
+        FROM task t
+        WHERE t.status = 2
+        AND t.update_time >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+    </select>
+
+</mapper>

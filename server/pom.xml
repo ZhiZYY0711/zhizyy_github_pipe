@@ -6,57 +6,47 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.5.6</version>
+        <version>3.5.7</version>
         <relativePath/>
     </parent>
     
     <modules>
-      <module>../talis-pojo</module>
-      <module>../talis-utils</module>
-      <module>../talis-web-management</module>
+        <module>server-pojo</module>
+        <module>server-utils</module>
+        <module>server-web</module>
+        <module>server-mobile</module>
     </modules>
     
-    <groupId>com.gxa.demo</groupId>
-    <artifactId>talis-parent</artifactId>
+    <groupId>com.gxa.pipe</groupId>
+    <artifactId>server-parent</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <packaging>pom</packaging>
+    <description>pipeline management system</description>
     
     <properties>
         <!--  基础环境配置  -->
         <java.version>17</java.version>
         
-        <!--  springboot版本  -->
-        <spring-boot.version>3.5.6</spring-boot.version>
-        
-        <!--  lombok依赖  -->
-        <lombok.version>1.18.30</lombok.version>
-        
         <!--  mybatis依赖  -->
         <mybatis-starter.version>3.0.5</mybatis-starter.version>
         <mybatis-starter-test.version>3.0.5</mybatis-starter-test.version>
         
-        <!--  数据库连接池  -->
-        <druid.version>1.2.23</druid.version>
-        
         <!--  分页插件  -->
         <pagehelper.version>6.1.0</pagehelper.version>
         
-        <!--  json处理依赖  -->
-        <jackson-databind.version>2.20.0</jackson-databind.version>
+        <!--  jwt令牌依赖  -->
+        <jjwt.version>0.9.1</jjwt.version>
         
         <!--  阿里云oss依赖  -->
         <aliyun-sdk-oss.version>3.17.4</aliyun-sdk-oss.version>
         <jaxb-api.version>2.3.1</jaxb-api.version>
         <activation.version>1.1.1</activation.version>
         <jaxb-runtime.version>2.3.3</jaxb-runtime.version>
-        
-        <!--  jwt令牌依赖  -->
-        <jjwt.version>0.9.1</jjwt.version>
     </properties>
     
-    <dependencyManagement>
-      <dependencies>
-      
+<dependencyManagement>
+    <dependencies>
+
         <!--  数据库相关依赖  -->
         <dependency>
             <groupId>org.mybatis.spring.boot</groupId>
@@ -69,29 +59,21 @@
             <version>${mybatis-starter-test.version}</version>
             <scope>test</scope>
         </dependency>
-      
-        <!-- springboot默认使用Hikari   -->
-        <!-- 使用druid连接池 只需要配置依赖就会自动切换  注意和springboot版本匹配   -->
-        <dependency>
-            <groupId>com.alibaba</groupId>
-            <artifactId>druid-spring-boot-3-starter</artifactId>
-            <version>${druid.version}</version>
-        </dependency>
-        
+
         <!--  分页插件  -->
         <dependency>
             <groupId>com.github.pagehelper</groupId>
             <artifactId>pagehelper</artifactId>
             <version>${pagehelper.version}</version>
         </dependency>
-        
-        <!--  解决json序列化问题  -->
+
+        <!-- jwt令牌 -->
         <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-            <version>${jackson-databind.version}</version>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt</artifactId>
+            <version>${jjwt.version}</version>
         </dependency>
-        
+
         <!--  阿里云oss对象存储服务  -->
         <dependency>
             <groupId>com.aliyun.oss</groupId>
@@ -113,23 +95,31 @@
             <artifactId>jaxb-runtime</artifactId>
             <version>${jaxb-runtime.version}</version>
         </dependency>
-        
-        <!-- jwt令牌 -->
-        <dependency>
-            <groupId>io.jsonwebtoken</groupId>
-            <artifactId>jjwt</artifactId>
-            <version>${jjwt.version}</version>
-        </dependency>
-        
-        <!--  lombok依赖  -->
-        <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-            <version>${lombok.version}</version>
-            <scope>provided</scope>
-        </dependency>
       
-      </dependencies>
-    </dependencyManagement>
+    </dependencies>
+</dependencyManagement>
+
+<!-- 如下项目在父项目中已管理，无需重复配置  -->
+<!-- <dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-web</artifactId>
+    <version>3.5.7</version>
+</dependency> -->
+<!-- <dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-test</artifactId>
+    <scope>test</scope>
+</dependency> -->
+<!-- <dependency>
+    <groupId>org.projectlombok</groupId>
+    <artifactId>lombok</artifactId>
+    <version>1.18.42</version>
+    <scope>provided</scope>
+</dependency> -->
+<!-- <dependency>
+    <groupId>com.fasterxml.jackson.core</groupId>
+    <artifactId>jackson-databind</artifactId>
+    <version>2.19.2</version>
+</dependency> -->
 
 </project>

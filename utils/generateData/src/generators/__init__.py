@@ -13,6 +13,7 @@ from .log_generator import LogGenerator
 from .repairman_generator import RepairmanGenerator
 from .task_generator import TaskGenerator
 from .manoeuvre_generator import ManoeuvreGenerator
+from .conn_manoeuvre_repairman_generator import ConnManoeuvreRepairmanGenerator
 
 __all__ = [
     'BaseGenerator',
@@ -24,5 +25,6 @@ __all__ = [
     'LogGenerator',
     'RepairmanGenerator',
     'TaskGenerator',
-    'ManoeuvreGenerator'
+    'ManoeuvreGenerator',
+    'ConnManoeuvreRepairmanGenerator'
 ]

@@ -1,0 +1,4 @@
+com\gxa\pipe\PipelineManagementWebApplication.class
+com\gxa\pipe\interceptor\JwtInterceptor.class
+com\gxa\pipe\config\WebConfig.class
+com\gxa\pipe\config\CorsConfig.class

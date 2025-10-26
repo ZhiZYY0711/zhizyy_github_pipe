@@ -25,7 +25,8 @@ from generators import (
     LogGenerator,
     RepairmanGenerator,
     TaskGenerator,
-    ManoeuvreGenerator
+    ManoeuvreGenerator,
+    ConnManoeuvreRepairmanGenerator
 )
 from logger import setup_logger
 from loguru import logger
@@ -83,6 +84,11 @@ class DataGeneratorManager:
                 'name': '演习数据',
                 'class': ManoeuvreGenerator,
                 'description': '生成演习训练数据'
+            },
+            'conn_manoeuvre_repairman': {
+                'name': '演习检修员连接数据',
+                'class': ConnManoeuvreRepairmanGenerator,
+                'description': '生成演习和检修员的关联关系数据'
             }
         }
     
@@ -363,7 +369,7 @@ def main():
     
     parser.add_argument(
         '--type', '-t',
-        choices=['pipeline', 'sensor', 'inspection', 'repairman', 'task', 'repairman_registration', 'admin_registration', 'log', 'manoeuvre', 'all'],
+        choices=['pipeline', 'sensor', 'inspection', 'repairman', 'task', 'repairman_registration', 'admin_registration', 'log', 'manoeuvre', 'conn_manoeuvre_repairman', 'all'],
         help='指定生成数据类型'
     )
     

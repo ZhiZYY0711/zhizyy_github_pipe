@@ -21,6 +21,7 @@
 | 检修员数据 | `repairman` | 生成检修员基础信息数据 |
 | 任务数据 | `task` | 生成任务管理数据 |
 | 演习数据 | `manoeuvre` | 生成演习训练数据 |
+| 演习检修员连接数据 | `conn_manoeuvre_repairman` | 生成演习和检修员的关联关系数据 |
 | 检修员登录数据 | `repairman_registration` | 生成检修员登录记录数据 |
 | 管理员登录数据 | `admin_registration` | 生成管理员登录记录数据 |
 | 日志数据 | `log` | 生成系统操作日志数据 |
@@ -92,6 +93,9 @@ python main.py --type task --count 20
 # 生成15条演习数据
 python main.py --type manoeuvre --count 15
 
+# 生成10条演习检修员连接数据
+python main.py --type conn_manoeuvre_repairman --count 10
+
 # 生成20条检修员登录数据
 python main.py --type repairman_registration --count 20
 
@@ -123,7 +127,7 @@ python main.py --template
 
 #### 参数说明
 
-- `--type, -t`: 指定生成数据类型 (pipeline/sensor/inspection/repairman/task/manoeuvre/repairman_registration/admin_registration/log/all)
+- `--type, -t`: 指定生成数据类型 (pipeline/sensor/inspection/repairman/task/manoeuvre/conn_manoeuvre_repairman/repairman_registration/admin_registration/log/all)
 - `--count, -c`: 生成记录数量 (默认: 100)
 - `--if-exists`: 如果表存在的处理方式 (append/replace/fail, 默认: append)
 - `--config`: 自定义配置文件路径
@@ -189,6 +193,12 @@ manoeuvre:
     1: [2, 8]    # 事故模拟
     2: [4, 24]   # 紧急事故
     3: [0.5, 2]  # 日常作训
+
+# 演习检修员连接数据配置
+conn_manoeuvre_repairman:
+  connections_per_manoeuvre: [1, 5]  # 每个演习关联的检修员数量范围
+  avoid_duplicates: true             # 避免重复的演习-检修员组合
+  realistic_mode: true               # 启用真实模式，生成更合理的关联关系
 
 # 日志数据配置
 log:
@@ -266,6 +276,13 @@ python main.py --type pipeline --count 100 --config my_config.yaml
 - `details`: 演练描述
 - `create_time`: 演习创建时间
 - `update_time`: 演习更新时间
+
+### 演习检修员连接表 (conn_manoeuvre_repairman)
+- `id`: 主键
+- `manoeuvre_id`: 演习ID (外键，关联manoeuvre表)
+- `repairman_id`: 检修员ID (外键，关联repairman表)
+- `create_time`: 创建时间
+- `update_time`: 更新时间
 
 ### 日志表 (log)
 - `id`: 主键

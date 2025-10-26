@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gxa.pipe.mapper.TaskMapper">
+
+    <!-- 结果映射 -->
+    <resultMap id="BaseResultMap" type="com.gxa.pipe.pojo.entity.Task">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="inspection_id" property="inspectionId" jdbcType="BIGINT"/>
+        <result column="repairman_id" property="repairmanId" jdbcType="BIGINT"/>
+        <result column="area_id" property="areaId" jdbcType="BIGINT"/>
+        <result column="pipe_id" property="pipeId" jdbcType="BIGINT"/>
+        <result column="task_name" property="taskName" jdbcType="VARCHAR"/>
+        <result column="type" property="type" jdbcType="INTEGER"/>
+        <result column="priority" property="priority" jdbcType="INTEGER"/>
+        <result column="status" property="status" jdbcType="INTEGER"/>
+        <result column="feedback_information" property="feedbackInformation" jdbcType="VARCHAR"/>
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
+        <result column="update_time" property="updateTime" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <!-- 基础字段 -->
+    <sql id="Base_Column_List">
+        id, inspection_id, repairman_id, area_id, pipe_id, task_name, type, priority, status, feedback_information, create_time, update_time
+    </sql>
+
+    <!-- 分页查询任务 -->
+    <select id="selectByPage" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM task
+        <where>
+            <if test="inspectionId != null">
+                AND inspection_id = #{inspectionId}
+            </if>
+            <if test="repairmanId != null">
+                AND repairman_id = #{repairmanId}
+            </if>
+            <if test="areaId != null">
+                AND area_id = #{areaId}
+            </if>
+            <if test="pipeId != null">
+                AND pipe_id = #{pipeId}
+            </if>
+            <if test="type != null">
+                AND type = #{type}
+            </if>
+            <if test="priority != null">
+                AND priority = #{priority}
+            </if>
+            <if test="status != null">
+                AND status = #{status}
+            </if>
+            <if test="startTime != null">
+                AND create_time >= #{startTime}
+            </if>
+            <if test="endTime != null">
+                AND create_time &lt;= #{endTime}
+            </if>
+        </where>
+        ORDER BY create_time DESC
+    </select>
+
+    <!-- 根据ID查询任务 -->
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM task
+        WHERE id = #{id}
+    </select>
+
+    <!-- 插入任务 -->
+    <insert id="insert" parameterType="com.gxa.pipe.pojo.entity.Task" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO task (inspection_id, repairman_id, area_id, pipe_id, task_name, type, priority, status, feedback_information, create_time, update_time)
+        VALUES (#{inspectionId}, #{repairmanId}, #{areaId}, #{pipeId}, #{taskName}, #{type}, #{priority}, #{status}, #{feedbackInformation}, #{createTime}, #{updateTime})
+    </insert>
+
+    <!-- 更新任务 -->
+    <update id="update" parameterType="com.gxa.pipe.pojo.entity.Task">
+        UPDATE task
+        <set>
+            <if test="inspectionId != null">inspection_id = #{inspectionId},</if>
+            <if test="repairmanId != null">repairman_id = #{repairmanId},</if>
+            <if test="areaId != null">area_id = #{areaId},</if>
+            <if test="pipeId != null">pipe_id = #{pipeId},</if>
+            <if test="taskName != null">task_name = #{taskName},</if>
+            <if test="type != null">type = #{type},</if>
+            <if test="priority != null">priority = #{priority},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="feedbackInformation != null">feedback_information = #{feedbackInformation},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <!-- 删除任务 -->
+    <delete id="deleteById">
+        DELETE FROM task WHERE id = #{id}
+    </delete>
+
+    <!-- 统计进行中的任务数量 -->
+    <select id="countUnderwayTasks" resultType="int">
+        SELECT COUNT(*)
+        FROM task
+        WHERE status = 1
+    </select>
+
+    <!-- 统计超时任务数量 -->
+    <select id="countOvertimeTasks" resultType="int">
+        SELECT COUNT(*)
+        FROM task
+        WHERE status = 1
+        AND create_time &lt; DATE_SUB(NOW(), INTERVAL 3 DAY)
+    </select>
+
+    <!-- 统计今日任务数量 -->
+    <select id="countTodayTasks" resultType="int">
+        SELECT COUNT(*)
+        FROM task
+        WHERE DATE(create_time) = CURDATE()
+    </select>
+
+    <!-- 统计已完成任务数量 -->
+    <select id="countCompletedTasks" resultType="int">
+        SELECT COUNT(*)
+        FROM task
+        WHERE status = 2
+        AND DATE(update_time) = CURDATE()
+    </select>
+
+</mapper>

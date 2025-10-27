@@ -1,4 +1,4 @@
-package com.gxa.pipe.Manoeuvre;
+package com.gxa.pipe.manoeuvre;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;

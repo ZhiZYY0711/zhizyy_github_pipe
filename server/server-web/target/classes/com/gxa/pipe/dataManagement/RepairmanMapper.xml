@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gxa.pipe.dataManagement.repairman.RepairmanMapper">
+
+    <!-- 结果映射 -->
+    <resultMap id="BaseResultMap" type="com.gxa.pipe.entity.Repairman">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="name" property="name" jdbcType="VARCHAR"/>
+        <result column="age" property="age" jdbcType="INTEGER"/>
+        <result column="sex" property="sex" jdbcType="INTEGER"/>
+        <result column="phone" property="phone" jdbcType="VARCHAR"/>
+        <result column="email" property="email" jdbcType="VARCHAR"/>
+        <result column="entry_time" property="entryTime" jdbcType="TIMESTAMP"/>
+        <result column="area_id" property="areaId" jdbcType="BIGINT"/>
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
+        <result column="update_time" property="updateTime" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <!-- 基础字段 -->
+    <sql id="Base_Column_List">
+        id, name, age, sex, phone, email, entry_time, area_id, create_time, update_time
+    </sql>
+
+    <!-- 分页查询检修员 -->
+    <select id="selectByPage" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM repairman
+        <where>
+            <if test="name != null and name != ''">
+                AND name LIKE CONCAT('%', #{name}, '%')
+            </if>
+            <if test="minAge != null and minAge != ''">
+                AND age &gt;= #{minAge}
+            </if>
+            <if test="maxAge != null and maxAge != ''">
+                AND age &lt;= #{maxAge}
+            </if>
+            <if test="sex != null">
+                AND sex = #{sex}
+            </if>
+            <if test="phone != null and phone != ''">
+                AND phone LIKE CONCAT('%', #{phone}, '%')
+            </if>
+            <if test="areaId != null and areaID += ''">
+                AND area_id = #{areaId}
+            </if>
+            <if test="entryStartTime != null and entryStartTime != ''">
+                AND entry_time &gt;= #{entryStartTime}
+            </if>
+            <if test="entryEndTime != null and entryEndTime != ''">
+                AND entry_time &lt;= #{entryEndTime}
+            </if>
+        </where>
+        ORDER BY create_time DESC
+    </select>
+
+    <!-- 根据ID查询检修员 -->
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM repairman
+        WHERE id = #{id}
+    </select>
+
+    <!-- 插入检修员 -->
+    <insert id="insert">
+        INSERT INTO repairman
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="name != null and name != ''">name,</if>
+            <if test="age != null and age != ''">age,</if>
+            <if test="sex != null and sex != ''">sex,</if>
+            <if test="phone != null and phone != ''">phone,</if>
+            <if test="entryTime != null and entryTime != ''">entry_time,</if>
+            <if test="areaId != null and areaId != ''">area_id,</if>
+        </trim>
+        VALUES
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="name != null and name != ''">#{name},</if>
+            <if test="age != null and age != ''">#{age},</if>
+            <if test="sex != null and sex != ''">#{sex},</if>
+            <if test="phone != null and phone != ''">#{phone},</if>
+            <if test="entryTime != null and entryTime != ''">#{entryTime},</if>
+            <if test="areaId != null and areaId != ''">#{areaId},</if>
+        </trim>
+    </insert>
+
+    <!-- 更新检修员 -->
+    <update id="update">
+        UPDATE repairman
+        <set>
+            <if test="name != null and name != ''">name = #{name},</if>
+            <if test="age != null and age != ''">age = #{age},</if>
+            <if test="sex != null and sex != ''">sex = #{sex},</if>
+            <if test="phone != null and phone != ''">phone = #{phone},</if>
+            <if test="entryTime != null and entryTime != ''">entry_time = #{entryTime},</if>
+            <if test="areaId != null and areaId != ''">area_id = #{areaId},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <!-- 删除检修员 -->
+    <delete id="deleteById">
+        DELETE FROM repairman WHERE id = #{id}
+    </delete>
+
+    <!-- 批量删除检修员 -->
+    <delete id="batchDeleteByIds">
+        DELETE FROM repairman 
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <!-- 统计检修员总数 -->
+    <select id="countTotal" resultType="int">
+        SELECT COUNT(*) FROM repairman
+    </select>
+
+    <!-- 根据性别统计检修员数量 -->
+    <select id="countBySex" resultType="int">
+        SELECT COUNT(*) FROM repairman WHERE sex = #{sex}
+    </select>
+
+    <!-- 根据区域ID统计检修员数量 -->
+    <select id="countByAreaId" resultType="int">
+        SELECT COUNT(*) FROM repairman WHERE area_id = #{areaId}
+    </select>
+
+    <!-- 计算检修员平均年龄 -->
+    <select id="calculateAverageAge" resultType="double">
+        SELECT AVG(age) FROM repairman WHERE age IS NOT NULL
+    </select>
+
+    <!-- 计算平均完成时间 -->
+    <select id="calculateAverageCompletionTime" resultType="double">
+        SELECT AVG(TIMESTAMPDIFF(HOUR, t.create_time, t.update_time))
+        FROM task t
+        WHERE t.status = 2
+        AND t.update_time >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+    </select>
+
+</mapper>

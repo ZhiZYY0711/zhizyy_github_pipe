@@ -1,4 +1,4 @@
-package com.gxa.pipe.Manoeuvre;
+package com.gxa.pipe.manoeuvre;
 
 public class ManoeuvreController {
 

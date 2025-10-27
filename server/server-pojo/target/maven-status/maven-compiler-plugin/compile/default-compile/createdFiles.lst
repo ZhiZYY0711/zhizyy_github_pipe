@@ -6,6 +6,7 @@ com\gxa\pipe\pojo\entity\Repairman.class
 com\gxa\pipe\pojo\dto\request\ManoeuvreQueryRequest.class
 com\gxa\pipe\pojo\dto\response\dataManagement\monitoring\MonitoringDataIndicatorResponse.class
 com\gxa\pipe\pojo\entity\AdminRegistration.class
+com\gxa\pipe\pojo\vo\EquipmentVO.class
 com\gxa\pipe\pojo\dto\request\dataManagement\equipment\EquipmentIdRequest.class
 com\gxa\pipe\pojo\dto\response\AreaResponse.class
 com\gxa\pipe\pojo\entity\Log.class

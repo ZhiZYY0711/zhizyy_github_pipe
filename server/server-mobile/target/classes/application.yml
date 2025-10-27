@@ -18,8 +18,8 @@ spring:
 
 # MyBatis配置
 mybatis:
-  mapper-locations: classpath:mapper/*.xml
-  type-aliases-package: com.gxa.pipe.pojo.entity
+  mapper-locations: classpath:mapper/**/*.xml
+  type-aliases-package: com.gxa.pipe.pojo.entity,com.gxa.pipe.pojo.vo
   configuration:
     map-underscore-to-camel-case: true
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl

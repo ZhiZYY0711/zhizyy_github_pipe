@@ -2,8 +2,6 @@ package com.gxa.pipe.dataManagement.equipment;
 
 import java.util.List;
 
-import com.gxa.pipe.dataManagement.equipment.*;
-
 /**
  * 设备信息管理服务接口
  */

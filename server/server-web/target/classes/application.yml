@@ -20,8 +20,8 @@ spring:
 
 # MyBatis配置
 mybatis:
-  mapper-locations: com/gxa/pipe/**/*.xml
-  # type-aliases-package: com.gxa.pipe.entity
+  mapper-locations: classpath:com/gxa/pipe/**/*.xml
+  type-aliases-package: com.gxa.pipe.entity
   configuration:
     map-underscore-to-camel-case: true
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl

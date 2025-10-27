@@ -1,6 +1,5 @@
 package com.gxa.pipe.dataManagement.equipment;
 
-import com.gxa.pipe.dataManagement.equipment.*;
 import com.gxa.pipe.entity.Sensor;
 
 import lombok.RequiredArgsConstructor;

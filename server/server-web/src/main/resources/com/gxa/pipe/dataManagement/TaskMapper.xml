@@ -119,13 +119,13 @@
     </select>
 
     <!-- 插入任务 -->
-    <insert id="insert" parameterType="com.gxa.pipe.pojo.entity.Task" useGeneratedKeys="true" keyProperty="id">
+    <insert id="insert" parameterType="com.gxa.pipe.entity.Task" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO task (inspection_id, repairman_id, area_id, pipe_id, task_name, type, priority, status, public_time, response_time, accomplish_time, feedback_information, create_time, update_time)
         VALUES (#{inspectionId}, #{repairmanId}, #{areaId}, #{pipeId}, #{taskName}, #{type}, #{priority}, #{status}, #{publicTime}, #{responseTime}, #{accomplishTime}, #{feedbackInformation}, #{createTime}, #{updateTime})
     </insert>
 
     <!-- 更新任务 -->
-    <update id="update" parameterType="com.gxa.pipe.pojo.entity.Task">
+    <update id="update" parameterType="com.gxa.pipe.entity.Task">
         UPDATE task
         <set>
             <if test="inspectionId != null">inspection_id = #{inspectionId},</if>

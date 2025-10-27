@@ -1,6 +1,10 @@
 package com.gxa.pipe.service.dataManagement;
 
+import com.gxa.pipe.pojo.dto.request.dataManagement.task.TaskAddRequest;
 import com.gxa.pipe.pojo.dto.request.dataManagement.task.TaskQueryRequest;
+import com.gxa.pipe.pojo.dto.request.dataManagement.task.TaskUpdateRequest;
+import com.gxa.pipe.pojo.dto.response.dataManagement.task.TaskIndicatorResponse;
+import com.gxa.pipe.pojo.dto.response.dataManagement.task.TaskResponse;
 import com.gxa.pipe.pojo.entity.Task;
 import com.gxa.pipe.utils.PageResult;
 
@@ -15,7 +19,7 @@ public interface TaskService {
      * @param request 查询请求
      * @return 分页结果
      */
-    PageResult<Task> getByPage(TaskQueryRequest request);
+    PageResult<TaskResponse> getByPage(TaskQueryRequest request);
 
     /**
      * 根据ID查询任务
@@ -23,23 +27,23 @@ public interface TaskService {
      * @param id 任务ID
      * @return 任务信息
      */
-    Task getById(Long id);
+    TaskResponse getById(Long id);
 
     /**
      * 创建任务
      * 
-     * @param task 任务信息
+     * @param request 任务创建请求
      * @return 是否成功
      */
-    boolean create(Task task);
+    boolean create(TaskAddRequest request);
 
     /**
      * 更新任务
      * 
-     * @param task 任务信息
+     * @param request 任务更新请求
      * @return 是否成功
      */
-    boolean update(Task task);
+    boolean update(TaskUpdateRequest request);
 
     /**
      * 删除任务
@@ -76,4 +80,12 @@ public interface TaskService {
      * @return 已完成任务数量
      */
     int countCompletedTasks();
+
+    /**
+     * 获取任务指标卡数据
+     * 
+     * @param areaId 区域ID（可选）
+     * @return 任务指标卡数据
+     */
+    TaskIndicatorResponse getTaskIndicators(Long areaId);
 }

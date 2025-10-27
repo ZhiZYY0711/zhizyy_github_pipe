@@ -6,7 +6,6 @@ com\gxa\pipe\pojo\entity\Repairman.class
 com\gxa\pipe\pojo\dto\request\ManoeuvreQueryRequest.class
 com\gxa\pipe\pojo\dto\response\dataManagement\monitoring\MonitoringDataIndicatorResponse.class
 com\gxa\pipe\pojo\entity\AdminRegistration.class
-com\gxa\pipe\pojo\vo\EquipmentVO.class
 com\gxa\pipe\pojo\dto\request\dataManagement\equipment\EquipmentIdRequest.class
 com\gxa\pipe\pojo\dto\response\AreaResponse.class
 com\gxa\pipe\pojo\entity\Log.class
@@ -14,7 +13,9 @@ com\gxa\pipe\pojo\entity\Pipe.class
 com\gxa\pipe\pojo\entity\Inspection.class
 com\gxa\pipe\pojo\entity\Sensor.class
 com\gxa\pipe\pojo\dto\request\dataManagement\task\TaskAddRequest.class
+com\gxa\pipe\pojo\dto\request\dataManagement\task\TaskIdRequest.class
 com\gxa\pipe\pojo\dto\response\dataManagement\equipment\EquipmentIndicatorResponse.class
+com\gxa\pipe\pojo\dto\response\dataManagement\task\TaskIndicatorResponse.class
 com\gxa\pipe\pojo\dto\request\dataManagement\monitoring\MonitoringDataByIdRequest.class
 com\gxa\pipe\pojo\dto\request\dataManagement\task\TaskQueryRequest.class
 com\gxa\pipe\pojo\dto\request\dataManagement\monitoring\MonitoringDataAddRequest.class
@@ -26,12 +27,14 @@ com\gxa\pipe\pojo\dto\request\AdminLoginRequest.class
 com\gxa\pipe\pojo\dto\request\LogQueryRequest.class
 com\gxa\pipe\pojo\dto\response\RunningWaterAlarmResponse.class
 com\gxa\pipe\pojo\dto\response\dataManagement\monitoring\MonitoringDataQueryResponse.class
+com\gxa\pipe\pojo\dto\response\dataManagement\task\TaskResponse.class
 com\gxa\pipe\pojo\entity\Area.class
 com\gxa\pipe\pojo\entity\ConnManoeuvreRepairman.class
 com\gxa\pipe\pojo\entity\Task.class
 com\gxa\pipe\pojo\dto\request\ManoeuvreAddRequest.class
 com\gxa\pipe\pojo\dto\response\dataManagement\repairman\RepairmanKpiResponse.class
 com\gxa\pipe\pojo\dto\response\dataManagement\equipment\EquipmentResponse.class
+com\gxa\pipe\pojo\dto\request\dataManagement\task\TaskUpdateRequest.class
 com\gxa\pipe\pojo\dto\response\AdminLoginResponse.class
 com\gxa\pipe\pojo\dto\request\dataManagement\equipment\EquipmentUpdateRequest.class
 com\gxa\pipe\pojo\entity\RepairmanRegistration.class

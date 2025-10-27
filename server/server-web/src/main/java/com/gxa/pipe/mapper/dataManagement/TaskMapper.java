@@ -1,6 +1,7 @@
 package com.gxa.pipe.mapper.dataManagement;
 
 import com.gxa.pipe.pojo.dto.request.dataManagement.task.TaskQueryRequest;
+import com.gxa.pipe.pojo.dto.response.dataManagement.task.TaskResponse;
 import com.gxa.pipe.pojo.entity.Task;
 
 import org.apache.ibatis.annotations.Mapper;
@@ -20,7 +21,7 @@ public interface TaskMapper {
      * @param request 查询请求
      * @return 任务列表
      */
-    List<Task> selectByPage(TaskQueryRequest request);
+    List<TaskResponse> selectByPage(TaskQueryRequest request);
 
     /**
      * 根据ID查询任务
@@ -28,7 +29,7 @@ public interface TaskMapper {
      * @param id 任务ID
      * @return 任务信息
      */
-    Task selectById(@Param("id") Long id);
+    TaskResponse selectById(@Param("id") Long id);
 
     /**
      * 插入任务
@@ -57,9 +58,10 @@ public interface TaskMapper {
     /**
      * 统计进行中的任务数量
      * 
+     * @param areaId 区域ID
      * @return 进行中的任务数量
      */
-    int countUnderwayTasks();
+    int countUnderwayTasks(@Param("areaId") Long areaId);
 
     /**
      * 统计超时任务数量
@@ -78,7 +80,32 @@ public interface TaskMapper {
     /**
      * 统计已完成任务数量
      * 
+     * @param areaId 区域ID
      * @return 已完成任务数量
      */
-    int countCompletedTasks();
+    int countCompletedTasks(@Param("areaId") Long areaId);
+
+    /**
+     * 统计任务总数
+     * 
+     * @param areaId 区域ID
+     * @return 任务总数
+     */
+    int countTotalTasks(@Param("areaId") Long areaId);
+
+    /**
+     * 统计待处理任务数量
+     * 
+     * @param areaId 区域ID
+     * @return 待处理任务数量
+     */
+    int countPendingTasks(@Param("areaId") Long areaId);
+
+    /**
+     * 统计紧急任务数量
+     * 
+     * @param areaId 区域ID
+     * @return 紧急任务数量
+     */
+    int countUrgentTasks(@Param("areaId") Long areaId);
 }

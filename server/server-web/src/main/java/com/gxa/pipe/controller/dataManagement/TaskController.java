@@ -1,11 +1,7 @@
 package com.gxa.pipe.controller.dataManagement;
 
-import com.gxa.pipe.pojo.dto.request.dataManagement.task.TaskAddRequest;
-import com.gxa.pipe.pojo.dto.request.dataManagement.task.TaskIdRequest;
-import com.gxa.pipe.pojo.dto.request.dataManagement.task.TaskQueryRequest;
-import com.gxa.pipe.pojo.dto.request.dataManagement.task.TaskUpdateRequest;
-import com.gxa.pipe.pojo.dto.response.dataManagement.task.TaskIndicatorResponse;
-import com.gxa.pipe.pojo.dto.response.dataManagement.task.TaskResponse;
+import com.gxa.pipe.pojo.dto.dataManagement.task.*;
+import com.gxa.pipe.pojo.vo.dataManagement.task.*;
 import com.gxa.pipe.pojo.entity.Task;
 import com.gxa.pipe.service.dataManagement.TaskService;
 import com.gxa.pipe.utils.Result;

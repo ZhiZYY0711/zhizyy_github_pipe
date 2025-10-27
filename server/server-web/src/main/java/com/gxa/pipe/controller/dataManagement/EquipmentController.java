@@ -1,8 +1,8 @@
 package com.gxa.pipe.controller.dataManagement;
 
-import com.gxa.pipe.pojo.dto.request.dataManagement.equipment.*;
-import com.gxa.pipe.pojo.dto.response.dataManagement.equipment.*;
-import com.gxa.pipe.pojo.dto.response.CommonResponse;
+import com.gxa.pipe.pojo.dto.dataManagement.equipment.*;
+import com.gxa.pipe.pojo.vo.dataManagement.equipment.*;
+import com.gxa.pipe.pojo.vo.CommonResponse;
 import com.gxa.pipe.service.dataManagement.EquipmentService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;

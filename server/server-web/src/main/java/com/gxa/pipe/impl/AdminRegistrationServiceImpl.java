@@ -5,9 +5,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import com.gxa.pipe.mapper.AdminRegistrationMapper;
-import com.gxa.pipe.pojo.dto.request.AdminLoginRequest;
-import com.gxa.pipe.pojo.dto.response.AdminLoginResponse;
+import com.gxa.pipe.pojo.dto.AdminLoginRequest;
 import com.gxa.pipe.pojo.entity.AdminRegistration;
+import com.gxa.pipe.pojo.vo.AdminLoginResponse;
 import com.gxa.pipe.service.AdminRegistrationService;
 import com.gxa.pipe.utils.JwtUtils;
 

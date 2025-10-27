@@ -4,7 +4,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
-import com.gxa.pipe.pojo.dto.response.AreaResponse;
+import com.gxa.pipe.pojo.vo.AreaResponse;
 import com.gxa.pipe.service.AreaService;
 import com.gxa.pipe.utils.Result;
 

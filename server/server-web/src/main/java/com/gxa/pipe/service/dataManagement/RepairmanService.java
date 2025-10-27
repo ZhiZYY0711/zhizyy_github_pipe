@@ -1,60 +1,115 @@
 package com.gxa.pipe.service.dataManagement;
 
-import com.gxa.pipe.pojo.dto.request.dataManagement.repairman.RepairmanQueryRequest;
+import com.gxa.pipe.pojo.dto.dataManagement.repairman.*;
+import com.gxa.pipe.pojo.vo.dataManagement.repairman.*;
 import com.gxa.pipe.pojo.entity.Repairman;
 import com.gxa.pipe.utils.PageResult;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 /**
- * 维修工服务接口
+ * 检修员服务接口
  */
 public interface RepairmanService {
 
     /**
-     * 分页查询维修工
+     * 分页查询检修员
      * 
      * @param request 查询请求
-     * @return 分页结果
+     * @return 查询响应
      */
-    PageResult<Repairman> getByPage(RepairmanQueryRequest request);
+    RepairmanPageQueryResponse queryRepairmen(RepairmanQueryRequest request);
 
     /**
-     * 根据ID查询维修工
+     * 根据ID查询检修员
      * 
-     * @param id 维修工ID
-     * @return 维修工信息
+     * @param id 检修员ID
+     * @return 检修员信息
      */
     Repairman getById(Long id);
 
     /**
-     * 创建维修工
+     * 新增检修员
      * 
-     * @param repairman 维修工信息
+     * @param request 新增请求
      * @return 是否成功
      */
+    boolean addRepairman(RepairmanAddRequest request);
+
+    /**
+     * 修改检修员
+     * 
+     * @param request 修改请求
+     * @return 是否成功
+     */
+    boolean updateRepairman(RepairmanUpdateRequest request);
+
+    /**
+     * 删除检修员
+     * 
+     * @param id 检修员ID
+     * @return 是否成功
+     */
+    boolean deleteRepairman(Long id);
+
+    /**
+     * 批量删除检修员
+     * 
+     * @param ids 检修员ID列表
+     * @return 是否成功
+     */
+    boolean batchDeleteRepairmen(List<Long> ids);
+
+    /**
+     * 查询检修员指标
+     * 
+     * @param request 指标查询请求
+     * @return 指标响应
+     */
+    RepairmanIndicatorResponse getRepairmanIndicator(RepairmanIndicatorRequest request);
+
+    // 保留原有的方法以保持兼容性
+    /**
+     * 分页查询检修员（兼容性方法）
+     * 
+     * @param request 查询请求
+     * @return 分页结果
+     */
+    @Deprecated
+    PageResult<Repairman> getByPage(RepairmanQueryRequest request);
+
+    /**
+     * 创建检修员（兼容性方法）
+     * 
+     * @param repairman 检修员信息
+     * @return 是否成功
+     */
+    @Deprecated
     boolean create(Repairman repairman);
 
     /**
-     * 更新维修工
+     * 更新检修员（兼容性方法）
      * 
-     * @param repairman 维修工信息
+     * @param repairman 检修员信息
      * @return 是否成功
      */
+    @Deprecated
     boolean update(Repairman repairman);
 
     /**
-     * 删除维修工
+     * 删除检修员（兼容性方法）
      * 
-     * @param id 维修工ID
+     * @param id 检修员ID
      * @return 是否成功
      */
+    @Deprecated
     boolean delete(Long id);
 
     /**
-     * 统计维修工总数
+     * 统计检修员总数
      * 
-     * @return 维修工总数
+     * @return 检修员总数
      */
     int countTotal();
 

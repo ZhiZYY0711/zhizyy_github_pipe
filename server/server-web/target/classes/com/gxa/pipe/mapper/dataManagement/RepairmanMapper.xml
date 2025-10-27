@@ -20,7 +20,7 @@
         id, name, age, sex, phone, email, area_id, create_time, update_time
     </sql>
 
-    <!-- 分页查询维修工 -->
+    <!-- 分页查询检修员 -->
     <select id="selectByPage" resultMap="BaseResultMap">
         SELECT
         <include refid="Base_Column_List"/>
@@ -48,7 +48,7 @@
         ORDER BY create_time DESC
     </select>
 
-    <!-- 根据ID查询维修工 -->
+    <!-- 根据ID查询检修员 -->
     <select id="selectById" resultMap="BaseResultMap">
         SELECT
         <include refid="Base_Column_List"/>
@@ -56,13 +56,13 @@
         WHERE id = #{id}
     </select>
 
-    <!-- 插入维修工 -->
+    <!-- 插入检修员 -->
     <insert id="insert" parameterType="com.gxa.pipe.pojo.entity.Repairman" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO repairman (name, age, sex, phone, email, area_id, create_time, update_time)
         VALUES (#{name}, #{age}, #{sex}, #{phone}, #{email}, #{areaId}, #{createTime}, #{updateTime})
     </insert>
 
-    <!-- 更新维修工 -->
+    <!-- 更新检修员 -->
     <update id="update" parameterType="com.gxa.pipe.pojo.entity.Repairman">
         UPDATE repairman
         <set>
@@ -77,14 +77,38 @@
         WHERE id = #{id}
     </update>
 
-    <!-- 删除维修工 -->
+    <!-- 删除检修员 -->
     <delete id="deleteById">
         DELETE FROM repairman WHERE id = #{id}
     </delete>
 
-    <!-- 统计维修工总数 -->
+    <!-- 批量删除检修员 -->
+    <delete id="batchDeleteByIds">
+        DELETE FROM repairman 
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <!-- 统计检修员总数 -->
     <select id="countTotal" resultType="int">
         SELECT COUNT(*) FROM repairman
+    </select>
+
+    <!-- 根据性别统计检修员数量 -->
+    <select id="countBySex" resultType="int">
+        SELECT COUNT(*) FROM repairman WHERE sex = #{sex}
+    </select>
+
+    <!-- 根据区域ID统计检修员数量 -->
+    <select id="countByAreaId" resultType="int">
+        SELECT COUNT(*) FROM repairman WHERE area_id = #{areaId}
+    </select>
+
+    <!-- 计算检修员平均年龄 -->
+    <select id="calculateAverageAge" resultType="double">
+        SELECT AVG(age) FROM repairman WHERE age IS NOT NULL
     </select>
 
     <!-- 计算平均完成时间 -->

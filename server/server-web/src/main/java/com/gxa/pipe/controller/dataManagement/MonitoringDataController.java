@@ -1,11 +1,7 @@
 package com.gxa.pipe.controller.dataManagement;
 
-import com.gxa.pipe.pojo.dto.request.dataManagement.monitoring.MonitoringDataAddRequest;
-import com.gxa.pipe.pojo.dto.request.dataManagement.monitoring.MonitoringDataByIdRequest;
-import com.gxa.pipe.pojo.dto.request.dataManagement.monitoring.MonitoringDataQueryRequest;
-import com.gxa.pipe.pojo.dto.request.dataManagement.monitoring.MonitoringDataUpdateRequest;
-import com.gxa.pipe.pojo.dto.response.dataManagement.monitoring.MonitoringDataIndicatorResponse;
-import com.gxa.pipe.pojo.dto.response.dataManagement.monitoring.MonitoringDataQueryResponse;
+import com.gxa.pipe.pojo.dto.dataManagement.monitoring.*;
+import com.gxa.pipe.pojo.vo.dataManagement.monitoring.*;
 import com.gxa.pipe.service.dataManagement.MonitoringDataService;
 import com.gxa.pipe.utils.PageResult;
 import com.gxa.pipe.utils.Result;

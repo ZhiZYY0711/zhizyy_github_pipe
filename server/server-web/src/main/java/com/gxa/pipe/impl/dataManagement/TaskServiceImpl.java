@@ -3,11 +3,10 @@ package com.gxa.pipe.impl.dataManagement;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.gxa.pipe.mapper.dataManagement.TaskMapper;
-import com.gxa.pipe.pojo.dto.request.dataManagement.task.TaskAddRequest;
-import com.gxa.pipe.pojo.dto.request.dataManagement.task.TaskQueryRequest;
-import com.gxa.pipe.pojo.dto.request.dataManagement.task.TaskUpdateRequest;
-import com.gxa.pipe.pojo.dto.response.dataManagement.task.TaskIndicatorResponse;
-import com.gxa.pipe.pojo.dto.response.dataManagement.task.TaskResponse;
+import com.gxa.pipe.pojo.dto.dataManagement.task.*;
+
+import com.gxa.pipe.pojo.vo.dataManagement.task.*;
+
 import com.gxa.pipe.pojo.entity.Task;
 import com.gxa.pipe.service.dataManagement.TaskService;
 import com.gxa.pipe.utils.PageResult;
@@ -17,9 +16,6 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * 任务服务实现类

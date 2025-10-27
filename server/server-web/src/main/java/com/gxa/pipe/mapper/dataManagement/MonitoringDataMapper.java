@@ -1,12 +1,9 @@
 package com.gxa.pipe.mapper.dataManagement;
 
 import com.github.pagehelper.Page;
-import com.gxa.pipe.pojo.dto.request.dataManagement.monitoring.MonitoringDataAddRequest;
-import com.gxa.pipe.pojo.dto.request.dataManagement.monitoring.MonitoringDataByIdRequest;
-import com.gxa.pipe.pojo.dto.request.dataManagement.monitoring.MonitoringDataQueryRequest;
-import com.gxa.pipe.pojo.dto.request.dataManagement.monitoring.MonitoringDataUpdateRequest;
-import com.gxa.pipe.pojo.dto.response.dataManagement.monitoring.MonitoringDataIndicatorResponse;
-import com.gxa.pipe.pojo.dto.response.dataManagement.monitoring.MonitoringDataQueryResponse;
+import com.gxa.pipe.pojo.dto.dataManagement.monitoring.*;
+import com.gxa.pipe.pojo.vo.dataManagement.monitoring.MonitoringDataIndicatorResponse;
+import com.gxa.pipe.pojo.vo.dataManagement.monitoring.MonitoringDataQueryResponse;
 
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;

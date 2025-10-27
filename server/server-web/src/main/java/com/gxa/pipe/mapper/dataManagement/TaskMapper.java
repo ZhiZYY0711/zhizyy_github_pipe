@@ -1,7 +1,7 @@
 package com.gxa.pipe.mapper.dataManagement;
 
-import com.gxa.pipe.pojo.dto.request.dataManagement.task.TaskQueryRequest;
-import com.gxa.pipe.pojo.dto.response.dataManagement.task.TaskResponse;
+import com.gxa.pipe.pojo.dto.dataManagement.task.TaskQueryRequest;
+import com.gxa.pipe.pojo.vo.dataManagement.task.TaskResponse;
 import com.gxa.pipe.pojo.entity.Task;
 
 import org.apache.ibatis.annotations.Mapper;

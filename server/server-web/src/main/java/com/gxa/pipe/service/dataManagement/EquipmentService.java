@@ -1,10 +1,8 @@
 package com.gxa.pipe.service.dataManagement;
 
-import com.gxa.pipe.pojo.dto.request.dataManagement.equipment.EquipmentAddRequest;
-import com.gxa.pipe.pojo.dto.request.dataManagement.equipment.EquipmentQueryRequest;
-import com.gxa.pipe.pojo.dto.request.dataManagement.equipment.EquipmentUpdateRequest;
-import com.gxa.pipe.pojo.dto.response.dataManagement.equipment.EquipmentIndicatorResponse;
-import com.gxa.pipe.pojo.dto.response.dataManagement.equipment.EquipmentResponse;
+import com.gxa.pipe.pojo.dto.dataManagement.equipment.*;
+
+import com.gxa.pipe.pojo.vo.dataManagement.equipment.*;
 
 import java.util.List;
 

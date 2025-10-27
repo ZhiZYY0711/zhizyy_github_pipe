@@ -1,7 +1,7 @@
 package com.gxa.pipe.service;
 
-import com.gxa.pipe.pojo.dto.request.AdminLoginRequest;
-import com.gxa.pipe.pojo.dto.response.AdminLoginResponse;
+import com.gxa.pipe.pojo.dto.AdminLoginRequest;
+import com.gxa.pipe.pojo.vo.AdminLoginResponse;
 
 public interface AdminRegistrationService {
 

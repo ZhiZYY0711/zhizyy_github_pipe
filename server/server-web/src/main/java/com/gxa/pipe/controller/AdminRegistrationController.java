@@ -7,8 +7,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.gxa.pipe.pojo.dto.request.AdminLoginRequest;
-import com.gxa.pipe.pojo.dto.response.AdminLoginResponse;
+import com.gxa.pipe.pojo.dto.AdminLoginRequest;
+import com.gxa.pipe.pojo.vo.AdminLoginResponse;
 import com.gxa.pipe.service.AdminRegistrationService;
 
 import jakarta.validation.Valid;

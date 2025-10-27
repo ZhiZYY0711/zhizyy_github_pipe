@@ -1,7 +1,7 @@
 package com.gxa.pipe.controller;
 
+import com.gxa.pipe.pojo.dto.LogQueryRequest;
 import com.gxa.pipe.pojo.entity.Log;
-import com.gxa.pipe.pojo.dto.request.LogQueryRequest;
 import com.gxa.pipe.service.LogService;
 import com.gxa.pipe.utils.Result;
 import com.gxa.pipe.utils.PageResult;

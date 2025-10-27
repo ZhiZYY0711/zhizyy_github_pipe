@@ -5,7 +5,8 @@ import lombok.RequiredArgsConstructor;
 
 import com.gxa.pipe.service.AreaService;
 import com.gxa.pipe.mapper.AreaMapper;
-import com.gxa.pipe.pojo.dto.response.AreaResponse;
+import com.gxa.pipe.pojo.vo.AreaResponse;
+
 import java.util.List;
 
 @Service

@@ -1,9 +1,7 @@
 package com.gxa.pipe.dataManagement.mapper;
 
 import com.gxa.pipe.entity.Repairman;
-import com.gxa.pipe.pojo.dto.dataManagement.repairman.RepairmanAddRequest;
-import com.gxa.pipe.pojo.dto.dataManagement.repairman.RepairmanQueryRequest;
-import com.gxa.pipe.pojo.dto.dataManagement.repairman.RepairmanUpdateRequest;
+import com.gxa.pipe.dataManagement.pojo.repairman.*;
 
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;

@@ -2,9 +2,9 @@ package com.gxa.pipe.dataManagement.controller;
 
 import com.gxa.pipe.dataManagement.service.RepairmanService;
 import com.gxa.pipe.entity.Repairman;
-import com.gxa.pipe.pojo.dto.dataManagement.repairman.*;
-import com.gxa.pipe.pojo.vo.dataManagement.repairman.*;
+import com.gxa.pipe.dataManagement.pojo.repairman.*;
 import com.gxa.pipe.utils.Result;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;

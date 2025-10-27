@@ -1,7 +1,6 @@
 package com.gxa.pipe.dataManagement.service;
 
-import com.gxa.pipe.pojo.dto.dataManagement.monitoring.*;
-import com.gxa.pipe.pojo.vo.dataManagement.monitoring.*;
+import com.gxa.pipe.dataManagement.pojo.monitoring.*;
 import com.gxa.pipe.utils.PageResult;
 
 import java.util.List;

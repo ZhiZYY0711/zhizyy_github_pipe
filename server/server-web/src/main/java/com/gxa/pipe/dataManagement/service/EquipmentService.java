@@ -1,8 +1,6 @@
 package com.gxa.pipe.dataManagement.service;
 
-import com.gxa.pipe.pojo.dto.dataManagement.equipment.*;
-
-import com.gxa.pipe.pojo.vo.dataManagement.equipment.*;
+import com.gxa.pipe.dataManagement.pojo.equipment.*;
 
 import java.util.List;
 

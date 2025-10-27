@@ -1,10 +1,10 @@
 package com.gxa.pipe.dataManagement.controller;
 
 import com.gxa.pipe.dataManagement.service.MonitoringDataService;
-import com.gxa.pipe.pojo.dto.dataManagement.monitoring.*;
-import com.gxa.pipe.pojo.vo.dataManagement.monitoring.*;
+import com.gxa.pipe.dataManagement.pojo.monitoring.*;
 import com.gxa.pipe.utils.PageResult;
 import com.gxa.pipe.utils.Result;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;

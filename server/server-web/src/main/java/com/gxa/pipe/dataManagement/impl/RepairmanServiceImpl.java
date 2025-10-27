@@ -1,17 +1,17 @@
 package com.gxa.pipe.dataManagement.impl;
 
-import com.github.pagehelper.Page;
-import com.github.pagehelper.PageHelper;
 import com.gxa.pipe.dataManagement.mapper.RepairmanMapper;
 import com.gxa.pipe.dataManagement.service.RepairmanService;
 import com.gxa.pipe.entity.Repairman;
-import com.gxa.pipe.pojo.dto.dataManagement.repairman.*;
-import com.gxa.pipe.pojo.vo.dataManagement.repairman.*;
+import com.gxa.pipe.dataManagement.pojo.repairman.*;
 import com.gxa.pipe.utils.PageResult;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.github.pagehelper.Page;
+import com.github.pagehelper.PageHelper;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;

@@ -1,8 +1,6 @@
 package com.gxa.pipe.dataManagement.service;
 
-import com.gxa.pipe.pojo.dto.dataManagement.task.*;
-import com.gxa.pipe.pojo.vo.dataManagement.task.TaskIndicatorResponse;
-import com.gxa.pipe.pojo.vo.dataManagement.task.TaskResponse;
+import com.gxa.pipe.dataManagement.pojo.task.*;
 import com.gxa.pipe.utils.PageResult;
 
 /**

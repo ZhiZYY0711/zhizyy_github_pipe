@@ -1,8 +1,7 @@
 package com.gxa.pipe.dataManagement.mapper;
 
 import com.gxa.pipe.entity.Sensor;
-import com.gxa.pipe.pojo.dto.dataManagement.equipment.EquipmentQueryRequest;
-import com.gxa.pipe.pojo.vo.dataManagement.equipment.EquipmentResponse;
+import com.gxa.pipe.dataManagement.pojo.equipment.*;
 
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;

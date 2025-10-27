@@ -1,9 +1,8 @@
 package com.gxa.pipe.dataManagement.controller;
 
 import com.gxa.pipe.dataManagement.service.EquipmentService;
-import com.gxa.pipe.pojo.dto.dataManagement.equipment.*;
-import com.gxa.pipe.pojo.vo.dataManagement.equipment.*;
-import com.gxa.pipe.pojo.vo.CommonResponse;
+import com.gxa.pipe.utils.Result;
+import com.gxa.pipe.dataManagement.pojo.equipment.*;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -27,12 +26,12 @@ public class EquipmentController {
    * 进入页面时触发一次 点击搜索按钮时触发一次
    */
   @PostMapping("/find_equipment_params")
-  public CommonResponse<List<EquipmentResponse>> findEquipmentParams(@RequestBody EquipmentQueryRequest request) {
+  public Result<List<EquipmentResponse>> findEquipmentParams(@RequestBody EquipmentQueryRequest request) {
     try {
       List<EquipmentResponse> equipmentList = equipmentService.findEquipmentByConditions(request);
-      return CommonResponse.success(equipmentList);
+      return Result.success(equipmentList);
     } catch (Exception e) {
-      return CommonResponse.error("查询设备信息失败：" + e.getMessage());
+      return Result.error("查询设备信息失败：" + e.getMessage());
     }
   }
 
@@ -43,12 +42,12 @@ public class EquipmentController {
    * 返回结果正常情况应为一个
    */
   @PostMapping("/find_equipment_id")
-  public CommonResponse<List<EquipmentResponse>> findEquipmentById(@RequestBody EquipmentIdRequest request) {
+  public Result<List<EquipmentResponse>> findEquipmentById(@RequestBody EquipmentIdRequest request) {
     try {
       List<EquipmentResponse> equipment = equipmentService.findEquipmentById(request.getId());
-      return CommonResponse.success(equipment);
+      return Result.success(equipment);
     } catch (Exception e) {
-      return CommonResponse.error("查询设备信息失败：" + e.getMessage());
+      return Result.error("查询设备信息失败：" + e.getMessage());
     }
   }
 
@@ -57,12 +56,12 @@ public class EquipmentController {
    * 插入新设备的信息
    */
   @PostMapping("/add_equipment")
-  public CommonResponse<Object> addEquipment(@RequestBody EquipmentAddRequest request) {
+  public Result<Object> addEquipment(@RequestBody EquipmentAddRequest request) {
     try {
       equipmentService.addEquipment(request);
-      return CommonResponse.success();
+      return Result.success();
     } catch (Exception e) {
-      return CommonResponse.error("添加设备信息失败：" + e.getMessage());
+      return Result.error("添加设备信息失败：" + e.getMessage());
     }
   }
 
@@ -71,12 +70,12 @@ public class EquipmentController {
    * 修改设备的信息
    */
   @PostMapping("/update_equipment")
-  public CommonResponse<Object> updateEquipment(@RequestBody EquipmentUpdateRequest request) {
+  public Result<Object> updateEquipment(@RequestBody EquipmentUpdateRequest request) {
     try {
       equipmentService.updateEquipment(request);
-      return CommonResponse.success();
+      return Result.success();
     } catch (Exception e) {
-      return CommonResponse.error("修改设备信息失败：" + e.getMessage());
+      return Result.error("修改设备信息失败：" + e.getMessage());
     }
   }
 
@@ -85,12 +84,12 @@ public class EquipmentController {
    * 删除设备信息
    */
   @GetMapping("/delete_equipment/{ids}")
-  public CommonResponse<Object> deleteEquipment(@PathVariable String ids) {
+  public Result<Object> deleteEquipment(@PathVariable String ids) {
     try {
       equipmentService.deleteEquipment(ids);
-      return CommonResponse.success();
+      return Result.success();
     } catch (Exception e) {
-      return CommonResponse.error("删除设备信息失败：" + e.getMessage());
+      return Result.error("删除设备信息失败：" + e.getMessage());
     }
   }
 
@@ -99,12 +98,12 @@ public class EquipmentController {
    * 获取设备信息的指标卡 进入页面时触发一次
    */
   @GetMapping("/Indicator_card")
-  public CommonResponse<EquipmentIndicatorResponse> getIndicatorCard(@RequestParam(required = false) String area_id) {
+  public Result<EquipmentIndicatorResponse> getIndicatorCard(@RequestParam(required = false) String area_id) {
     try {
       EquipmentIndicatorResponse response = equipmentService.getEquipmentIndicator();
-      return CommonResponse.success(response);
+      return Result.success(response);
     } catch (Exception e) {
-      return CommonResponse.error("获取设备指标卡失败：" + e.getMessage());
+      return Result.error("获取设备指标卡失败：" + e.getMessage());
     }
   }
 }

@@ -1,8 +1,7 @@
 package com.gxa.pipe.dataManagement.controller;
 
 import com.gxa.pipe.dataManagement.service.TaskService;
-import com.gxa.pipe.pojo.dto.dataManagement.task.*;
-import com.gxa.pipe.pojo.vo.dataManagement.task.*;
+import com.gxa.pipe.dataManagement.pojo.task.*;
 import com.gxa.pipe.utils.Result;
 import com.gxa.pipe.utils.PageResult;
 import lombok.RequiredArgsConstructor;

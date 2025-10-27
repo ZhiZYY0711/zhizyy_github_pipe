@@ -3,12 +3,7 @@ package com.gxa.pipe.dataManagement.impl;
 import com.gxa.pipe.dataManagement.mapper.EquipmentMapper;
 import com.gxa.pipe.dataManagement.service.EquipmentService;
 import com.gxa.pipe.entity.Sensor;
-import com.gxa.pipe.pojo.dto.dataManagement.equipment.EquipmentAddRequest;
-import com.gxa.pipe.pojo.dto.dataManagement.equipment.EquipmentQueryRequest;
-import com.gxa.pipe.pojo.dto.dataManagement.equipment.EquipmentUpdateRequest;
-
-import com.gxa.pipe.pojo.vo.dataManagement.equipment.EquipmentIndicatorResponse;
-import com.gxa.pipe.pojo.vo.dataManagement.equipment.EquipmentResponse;
+import com.gxa.pipe.dataManagement.pojo.equipment.*;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

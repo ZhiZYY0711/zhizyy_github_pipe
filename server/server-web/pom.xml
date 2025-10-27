@@ -80,7 +80,7 @@
         </dependency>
         <dependency>
             <groupId>com.gxa.pipe</groupId>
-            <artifactId>server-utils</artifactId>
+            <artifactId>server-support</artifactId>
             <version>0.0.1-SNAPSHOT</version>
         </dependency>
     </dependencies>

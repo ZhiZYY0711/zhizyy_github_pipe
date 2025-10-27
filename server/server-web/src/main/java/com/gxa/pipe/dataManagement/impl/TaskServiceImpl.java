@@ -1,18 +1,17 @@
 package com.gxa.pipe.dataManagement.impl;
 
-import com.github.pagehelper.Page;
-import com.github.pagehelper.PageHelper;
 import com.gxa.pipe.dataManagement.mapper.TaskMapper;
 import com.gxa.pipe.dataManagement.service.TaskService;
 import com.gxa.pipe.entity.Task;
-import com.gxa.pipe.pojo.dto.dataManagement.task.*;
-
-import com.gxa.pipe.pojo.vo.dataManagement.task.*;
+import com.gxa.pipe.dataManagement.pojo.task.*;
 import com.gxa.pipe.utils.PageResult;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
+import com.github.pagehelper.Page;
+import com.github.pagehelper.PageHelper;
 
 import java.time.LocalDateTime;
 

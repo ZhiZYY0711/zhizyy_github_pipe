@@ -1,3 +1,8 @@
-com\gxa\pipe\utils\JwtUtils.class
 com\gxa\pipe\utils\PageResult.class
 com\gxa\pipe\utils\Result.class
+com\gxa\pipe\interceptor\JwtInterceptor.class
+com\gxa\pipe\config\WebConfig.class
+com\gxa\pipe\utils\JwtUtils.class
+com\gxa\pipe\config\MybatisPageHelperConfig.class
+com\gxa\pipe\config\CorsConfig.class
+com\gxa\pipe\handler\GlobalExceptionHandler.class

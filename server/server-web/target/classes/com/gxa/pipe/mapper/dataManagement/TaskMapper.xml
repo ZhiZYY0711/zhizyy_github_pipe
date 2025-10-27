@@ -22,7 +22,7 @@
     </resultMap>
 
     <!-- TaskResponse结果映射 -->
-    <resultMap id="TaskResponseResultMap" type="com.gxa.pipe.pojo.dto.response.dataManagement.task.TaskResponse">
+    <resultMap id="TaskResponseResultMap" type="com.gxa.pipe.pojo.vo.dataManagement.task.TaskResponse">
         <id column="id" property="id" jdbcType="BIGINT"/>
         <result column="title" property="title" jdbcType="VARCHAR"/>
         <result column="type" property="type" jdbcType="INTEGER"/>

@@ -15,7 +15,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -91,23 +90,13 @@ public class RepairmanServiceImpl implements RepairmanService {
     public boolean addRepairman(RepairmanAddRequest request) {
         log.info("新增检修员，请求参数：{}", request);
 
-        Repairman repairman = new Repairman();
-        BeanUtils.copyProperties(request, repairman);
-        repairman.setCreateTime(LocalDateTime.now());
-        repairman.setUpdateTime(LocalDateTime.now());
-
-        return repairmanMapper.insert(repairman) > 0;
+        return repairmanMapper.insert(request) > 0;
     }
 
     @Override
     public boolean updateRepairman(RepairmanUpdateRequest request) {
         log.info("修改检修员，请求参数：{}", request);
-
-        Repairman repairman = new Repairman();
-        BeanUtils.copyProperties(request, repairman);
-        repairman.setUpdateTime(LocalDateTime.now());
-
-        return repairmanMapper.update(repairman) > 0;
+        return repairmanMapper.update(request) > 0;
     }
 
     @Override
@@ -156,21 +145,12 @@ public class RepairmanServiceImpl implements RepairmanService {
         return response;
     }
 
-    @Override
-    @Deprecated
-    public boolean create(Repairman repairman) {
-        repairman.setCreateTime(LocalDateTime.now());
-        repairman.setUpdateTime(LocalDateTime.now());
-
-        return repairmanMapper.insert(repairman) > 0;
-    }
-
-    @Override
-    @Deprecated
-    public boolean update(Repairman repairman) {
-        repairman.setUpdateTime(LocalDateTime.now());
-        return repairmanMapper.update(repairman) > 0;
-    }
+    // @Override
+    // @Deprecated
+    // public boolean update(Repairman repairman) {
+    // repairman.setUpdateTime(LocalDateTime.now());
+    // return repairmanMapper.update(repairman) > 0;
+    // }
 
     @Override
     @Deprecated

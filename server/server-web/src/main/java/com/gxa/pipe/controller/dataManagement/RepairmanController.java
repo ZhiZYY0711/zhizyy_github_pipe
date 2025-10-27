@@ -80,7 +80,7 @@ public class RepairmanController {
         try {
             boolean success = repairmanService.addRepairman(request);
             if (success) {
-                return Result.success(new Object()); // 返回空对象
+                return Result.success();
             } else {
                 return Result.error("新增检修员失败");
             }
@@ -100,7 +100,7 @@ public class RepairmanController {
         try {
             boolean success = repairmanService.updateRepairman(request);
             if (success) {
-                return Result.success(new Object()); // 返回空对象
+                return Result.success(); // 返回成功响应，不带数据
             } else {
                 return Result.error("修改检修员失败");
             }
@@ -127,7 +127,7 @@ public class RepairmanController {
 
             boolean success = repairmanService.batchDeleteRepairmen(idList);
             if (success) {
-                return Result.success(new Object()); // 返回空对象
+                return Result.success(); // 返回成功响应，不带数据
             } else {
                 return Result.error("删除检修员失败");
             }

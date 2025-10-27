@@ -13,32 +13,27 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class PageResult<T> {
-    
+
     /**
      * 总记录数
      */
     private Long total;
-    
+
     /**
      * 当前页数据
      */
     private List<T> records;
-    
+
     /**
      * 当前页码
      */
     private Integer pageNum;
-    
+
     /**
      * 每页大小
      */
     private Integer pageSize;
-    
-    /**
-     * 总页数
-     */
-    private Integer pages;
-    
+
     /**
      * 构造方法
      */
@@ -46,7 +41,7 @@ public class PageResult<T> {
         this.total = total;
         this.records = records;
     }
-    
+
     /**
      * 计算总页数
      */

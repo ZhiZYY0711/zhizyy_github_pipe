@@ -10,6 +10,7 @@
         <result column="sex" property="sex" jdbcType="INTEGER"/>
         <result column="phone" property="phone" jdbcType="VARCHAR"/>
         <result column="email" property="email" jdbcType="VARCHAR"/>
+        <result column="entry_time" property="entryTime" jdbcType="TIMESTAMP"/>
         <result column="area_id" property="areaId" jdbcType="BIGINT"/>
         <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
         <result column="update_time" property="updateTime" jdbcType="TIMESTAMP"/>
@@ -17,7 +18,7 @@
 
     <!-- 基础字段 -->
     <sql id="Base_Column_List">
-        id, name, age, sex, phone, email, area_id, create_time, update_time
+        id, name, age, sex, phone, email, entry_time, area_id, create_time, update_time
     </sql>
 
     <!-- 分页查询检修员 -->
@@ -29,8 +30,11 @@
             <if test="name != null and name != ''">
                 AND name LIKE CONCAT('%', #{name}, '%')
             </if>
-            <if test="age != null">
-                AND age = #{age}
+            <if test="minAge != null and minAge != ''">
+                AND age &gt;= #{minAge}
+            </if>
+            <if test="maxAge != null and maxAge != ''">
+                AND age &lt;= #{maxAge}
             </if>
             <if test="sex != null">
                 AND sex = #{sex}
@@ -38,11 +42,14 @@
             <if test="phone != null and phone != ''">
                 AND phone LIKE CONCAT('%', #{phone}, '%')
             </if>
-            <if test="email != null and email != ''">
-                AND email LIKE CONCAT('%', #{email}, '%')
-            </if>
-            <if test="areaId != null">
+            <if test="areaId != null and areaID += ''">
                 AND area_id = #{areaId}
+            </if>
+            <if test="entryStartTime != null and entryStartTime != ''">
+                AND entry_time &gt;= #{entryStartTime}
+            </if>
+            <if test="entryEndTime != null and entryEndTime != ''">
+                AND entry_time &lt;= #{entryEndTime}
             </if>
         </where>
         ORDER BY create_time DESC
@@ -57,22 +64,37 @@
     </select>
 
     <!-- 插入检修员 -->
-    <insert id="insert" parameterType="com.gxa.pipe.pojo.entity.Repairman" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO repairman (name, age, sex, phone, email, area_id, create_time, update_time)
-        VALUES (#{name}, #{age}, #{sex}, #{phone}, #{email}, #{areaId}, #{createTime}, #{updateTime})
+    <insert id="insert">
+        INSERT INTO repairman
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="name != null and name != ''">name,</if>
+            <if test="age != null and age != ''">age,</if>
+            <if test="sex != null and sex != ''">sex,</if>
+            <if test="phone != null and phone != ''">phone,</if>
+            <if test="entryTime != null and entryTime != ''">entry_time,</if>
+            <if test="areaId != null and areaId != ''">area_id,</if>
+        </trim>
+        VALUES
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="name != null and name != ''">#{name},</if>
+            <if test="age != null and age != ''">#{age},</if>
+            <if test="sex != null and sex != ''">#{sex},</if>
+            <if test="phone != null and phone != ''">#{phone},</if>
+            <if test="entryTime != null and entryTime != ''">#{entryTime},</if>
+            <if test="areaId != null and areaId != ''">#{areaId},</if>
+        </trim>
     </insert>
 
     <!-- 更新检修员 -->
-    <update id="update" parameterType="com.gxa.pipe.pojo.entity.Repairman">
+    <update id="update">
         UPDATE repairman
         <set>
-            <if test="name != null">name = #{name},</if>
-            <if test="age != null">age = #{age},</if>
-            <if test="sex != null">sex = #{sex},</if>
-            <if test="phone != null">phone = #{phone},</if>
-            <if test="email != null">email = #{email},</if>
-            <if test="areaId != null">area_id = #{areaId},</if>
-            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="name != null and name != ''">name = #{name},</if>
+            <if test="age != null and age != ''">age = #{age},</if>
+            <if test="sex != null and sex != ''">sex = #{sex},</if>
+            <if test="phone != null and phone != ''">phone = #{phone},</if>
+            <if test="entryTime != null and entryTime != ''">entry_time = #{entryTime},</if>
+            <if test="areaId != null and areaId != ''">area_id = #{areaId},</if>
         </set>
         WHERE id = #{id}
     </update>

@@ -80,24 +80,6 @@ public interface RepairmanService {
     PageResult<Repairman> getByPage(RepairmanQueryRequest request);
 
     /**
-     * 创建检修员（兼容性方法）
-     * 
-     * @param repairman 检修员信息
-     * @return 是否成功
-     */
-    @Deprecated
-    boolean create(Repairman repairman);
-
-    /**
-     * 更新检修员（兼容性方法）
-     * 
-     * @param repairman 检修员信息
-     * @return 是否成功
-     */
-    @Deprecated
-    boolean update(Repairman repairman);
-
-    /**
      * 删除检修员（兼容性方法）
      * 
      * @param id 检修员ID

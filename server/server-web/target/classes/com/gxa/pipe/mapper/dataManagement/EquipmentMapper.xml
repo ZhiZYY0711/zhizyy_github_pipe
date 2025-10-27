@@ -3,7 +3,7 @@
 <mapper namespace="com.gxa.pipe.mapper.dataManagement.EquipmentMapper">
 
     <!-- 设备响应结果映射 -->
-    <resultMap id="EquipmentResponseResultMap" type="com.gxa.pipe.pojo.dto.response.dataManagement.equipment.EquipmentResponse">
+    <resultMap id="EquipmentResponseResultMap" type="com.gxa.pipe.pojo.vo.dataManagement.equipment.EquipmentResponse">
         <id column="id" property="id" jdbcType="VARCHAR"/>
         <result column="type" property="type" jdbcType="VARCHAR"/>
         <result column="status" property="status" jdbcType="VARCHAR"/>

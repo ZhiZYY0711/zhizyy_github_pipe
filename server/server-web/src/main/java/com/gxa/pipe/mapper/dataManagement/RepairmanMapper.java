@@ -1,6 +1,8 @@
 package com.gxa.pipe.mapper.dataManagement;
 
+import com.gxa.pipe.pojo.dto.dataManagement.repairman.RepairmanAddRequest;
 import com.gxa.pipe.pojo.dto.dataManagement.repairman.RepairmanQueryRequest;
+import com.gxa.pipe.pojo.dto.dataManagement.repairman.RepairmanUpdateRequest;
 import com.gxa.pipe.pojo.entity.Repairman;
 
 import org.apache.ibatis.annotations.Mapper;
@@ -36,7 +38,7 @@ public interface RepairmanMapper {
      * @param repairman 检修员信息
      * @return 影响行数
      */
-    int insert(Repairman repairman);
+    int insert(RepairmanAddRequest request);
 
     /**
      * 更新检修员
@@ -44,7 +46,7 @@ public interface RepairmanMapper {
      * @param repairman 检修员信息
      * @return 影响行数
      */
-    int update(Repairman repairman);
+    int update(RepairmanUpdateRequest request);
 
     /**
      * 删除检修员

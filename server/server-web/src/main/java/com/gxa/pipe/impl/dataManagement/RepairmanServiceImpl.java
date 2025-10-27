@@ -10,7 +10,6 @@ import com.gxa.pipe.service.dataManagement.RepairmanService;
 import com.gxa.pipe.utils.PageResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

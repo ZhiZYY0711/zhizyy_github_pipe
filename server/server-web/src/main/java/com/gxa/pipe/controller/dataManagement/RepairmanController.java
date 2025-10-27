@@ -5,7 +5,6 @@ import com.gxa.pipe.pojo.vo.dataManagement.repairman.*;
 import com.gxa.pipe.pojo.entity.Repairman;
 import com.gxa.pipe.service.dataManagement.RepairmanService;
 import com.gxa.pipe.utils.Result;
-import com.gxa.pipe.utils.PageResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;

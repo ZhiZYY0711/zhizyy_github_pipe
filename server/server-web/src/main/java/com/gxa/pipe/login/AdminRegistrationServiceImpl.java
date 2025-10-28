@@ -5,7 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import com.gxa.pipe.entity.AdminRegistration;
-import com.gxa.pipe.login.AdminRegistrationService;
 import com.gxa.pipe.utils.JwtUtils;
 
 import java.time.LocalDateTime;

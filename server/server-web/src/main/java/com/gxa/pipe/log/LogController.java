@@ -1,6 +1,5 @@
 package com.gxa.pipe.log;
 
-import com.gxa.pipe.entity.Log;
 import com.gxa.pipe.utils.Result;
 import com.gxa.pipe.utils.PageResult;
 import lombok.RequiredArgsConstructor;
@@ -66,7 +65,8 @@ public class LogController {
      * 获取日志记录的统计指标
      */
     @GetMapping("/indicator_card")
-    public Result<LogIndicardResponse> getLogIndicatorCard(@RequestParam(value = "area_id", required = false) Long areaId) {
+    public Result<LogIndicardResponse> getLogIndicatorCard(
+            @RequestParam(value = "area_id", required = false) Long areaId) {
         log.info("获取日志指标卡，区域ID：{}", areaId);
 
         try {

@@ -1,6 +1,5 @@
 package com.gxa.pipe.log;
 
-import com.gxa.pipe.entity.Log;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -32,7 +31,7 @@ public interface LogMapper {
      * 根据用户ID和类型查询用户名
      * 
      * @param userId 用户ID
-     * @param type 用户类型 0-管理员 1-检修员
+     * @param type   用户类型 0-管理员 1-检修员
      * @return 用户名
      */
     String selectUsernameByUserIdAndType(@Param("userId") Long userId, @Param("type") Integer type);

@@ -7,8 +7,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-
 /**
  * 日志服务实现类
  */
@@ -51,7 +49,7 @@ public class LogServiceImpl implements LogService {
         }
 
         LogQueryResponse logResponse = logMapper.selectLogById(id);
-        
+
         if (logResponse == null) {
             log.warn("未找到ID为{}的日志记录", id);
             throw new RuntimeException("未找到指定的日志记录");
@@ -69,16 +67,16 @@ public class LogServiceImpl implements LogService {
         try {
             // 统计全部日志数量
             Long allLogs = logMapper.countAllLogs(areaId);
-            
+
             // 统计警告日志数量（状态为2）
             Long warningLogs = logMapper.countWarningLogs(areaId);
-            
+
             // 统计错误日志数量（状态为1）
             Long errorLogs = logMapper.countErrorLogs(areaId);
-            
+
             // 统计调试日志数量（状态为3）
             Long debuggingLogs = logMapper.countDebuggingLogs(areaId);
-            
+
             // 统计今日日志数量
             Long todayLogs = logMapper.countTodayLogs(areaId);
 
@@ -90,8 +88,8 @@ public class LogServiceImpl implements LogService {
             response.setDebugging(debuggingLogs != null ? debuggingLogs : 0L);
             response.setToday(todayLogs != null ? todayLogs : 0L);
 
-            log.info("获取日志指标卡完成，区域ID：{}，全部：{}，警告：{}，错误：{}，调试：{}，今日：{}", 
-                    areaId, response.getAll(), response.getWarning(), response.getError(), 
+            log.info("获取日志指标卡完成，区域ID：{}，全部：{}，警告：{}，错误：{}，调试：{}，今日：{}",
+                    areaId, response.getAll(), response.getWarning(), response.getError(),
                     response.getDebugging(), response.getToday());
 
             return response;

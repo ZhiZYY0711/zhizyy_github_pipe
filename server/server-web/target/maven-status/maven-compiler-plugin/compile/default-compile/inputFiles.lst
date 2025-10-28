@@ -23,6 +23,9 @@ F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\p
 F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\dataVsualization\dataMonitoring\DataMonitoringService.java
 F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\dataVsualization\dataMonitoring\DataMonitoringServiceImpl.java
 F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\dataVsualization\taskDetail\TaskDetailsController.java
+F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\dataVsualization\taskDetail\TaskDetailsMapper.java
+F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\dataVsualization\taskDetail\TaskDetailsService.java
+F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\dataVsualization\taskDetail\TaskDetailsServiceImpl.java
 F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\dataVsualization\total\TotalController.java
 F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\dataVsualization\total\TotalMapper.java
 F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\dataVsualization\total\TotalService.java
@@ -36,5 +39,10 @@ F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\p
 F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\login\AdminRegistrationService.java
 F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\login\AdminRegistrationServiceImpl.java
 F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\manoeuvre\ManoeuvreController.java
+F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\manoeuvre\ManoeuvreMapper.java
+F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\manoeuvre\ManoeuvreQueryResponse.java
+F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\manoeuvre\ManoeuvreRepairmanDto.java
+F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\manoeuvre\ManoeuvreService.java
+F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\manoeuvre\ManoeuvreServiceImpl.java
 F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\PipelineManagementWebApplication.java
 F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\virtualExpert\virtualExpertController.java

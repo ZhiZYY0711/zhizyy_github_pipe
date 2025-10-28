@@ -12,6 +12,45 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ManoeuvreQueryRequest {
+    /**
+     * 任务区域
+     */
+    @JsonProperty("area_id")
+    private long areaId;
+
+    /**
+     * 最晚结束时间，时间戳
+     */
+    @JsonProperty("end_time_max")
+    private Long endTimeMax;
+
+    /**
+     * 最早结束时间，时间戳
+     */
+    @JsonProperty("end_time_min")
+    private Long endTimeMin;
+
+    /**
+     * 最晚开始时间，时间戳
+     */
+    @JsonProperty("start_time_max")
+    private Long startTimeMax;
+
+    /**
+     * 最早开始时间，时间戳
+     */
+    @JsonProperty("start_time_min")
+    private Long startTimeMin;
+
+    /**
+     * 演练状态，0 成功 1 失败 2 进行中
+     */
+    private Long status;
+
+    /**
+     * 类型，0 状态模拟 1 事故模拟 2 紧急事故 3 日常作训
+     */
+    private Long type;
 
     /**
      * 页码
@@ -19,36 +58,8 @@ public class ManoeuvreQueryRequest {
     private Integer page;
 
     /**
-     * 每页大小
+     * 每页数据量
      */
     @JsonProperty("page_size")
     private Integer pageSize;
-
-    /**
-     * 区域ID
-     */
-    @JsonProperty("area_id")
-    private Long areaId;
-
-    /**
-     * 演习状态
-     */
-    private Integer status;
-
-    /**
-     * 演习类型
-     */
-    private Integer type;
-
-    /**
-     * 开始时间
-     */
-    @JsonProperty("start_time")
-    private String startTime;
-
-    /**
-     * 结束时间
-     */
-    @JsonProperty("end_time")
-    private String endTime;
 }

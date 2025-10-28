@@ -3,6 +3,7 @@ com\gxa\pipe\dataVsualization\dataMonitoring\PipeDetailResponse.class
 com\gxa\pipe\entity\Task.class
 com\gxa\pipe\log\LogQueryRequest.class
 com\gxa\pipe\dataManagement\task\TaskIndicatorResponse.class
+com\gxa\pipe\manoeuvre\ManoeuvreQueryResponse.class
 com\gxa\pipe\login\AdminLoginRequest.class
 com\gxa\pipe\dataManagement\repairman\RepairmanUpdateRequest.class
 com\gxa\pipe\dataManagement\task\TaskQueryRequest.class

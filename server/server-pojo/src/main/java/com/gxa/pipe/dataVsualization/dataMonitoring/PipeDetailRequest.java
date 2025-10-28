@@ -15,10 +15,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class PipeDetailRequest {
   /**
-   * 区域ID
+   * 管道ID
    */
-  @JsonProperty("area_id")
-  private Long areaId;
+  private Long id;
 
   /**
    * 开始时间

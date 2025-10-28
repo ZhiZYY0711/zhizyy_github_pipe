@@ -5,7 +5,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import jakarta.validation.constraints.NotNull;
 import java.time.LocalDateTime;
 
 /**
@@ -15,41 +14,30 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ManoeuvreAddRequest {
-
     /**
-     * 演练所属区域
+     * 区域id
      */
-    @NotNull(message = "区域ID不能为空")
     @JsonProperty("area_id")
-    private Long areaId;
-
+    private long areaID;
     /**
-     * 演练开始时间
+     * 详情
      */
-    @NotNull(message = "开始时间不能为空")
+    private String detail;
+    /**
+     * 参加演习的检修员id
+     */
+    private long[] repairmans;
+    /**
+     * 开始时间，时间戳
+     */
     @JsonProperty("start_time")
-    private LocalDateTime startTime;
-
+    private long startTime;
     /**
-     * 演练结束时间
+     * 状态
      */
-    @NotNull(message = "结束时间不能为空")
-    @JsonProperty("end_time")
-    private LocalDateTime endTime;
-
+    private long status;
     /**
-     * 演练状态 0 成功 1 失败 2 进行中
+     * 类型
      */
-    private Integer status;
-
-    /**
-     * 演练类型 0 状态模拟 1 事故模拟 2 紧急事故 3 日常作训
-     */
-    @NotNull(message = "演练类型不能为空")
-    private Integer type;
-
-    /**
-     * 演练描述
-     */
-    private String details;
+    private long type;
 }

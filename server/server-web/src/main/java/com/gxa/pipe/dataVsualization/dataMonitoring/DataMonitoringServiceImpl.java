@@ -24,4 +24,25 @@ public class DataMonitoringServiceImpl implements DataMonitoringService {
         // 调用Mapper层查询数据
         return dataMonitoringMapper.selectAreaDetails(request);
     }
+    
+    @Override
+    public List<PipeDetailResponse> getPipeDetails(PipeDetailRequest request) {
+        // 参数校验
+        if (request == null) {
+            throw new IllegalArgumentException("请求参数不能为空");
+        }
+        
+        if (request.getId() == null) {
+            throw new IllegalArgumentException("管道ID不能为空");
+        }
+        
+        // 调用Mapper层查询数据
+        return dataMonitoringMapper.selectPipeDetails(request);
+    }
+    
+    @Override
+    public PipeIndicatorResponse getPipeKeyIndicators(String pipeId) {
+        // 调用Mapper层查询数据
+        return dataMonitoringMapper.selectPipeKeyIndicators(pipeId);
+    }
 }

@@ -1,3 +1,4 @@
+com\gxa\pipe\dataVsualization\dataMonitoring\DataMonitoringServiceImpl.class
 com\gxa\pipe\dataVsualization\total\TotalController.class
 com\gxa\pipe\PipelineManagementWebApplication.class
 com\gxa\pipe\dataManagement\monitoring\MonitoringDataService.class
@@ -12,6 +13,7 @@ com\gxa\pipe\dataVsualization\taskDetail\TaskDetailsController.class
 com\gxa\pipe\dataVsualization\total\TotalService.class
 com\gxa\pipe\log\LogServiceImpl.class
 com\gxa\pipe\dataManagement\monitoring\MonitoringDataServiceImpl.class
+com\gxa\pipe\dataVsualization\dataMonitoring\DataMonitoringService.class
 com\gxa\pipe\log\LogMapper.class
 com\gxa\pipe\dataManagement\equipment\EquipmentMapper.class
 com\gxa\pipe\login\AdminRegistrationServiceImpl.class
@@ -21,6 +23,7 @@ com\gxa\pipe\virtualExpert\virtualExpertController.class
 com\gxa\pipe\dataManagement\equipment\EquipmentController.class
 com\gxa\pipe\log\LogController.class
 com\gxa\pipe\dataManagement\repairman\RepairmanService.class
+com\gxa\pipe\dataVsualization\dataMonitoring\DataMonitoringMapper.class
 com\gxa\pipe\dataVsualization\total\TotalMapper.class
 com\gxa\pipe\login\AdminRegistrationController.class
 com\gxa\pipe\dataManagement\monitoring\MonitoringDataMapper.class

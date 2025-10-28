@@ -19,6 +19,9 @@ F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\p
 F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\dataManagement\task\TaskService.java
 F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\dataManagement\task\TaskServiceImpl.java
 F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\dataVsualization\dataMonitoring\DataMonitoringController.java
+F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\dataVsualization\dataMonitoring\DataMonitoringMapper.java
+F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\dataVsualization\dataMonitoring\DataMonitoringService.java
+F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\dataVsualization\dataMonitoring\DataMonitoringServiceImpl.java
 F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\dataVsualization\taskDetail\TaskDetailsController.java
 F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\dataVsualization\total\TotalController.java
 F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\dataVsualization\total\TotalMapper.java

@@ -17,4 +17,20 @@ public interface DataMonitoringMapper {
      * @return 区域四维度数据列表
      */
     List<AreaDetailResponse> selectAreaDetails(AreaDetailRequest request);
+    
+    /**
+     * 查询管道四维度数据
+     * 
+     * @param request 查询请求参数
+     * @return 管道四维度数据列表
+     */
+    List<PipeDetailResponse> selectPipeDetails(PipeDetailRequest request);
+    
+    /**
+     * 查询管道关键指标卡数据
+     * 
+     * @param pipeId 管道的唯一标识
+     * @return 管道关键指标卡数据
+     */
+    PipeIndicatorResponse selectPipeKeyIndicators(String pipeId);
 }

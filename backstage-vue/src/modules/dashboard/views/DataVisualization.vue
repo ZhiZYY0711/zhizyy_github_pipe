@@ -163,8 +163,8 @@
 </template>
 
 <script>
-import EChartsMap from '@shared/components/EChartsMap.vue'
-import EChartsPie from '@shared/components/EChartsPie.vue'
+import EChartsMap from '@dashboard/components/EChartsMap.vue'
+import EChartsPie from '@dashboard/components/EChartsPie.vue'
 
 export default {
   name: 'DataVisualization',

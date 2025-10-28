@@ -2,6 +2,9 @@ package com.gxa.pipe.virtualExpert;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gxa.pipe.virtualExpert.ChatMessage;
+import com.gxa.pipe.virtualExpert.ChatSession;
+import com.gxa.pipe.virtualExpert.ChatSessionMessage;
+import com.gxa.pipe.virtualExpert.ChatSessionService;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -49,41 +52,52 @@ public class WebSocketHandler extends TextWebSocketHandler {
     private DeepSeekService deepSeekService;
 
     /**
+     * 聊天会话管理器
+     */
+    @Autowired
+    private ChatSessionService sessionService;
+
+    /**
      * JSON对象映射器
      */
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     /**
-     * 连接建立成功后调用
-     * 
-     * 当客户端成功连接到WebSocket服务器时，这个方法会被自动调用
-     * 
-     * @param session WebSocket会话对象，代表这个连接
-     * @throws Exception 可能抛出的异常
+     * 连接建立后的处理
      */
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
-
-        // 获取连接的唯一标识
-        String sessionId = session.getId();
-
-        // 将新连接存储到sessions集合中
-        sessions.put(sessionId, session);
-
-        // 打印日志，记录新连接
-        System.out.println("=== WebSocket连接建立 ===");
-        System.out.println("连接ID: " + sessionId);
-        System.out.println("连接时间: " + LocalDateTime.now().format(formatter));
-        System.out.println("当前在线人数: " + sessions.size());
-        System.out.println("========================");
-
-        // 向新连接的客户端发送欢迎消息
-        String welcomeMessage = "欢迎连接到WebSocket服务器！当前时间：" + LocalDateTime.now().format(formatter);
+        // 将会话添加到活跃会话映射中
+        sessions.put(session.getId(), session);
+        
+        // 创建新的聊天会话
+        String userId = extractUserId(session);
+        ChatSession chatSession = sessionService.createSession(session.getId(), userId);
+        
+        // 发送欢迎消息
+        String welcomeMessage = "欢迎连接到管道监控虚拟专家！当前时间：" + 
+                               LocalDateTime.now().format(formatter);
         session.sendMessage(new TextMessage(welcomeMessage));
-
-        // 向所有在线用户广播新用户加入的消息
-        String joinMessage = "新用户加入聊天室，当前在线人数：" + sessions.size();
+        
+        // 记录系统消息到会话
+        ChatSessionMessage systemMessage = ChatSessionMessage.createSystemMessage(welcomeMessage);
+        systemMessage.setSessionId(chatSession.getSessionId());
+        sessionService.addMessage(chatSession.getSessionId(), systemMessage);
+        
+        // 广播用户加入消息
+        String joinMessage = "用户 " + session.getId() + " 已加入聊天室。当前在线人数：" + sessions.size();
         broadcastMessage(joinMessage);
+        
+        System.out.println("WebSocket连接已建立，会话ID：" + session.getId());
+    }
+
+    /**
+     * 从WebSocket会话中提取用户ID
+     */
+    private String extractUserId(WebSocketSession session) {
+        // 这里可以从session的attributes或者URI参数中获取用户ID
+        // 暂时使用session ID作为用户ID
+        return session.getId();
     }
 
     /**
@@ -133,39 +147,41 @@ public class WebSocketHandler extends TextWebSocketHandler {
     }
 
     /**
-     * 处理AI对话消息
-     * 
-     * @param session     WebSocket会话
-     * @param chatMessage 聊天消息
+     * 处理AI聊天消息
      */
     private void handleAIChat(WebSocketSession session, ChatMessage chatMessage) {
         try {
-            // 发送"正在思考"的状态消息
-            ChatMessage thinkingMessage = new ChatMessage("status", "AI正在思考中...", "system");
-            session.sendMessage(new TextMessage(objectMapper.writeValueAsString(thinkingMessage)));
-
+            // 记录用户消息到会话
+            ChatSessionMessage userMessage = ChatSessionMessage.createUserMessage(chatMessage.getContent(), chatMessage.getUserId());
+            userMessage.setSessionId(session.getId());
+            sessionService.addMessage(session.getId(), userMessage);
+            
             // 异步调用DeepSeek API
             deepSeekService.sendMessage(chatMessage.getContent())
-                    .subscribe(
-                            aiResponse -> {
-                                try {
-                                    // 发送AI回复
-                                    ChatMessage responseMessage = new ChatMessage("ai_response", aiResponse,
-                                            "deepseek");
-                                    session.sendMessage(
-                                            new TextMessage(objectMapper.writeValueAsString(responseMessage)));
-                                } catch (Exception e) {
-                                    System.err.println("发送AI回复失败: " + e.getMessage());
-                                    sendErrorMessage(session, "发送AI回复失败");
-                                }
-                            },
-                            error -> {
-                                System.err.println("AI服务调用失败: " + error.getMessage());
-                                sendErrorMessage(session, "AI服务暂时不可用，请稍后再试");
-                            });
-
+                .subscribe(
+                    response -> {
+                        try {
+                            // 记录AI回复到会话
+                            ChatSessionMessage aiMessage = ChatSessionMessage.createAIMessage(response);
+                            aiMessage.setSessionId(session.getId());
+                            sessionService.addMessage(session.getId(), aiMessage);
+                            
+                            // 发送AI回复给客户端
+                            ChatMessage aiResponse = new ChatMessage("ai_response", response, chatMessage.getUserId());
+                            String jsonResponse = objectMapper.writeValueAsString(aiResponse);
+                            session.sendMessage(new TextMessage(jsonResponse));
+                        } catch (Exception e) {
+                            System.err.println("发送AI回复时出错: " + e.getMessage());
+                            sendErrorMessage(session, "发送AI回复失败");
+                        }
+                    },
+                    error -> {
+                        System.err.println("调用DeepSeek API时出错: " + error.getMessage());
+                        sendErrorMessage(session, "AI服务暂时不可用，请稍后重试");
+                    }
+                );
         } catch (Exception e) {
-            System.err.println("处理AI对话失败: " + e.getMessage());
+            System.err.println("处理AI聊天时出错: " + e.getMessage());
             sendErrorMessage(session, "处理消息失败");
         }
     }
@@ -179,14 +195,27 @@ public class WebSocketHandler extends TextWebSocketHandler {
     private void handleSystemMessage(WebSocketSession session, ChatMessage chatMessage) {
         try {
             String content = chatMessage.getContent();
+            
+            // 记录用户的系统消息到会话
+            ChatSessionMessage userSystemMessage = ChatSessionMessage.createUserMessage(content, chatMessage.getUserId());
+            userSystemMessage.setSessionId(session.getId());
+            sessionService.addMessage(session.getId(), userSystemMessage);
 
             if ("在线人数".equals(content)) {
-                ChatMessage responseMessage = new ChatMessage("system_response",
-                        "当前在线人数：" + sessions.size(), "system");
+                String response = "当前在线人数：" + sessions.size();
+                // 记录系统回复到会话
+                ChatSessionMessage systemResponse = ChatSessionMessage.createSystemMessage(response);
+                systemResponse.setSessionId(session.getId());
+                sessionService.addMessage(session.getId(), systemResponse);
+                ChatMessage responseMessage = new ChatMessage("system_response", response, "system");
                 session.sendMessage(new TextMessage(objectMapper.writeValueAsString(responseMessage)));
             } else if ("连接测试".equals(content)) {
-                ChatMessage responseMessage = new ChatMessage("system_response",
-                        "连接正常，服务器时间：" + LocalDateTime.now().format(formatter), "system");
+                String response = "连接正常，服务器时间：" + LocalDateTime.now().format(formatter);
+                // 记录系统回复到会话
+                ChatSessionMessage connectionTestResponse = ChatSessionMessage.createSystemMessage(response);
+                connectionTestResponse.setSessionId(session.getId());
+                sessionService.addMessage(session.getId(), connectionTestResponse);
+                ChatMessage responseMessage = new ChatMessage("system_response", response, "system");
                 session.sendMessage(new TextMessage(objectMapper.writeValueAsString(responseMessage)));
             } else {
                 sendErrorMessage(session, "未知的系统命令: " + content);
@@ -259,26 +288,22 @@ public class WebSocketHandler extends TextWebSocketHandler {
      */
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) throws Exception {
-
-        // 获取关闭连接的ID
-        String sessionId = session.getId();
-
-        // 从sessions集合中移除这个连接
-        sessions.remove(sessionId);
-
-        // 打印日志，记录连接关闭
-        System.out.println("=== WebSocket连接关闭 ===");
-        System.out.println("连接ID: " + sessionId);
-        System.out.println("关闭时间: " + LocalDateTime.now().format(formatter));
-        System.out.println("关闭原因: " + status.toString());
-        System.out.println("剩余在线人数: " + sessions.size());
-        System.out.println("========================");
-
-        // 向所有剩余在线用户广播用户离开的消息
-        if (!sessions.isEmpty()) {
-            String leaveMessage = "用户离开聊天室，当前在线人数：" + sessions.size();
-            broadcastMessage(leaveMessage);
+        // 从活跃会话映射中移除会话
+        sessions.remove(session.getId());
+        
+        // 结束聊天会话并保存到OSS
+        try {
+            sessionService.endSession(session.getId());
+            System.out.println("会话 " + session.getId() + " 已结束并保存到OSS");
+        } catch (Exception e) {
+            System.err.println("保存会话到OSS时出错: " + e.getMessage());
         }
+        
+        // 广播用户离开消息
+        String leaveMessage = "用户 " + session.getId() + " 已离开聊天室。当前在线人数：" + sessions.size();
+        broadcastMessage(leaveMessage);
+        
+        System.out.println("WebSocket连接已关闭，会话ID：" + session.getId() + "，关闭状态：" + status);
     }
 
     /**

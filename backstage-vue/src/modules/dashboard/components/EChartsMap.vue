@@ -69,7 +69,7 @@ export default {
     async registerChinaMap() {
       try {
         // 使用内置的中国地图数据
-        const chinaJson = await import('@/assets/mapjson/中华人民共和国.json')
+        const chinaJson = await import('@/modules/shared/mapjson/中华人民共和国.json')
         echarts.registerMap('china', chinaJson.default)
         this.setChartOption()
       } catch (error) {

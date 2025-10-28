@@ -1,9 +1,11 @@
 F:\projects\pipeline_management_system\server\server-support\src\main\java\com\gxa\pipe\config\CorsConfig.java
 F:\projects\pipeline_management_system\server\server-support\src\main\java\com\gxa\pipe\config\DeepSeekConfig.java
 F:\projects\pipeline_management_system\server\server-support\src\main\java\com\gxa\pipe\config\MybatisPageHelperConfig.java
+F:\projects\pipeline_management_system\server\server-support\src\main\java\com\gxa\pipe\config\OSSConfig.java
 F:\projects\pipeline_management_system\server\server-support\src\main\java\com\gxa\pipe\config\WebConfig.java
 F:\projects\pipeline_management_system\server\server-support\src\main\java\com\gxa\pipe\handler\GlobalExceptionHandler.java
 F:\projects\pipeline_management_system\server\server-support\src\main\java\com\gxa\pipe\interceptor\JwtInterceptor.java
 F:\projects\pipeline_management_system\server\server-support\src\main\java\com\gxa\pipe\utils\JwtUtils.java
+F:\projects\pipeline_management_system\server\server-support\src\main\java\com\gxa\pipe\utils\OSSUtils.java
 F:\projects\pipeline_management_system\server\server-support\src\main\java\com\gxa\pipe\utils\PageResult.java
 F:\projects\pipeline_management_system\server\server-support\src\main\java\com\gxa\pipe\utils\Result.java

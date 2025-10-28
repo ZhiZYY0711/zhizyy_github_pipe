@@ -5,6 +5,42 @@
       <div class="header-left">
         <h1 class="system-title zhi-mang-xing-regular">油气管道监测管理系统</h1>
       </div>
+      
+      <!-- 中间区域：三级行政区下拉菜单 -->
+      <div class="header-center">
+        <div class="area-selector">
+          <!-- 省份下拉菜单 -->
+          <div class="select-wrapper">
+            <select v-model="selectedProvince" @change="onProvinceChange" class="area-select">
+              <option value="">省份不限</option>
+              <option v-for="province in provinces" :key="province.code" :value="province.code">
+                {{ province.name }}
+              </option>
+            </select>
+          </div>
+          
+          <!-- 城市下拉菜单 -->
+          <div class="select-wrapper">
+            <select v-model="selectedCity" @change="onCityChange" class="area-select" :disabled="!selectedProvince">
+              <option value="">城市不限</option>
+              <option v-for="city in cities" :key="city.code" :value="city.code">
+                {{ city.name }}
+              </option>
+            </select>
+          </div>
+          
+          <!-- 区县下拉菜单 -->
+          <div class="select-wrapper">
+            <select v-model="selectedDistrict" @change="onDistrictChange" class="area-select" :disabled="!selectedCity">
+              <option value="">区县不限</option>
+              <option v-for="district in districts" :key="district.code" :value="district.code">
+                {{ district.name }}
+              </option>
+            </select>
+          </div>
+        </div>
+      </div>
+      
       <div class="header-right">
         <WeatherDate />
         <div class="user-info">
@@ -109,6 +145,9 @@
 
 <script>
 import WeatherDate from '@monitoring/components/WeatherDate.vue';
+import { AreaManager } from '../utils/areaUtils.js';
+import { NavigationManager, SidebarManager, PathUtils } from '../utils/navigationUtils.js';
+import { DEFAULT_VALUES } from '../utils/constants.js';
 
 export default {
   name: 'Layout',
@@ -117,163 +156,138 @@ export default {
   },
   data() {
     return {
-      expandedMenus: ['visualization'],
-      sidebarVisible: false,
-      waitingForClickToHide: false, // 新增：标记是否处于等待点击隐藏的状态
-      documentClickListener: null // 新增：存储全局点击事件的引用
+      // 管理器实例
+      areaManager: null,
+      navigationManager: null,
+      sidebarManager: null
     }
   },
   computed: {
     isVisualizationActive() {
       const route = this.$route.path;
-      return this.isPathInVisualization(route);
+      return PathUtils.isPathInVisualization(route);
     },
-    // 父级菜单选中状态：用于高亮父级“数据可视化/数据管理”
+    // 父级菜单选中状态：用于高亮父级"数据可视化/数据管理"
     isActiveVisualization() {
-      return this.isPathInVisualization(this.$route.path);
+      return PathUtils.isPathInVisualization(this.$route.path);
     },
     isActiveDataManagement() {
-      return this.isPathInDataManagement(this.$route.path);
+      return PathUtils.isPathInDataManagement(this.$route.path);
+    },
+    // 从管理器获取状态
+    expandedMenus() {
+      return this.navigationManager ? this.navigationManager.getState().expandedMenus : [];
+    },
+    sidebarVisible() {
+      return this.sidebarManager ? this.sidebarManager.getState().sidebarVisible : false;
+    },
+    // 区域相关状态
+    provinces() {
+      return this.areaManager ? this.areaManager.getState().provinces : [];
+    },
+    cities() {
+      return this.areaManager ? this.areaManager.getState().cities : [];
+    },
+    districts() {
+      return this.areaManager ? this.areaManager.getState().districts : [];
+    },
+    selectedProvince: {
+      get() {
+        return this.areaManager ? this.areaManager.getState().selectedProvince : DEFAULT_VALUES.EMPTY_STRING;
+      },
+      set(value) {
+        if (this.areaManager) {
+          this.areaManager.onProvinceChange(value);
+        }
+      }
+    },
+    selectedCity: {
+      get() {
+        return this.areaManager ? this.areaManager.getState().selectedCity : DEFAULT_VALUES.EMPTY_STRING;
+      },
+      set(value) {
+        if (this.areaManager) {
+          this.areaManager.onCityChange(value);
+        }
+      }
+    },
+    selectedDistrict: {
+      get() {
+        return this.areaManager ? this.areaManager.getState().selectedDistrict : DEFAULT_VALUES.EMPTY_STRING;
+      },
+      set(value) {
+        if (this.areaManager) {
+          this.areaManager.onDistrictChange(value);
+        }
+      }
     }
   },
-  mounted() {
+  async mounted() {
+    // 初始化管理器
+    this.sidebarManager = new SidebarManager();
+    this.navigationManager = new NavigationManager(this.$router, this.sidebarManager);
+    this.areaManager = new AreaManager(this);
+    
     // 初始化时，如果是数据可视化模块，确保导航栏隐藏
     if (this.isVisualizationActive) {
-      this.sidebarVisible = false;
+      this.sidebarManager.hideSidebar(true);
+    }
+    
+    // 自动加载省份数据
+    await this.areaManager.init();
+  },
+  beforeDestroy() {
+    // 清理管理器
+    if (this.navigationManager) {
+      this.navigationManager.destroy();
+    }
+    if (this.sidebarManager) {
+      this.sidebarManager.destroy();
     }
   },
   methods: {
     // 判断具体路径是否为当前选中，用于子菜单与普通菜单项高亮
     isActivePath(path) {
-      return this.$route.path === path;
+      return PathUtils.isActivePath(this.$route.path, path);
     },
-    isPathInVisualization(path) {
-      const visualizationPaths = [
-        '/main/visualization',
-        '/main/area-details',
-        '/main/pipeline-details',
-        '/main/task-details',
-        '/main/data-monitoring'
-      ];
-      return visualizationPaths.includes(path);
-    },
-    isPathInDataManagement(path) {
-      const dataManagementPaths = [
-        '/main/monitoring',
-        '/main/equipment',
-        '/main/tasks',
-        '/main/maintenance',
-        '/main/repairman'
-      ];
-      return dataManagementPaths.includes(path);
-    },
+    
+    // 导航相关方法
     navigateTo(path) {
-      if (this.$route.path !== path) {
-        this.$router.push(path);
-      }
-  
-      // 根据导航路径自动展开对应菜单，并收起另一父级菜单（满足交互要求）
-      if (this.isPathInVisualization(path)) {
-        if (!this.expandedMenus.includes('visualization')) {
-          this.expandedMenus.push('visualization');
-        }
-        // 收起数据管理模块
-        const dataManagementIndex = this.expandedMenus.indexOf('dataManagement');
-        if (dataManagementIndex > -1) {
-          this.expandedMenus.splice(dataManagementIndex, 1);
-        }
-        this.showSidebar();
-      } else if (this.isPathInDataManagement(path)) {
-        if (!this.expandedMenus.includes('dataManagement')) {
-          this.expandedMenus.push('dataManagement');
-        }
-        // 收起数据可视化模块
-        const visualizationIndex = this.expandedMenus.indexOf('visualization');
-        if (visualizationIndex > -1) {
-          this.expandedMenus.splice(visualizationIndex, 1);
-        }
-        this.showSidebar();
-      } else {
-        // 如果导航到非数据可视化和非数据管理相关菜单，收起所有父级菜单
-        this.expandedMenus = [];
-        this.hideSidebar();
-      }
+      this.navigationManager.navigateTo(path, this.$route.path);
     },
 
     navigateToVisualization() {
-      // 确保数据可视化菜单始终展开
-      if (!this.expandedMenus.includes('visualization')) {
-        this.expandedMenus.push('visualization');
-      }
-      // 收起数据管理菜单
-      const dataManagementIndex = this.expandedMenus.indexOf('dataManagement');
-      if (dataManagementIndex > -1) {
-        this.expandedMenus.splice(dataManagementIndex, 1);
-      }
-  
-      if (this.$route.path !== '/main/visualization') {
-        this.$router.push('/main/visualization');
-      }
-      this.showSidebar();
+      this.navigationManager.navigateToVisualization(this.$route.path);
     },
 
     toggleSubmenu(menuName) {
-      // 如果点击的菜单已经展开，则收起；否则展开当前菜单并收起其他菜单
-      if (this.expandedMenus.includes(menuName)) {
-        const index = this.expandedMenus.indexOf(menuName);
-        this.expandedMenus.splice(index, 1);
-      } else {
-        // 允许多个父级菜单同时展开
-        this.expandedMenus.push(menuName);
-      }
+      this.navigationManager.toggleSubmenu(menuName);
     },
 
+    // 侧边栏相关方法
     showSidebar() {
-      if (this.isVisualizationActive) {
-        this.sidebarVisible = true;
-        this.waitingForClickToHide = false; // 侧边栏显示时，取消等待点击隐藏的状态
-        // 移除可能存在的全局点击监听器
-        if (this.documentClickListener) {
-          document.body.removeEventListener('click', this.documentClickListener);
-          this.documentClickListener = null;
-        }
-      }
+      this.sidebarManager.showSidebar(this.isVisualizationActive);
     },
 
     hideSidebar() {
-      if (this.isVisualizationActive) {
-        this.sidebarVisible = false;
-        this.waitingForClickToHide = false; // 侧边栏隐藏时，取消等待点击隐藏的状态
-        // 移除可能存在的全局点击监听器
-        if (this.documentClickListener) {
-          document.body.removeEventListener('click', this.documentClickListener);
-          this.documentClickListener = null;
-        }
-      }
+      this.sidebarManager.hideSidebar(this.isVisualizationActive);
     },
 
-    // 新增方法：处理鼠标移出侧边栏事件
     handleSidebarMouseLeave() {
-      if (this.isVisualizationActive) {
-        this.waitingForClickToHide = true;
-        // 只有在没有监听器的情况下才添加
-        if (!this.documentClickListener) {
-          this.documentClickListener = (event) => {
-            const sidebarElement = this.$el.querySelector('.sidebar');
-            const toggleButtonElement = this.$el.querySelector('.sidebar-toggle-btn');
-            const noHideElement = event.target && (event.target.closest && event.target.closest('.no-sidebar-hide'));
+      this.sidebarManager.handleSidebarMouseLeave(this.isVisualizationActive, this.$el);
+    },
 
-            // 如果处于等待隐藏状态，且点击目标不在侧边栏和切换按钮内部，则隐藏侧边栏
-            if (this.waitingForClickToHide &&
-                sidebarElement && !sidebarElement.contains(event.target) &&
-                (!toggleButtonElement || !toggleButtonElement.contains(event.target)) &&
-                !noHideElement) {
-              this.hideSidebar();
-            }
-          };
-          document.body.addEventListener('click', this.documentClickListener);
-        }
-      }
+    // 区域选择变化事件（通过computed的setter处理）
+    onProvinceChange() {
+      // 通过computed的setter自动处理
+    },
+
+    onCityChange() {
+      // 通过computed的setter自动处理
+    },
+
+    onDistrictChange() {
+      // 通过computed的setter自动处理
     }
   }
 }
@@ -300,6 +314,76 @@ export default {
   padding: 0 20px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   z-index: 1000;
+}
+
+/* 头部中间区域样式 */
+.header-center {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0 20px;
+}
+
+.area-selector {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+
+.select-wrapper {
+  position: relative;
+}
+
+.area-select {
+  background-color: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 6px;
+  color: #FFFFFF;
+  padding: 8px 12px;
+  font-size: 14px;
+  min-width: 120px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  outline: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6,9 12,15 18,9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 16px;
+  padding-right: 32px;
+}
+
+.area-select:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.area-select:focus {
+  background-color: rgba(255, 255, 255, 0.2);
+  border-color: #60A5FA;
+  box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.3);
+}
+
+.area-select:disabled {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.5);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.area-select option {
+  background-color: #1E3A8A;
+  color: #FFFFFF;
+  padding: 8px 12px;
+}
+
+.area-select option:hover {
+  background-color: #3B82F6;
 }
 
 .zhi-mang-xing-regular {
@@ -581,6 +665,21 @@ export default {
   .nav-text {
     font-size: 13px;
   }
+  
+  .header-center {
+    margin: 0 10px;
+  }
+  
+  .area-selector {
+    gap: 10px;
+  }
+  
+  .area-select {
+    min-width: 100px;
+    font-size: 13px;
+    padding: 6px 10px;
+    padding-right: 28px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -598,6 +697,23 @@ export default {
   
   .content-wrapper {
     padding: 15px;
+  }
+  
+  .header-center {
+    margin: 0 5px;
+  }
+  
+  .area-selector {
+    gap: 8px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .area-select {
+    min-width: 80px;
+    font-size: 12px;
+    padding: 5px 8px;
+    padding-right: 24px;
   }
 }
 

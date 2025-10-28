@@ -1,5 +1,5 @@
 import { 
-  getRealTimeData, 
+  getRealtimeData, 
   getDeviceInfo, 
   getSensorData, 
   getSensorLogs, 
@@ -97,7 +97,7 @@ const actions = {
   async fetchRealTimeData({ commit }) {
     commit('SET_LOADING', { type: 'realTime', loading: true })
     try {
-      const data = await getRealTimeData()
+      const data = await getRealtimeData()
       commit('SET_REAL_TIME_DATA', data)
       commit('SET_CONNECTION_STATUS', { websocket: true, lastUpdate: new Date().toISOString() })
       return data

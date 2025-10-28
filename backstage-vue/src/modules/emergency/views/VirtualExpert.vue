@@ -4,6 +4,10 @@
     <div class="page-header">
       <h2 class="page-title">虚拟专家系统</h2>
       <div class="header-actions">
+        <div class="connection-status" :class="{ connected: isConnected, disconnected: !isConnected }">
+          <span class="status-indicator"></span>
+          {{ isConnected ? '已连接' : '未连接' }}
+        </div>
         <button class="btn btn-primary" @click="startNewConsultation">
           <i class="icon">💬</i> 新建咨询
         </button>
@@ -37,9 +41,34 @@
     <div class="main-content">
       <!-- 左侧：专家列表和咨询历史 -->
       <div class="left-panel">
-        <!-- 专家列表 -->
+        <!-- AI专家卡片 -->
         <div class="expert-list-section">
-          <h3 class="section-title">可用专家</h3>
+          <h3 class="section-title">AI虚拟专家</h3>
+          <div class="expert-list">
+            <div 
+              class="expert-card ai-expert"
+              :class="{ active: selectedExpert?.id === 'ai' }"
+              @click="selectAIExpert"
+            >
+              <div class="expert-avatar">
+                <img src="/ai-expert-avatar.png" alt="AI专家" style="background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);">
+                <span class="status-indicator" :class="isConnected ? 'online' : 'offline'"></span>
+              </div>
+              <div class="expert-info">
+                <div class="expert-name">AI智能专家</div>
+                <div class="expert-specialty">管道监测全领域专家</div>
+                <div class="expert-rating">
+                  <span class="stars">★★★★★</span>
+                  <span class="rating-score">5.0</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 传统专家列表 -->
+        <div class="expert-list-section">
+          <h3 class="section-title">人工专家</h3>
           <div class="expert-list">
             <div 
               v-for="expert in availableExperts" 
@@ -93,10 +122,13 @@
           <!-- 对话头部 -->
           <div class="chat-header" v-if="selectedExpert">
             <div class="expert-info-header">
-              <img :src="selectedExpert.avatar" :alt="selectedExpert.name" class="expert-avatar-small">
+              <img :src="selectedExpert.avatar || '/ai-expert-avatar.png'" :alt="selectedExpert.name" class="expert-avatar-small">
               <div>
                 <div class="expert-name-header">{{ selectedExpert.name }}</div>
                 <div class="expert-specialty-header">{{ selectedExpert.specialty }}</div>
+                <div v-if="selectedExpert.id === 'ai'" class="ai-status">
+                  {{ isConnected ? '🟢 AI在线' : '🔴 AI离线' }}
+                </div>
               </div>
             </div>
             <div class="chat-actions">
@@ -110,7 +142,11 @@
             <div v-if="!selectedExpert" class="no-expert-selected">
               <div class="welcome-message">
                 <h3>欢迎使用虚拟专家系统</h3>
-                <p>请选择一位专家开始咨询，或查看历史咨询记录</p>
+                <p>请选择AI智能专家或人工专家开始咨询</p>
+                <div v-if="!isConnected" class="connection-warning">
+                  <p>⚠️ WebSocket连接未建立，AI专家功能不可用</p>
+                  <button class="btn btn-primary" @click="connectWebSocket">连接AI服务</button>
+                </div>
               </div>
             </div>
             <div v-else>
@@ -122,14 +158,14 @@
               >
                 <div class="message-avatar">
                   <img 
-                    :src="message.type === 'user' ? '/default-user-avatar.png' : selectedExpert.avatar" 
-                    :alt="message.type === 'user' ? '用户' : selectedExpert.name"
+                    :src="getMessageAvatar(message)" 
+                    :alt="getMessageSender(message)"
                   >
                 </div>
                 <div class="message-content">
                   <div class="message-header">
                     <span class="message-sender">
-                      {{ message.type === 'user' ? '您' : selectedExpert.name }}
+                      {{ getMessageSender(message) }}
                     </span>
                     <span class="message-time">{{ message.time }}</span>
                   </div>
@@ -137,10 +173,10 @@
                 </div>
               </div>
               
-              <!-- 专家正在输入指示器 -->
-              <div v-if="expertTyping" class="message expert typing-indicator">
+              <!-- AI正在输入指示器 -->
+              <div v-if="aiTyping" class="message ai typing-indicator">
                 <div class="message-avatar">
-                  <img :src="selectedExpert.avatar" :alt="selectedExpert.name">
+                  <img src="/ai-expert-avatar.png" alt="AI专家">
                 </div>
                 <div class="message-content">
                   <div class="typing-dots">
@@ -162,11 +198,19 @@
                 class="message-input"
                 rows="3"
                 @keydown.enter.prevent="sendMessage"
+                :disabled="selectedExpert.id === 'ai' && !isConnected"
               ></textarea>
               <div class="input-actions">
-                <button class="btn btn-primary" @click="sendMessage" :disabled="!newMessage.trim()">
+                <button 
+                  class="btn btn-primary" 
+                  @click="sendMessage" 
+                  :disabled="!newMessage.trim() || (selectedExpert.id === 'ai' && !isConnected)"
+                >
                   发送
                 </button>
+                <div v-if="selectedExpert.id === 'ai' && !isConnected" class="connection-hint">
+                  请先连接AI服务
+                </div>
               </div>
             </div>
           </div>
@@ -227,10 +271,20 @@ export default {
   name: 'VirtualExpert',
   data() {
     return {
+      // WebSocket相关
+      websocket: null,
+      isConnected: false,
+      reconnectAttempts: 0,
+      maxReconnectAttempts: 5,
+      reconnectInterval: 3000,
+      
+      // 选中的专家和消息
       selectedExpert: null,
       currentMessages: [],
       newMessage: '',
-      expertTyping: false,
+      aiTyping: false,
+      
+      // 模态框和表单
       showNewConsultationModal: false,
       consultationForm: {
         title: '',
@@ -238,6 +292,8 @@ export default {
         priority: '中',
         description: ''
       },
+      
+      // 专家数据
       availableExperts: [
         {
           id: 1,
@@ -272,11 +328,13 @@ export default {
           rating: 4.6
         }
       ],
+      
+      // 咨询历史
       consultationHistory: [
         {
           id: 1,
           title: '管道压力异常问题咨询',
-          expertName: '张工程师',
+          expertName: 'AI智能专家',
           time: '2024-01-15 14:30',
           status: 'resolved',
           statusText: '已解决'
@@ -304,19 +362,150 @@ export default {
     expertStats() {
       return {
         totalConsultations: 156,
-        activeExperts: this.availableExperts.filter(expert => expert.status === 'online').length,
+        activeExperts: this.availableExperts.filter(expert => expert.status === 'online').length + (this.isConnected ? 1 : 0),
         resolvedIssues: 142,
-        avgResponseTime: 8
+        avgResponseTime: this.isConnected ? 2 : 8
       }
     }
   },
+  mounted() {
+    // 组件挂载后自动连接WebSocket
+    this.connectWebSocket()
+  },
+  beforeUnmount() {
+    // 组件销毁前断开WebSocket连接
+    this.disconnectWebSocket()
+  },
   methods: {
+    // WebSocket连接管理
+    connectWebSocket() {
+      if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+        console.log('WebSocket已连接')
+        return
+      }
+
+      try {
+        // 根据当前协议选择WebSocket协议
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+        const host = window.location.hostname
+        const port = '8080' // 后端服务端口
+        const wsUrl = `${protocol}//${host}:${port}/manager/websocket/demo`
+        
+        console.log('正在连接WebSocket:', wsUrl)
+        this.websocket = new WebSocket(wsUrl)
+        
+        this.websocket.onopen = this.onWebSocketOpen
+        this.websocket.onmessage = this.onWebSocketMessage
+        this.websocket.onclose = this.onWebSocketClose
+        this.websocket.onerror = this.onWebSocketError
+        
+      } catch (error) {
+        console.error('WebSocket连接失败:', error)
+        this.isConnected = false
+      }
+    },
+    
+    disconnectWebSocket() {
+      if (this.websocket) {
+        this.websocket.close()
+        this.websocket = null
+      }
+      this.isConnected = false
+    },
+    
+    // WebSocket事件处理
+    onWebSocketOpen(event) {
+      console.log('WebSocket连接已建立:', event)
+      this.isConnected = true
+      this.reconnectAttempts = 0
+      
+      // 如果当前选中的是AI专家，发送欢迎消息
+      if (this.selectedExpert && this.selectedExpert.id === 'ai') {
+        this.addMessage('ai', '您好！我是AI智能专家，专业领域覆盖管道监测全领域。请问有什么可以帮助您的？')
+      }
+    },
+    
+    onWebSocketMessage(event) {
+      console.log('收到WebSocket消息:', event.data)
+      
+      try {
+        const message = JSON.parse(event.data)
+        this.handleWebSocketMessage(message)
+      } catch (error) {
+        console.error('解析WebSocket消息失败:', error)
+        // 处理纯文本消息
+        this.addMessage('ai', event.data)
+      }
+    },
+    
+    onWebSocketClose(event) {
+      console.log('WebSocket连接已关闭:', event)
+      this.isConnected = false
+      
+      // 如果不是主动关闭，尝试重连
+      if (event.code !== 1000 && this.reconnectAttempts < this.maxReconnectAttempts) {
+        console.log(`尝试重连 (${this.reconnectAttempts + 1}/${this.maxReconnectAttempts})`)
+        setTimeout(() => {
+          this.reconnectAttempts++
+          this.connectWebSocket()
+        }, this.reconnectInterval)
+      }
+    },
+    
+    onWebSocketError(error) {
+      console.error('WebSocket连接错误:', error)
+      this.isConnected = false
+    },
+    
+    // 处理WebSocket消息
+    handleWebSocketMessage(message) {
+      switch (message.type) {
+        case 'ai_response':
+          this.aiTyping = false
+          this.addMessage('ai', message.content)
+          break
+        case 'status':
+          if (message.content.includes('思考')) {
+            this.aiTyping = true
+          }
+          break
+        case 'system_response':
+          this.addMessage('system', message.content)
+          break
+        case 'error':
+          this.addMessage('error', message.content)
+          break
+        default:
+          console.log('未知消息类型:', message)
+      }
+    },
+    
+    // 专家选择
+    selectAIExpert() {
+      this.selectedExpert = {
+        id: 'ai',
+        name: 'AI智能专家',
+        specialty: '管道监测全领域专家',
+        avatar: '/ai-expert-avatar.png'
+      }
+      this.currentMessages = []
+      
+      if (this.isConnected) {
+        this.addMessage('ai', '您好！我是AI智能专家，专业领域覆盖管道监测全领域。请问有什么可以帮助您的？')
+      } else {
+        this.addMessage('system', 'AI专家暂时离线，正在尝试连接...')
+        this.connectWebSocket()
+      }
+    },
+    
     selectExpert(expert) {
       this.selectedExpert = expert
       this.currentMessages = []
       // 模拟专家欢迎消息
       this.addMessage('expert', `您好！我是${expert.name}，专业领域是${expert.specialty}。请问有什么可以帮助您的？`)
     },
+    
+    // 消息发送
     sendMessage() {
       if (!this.newMessage.trim()) return
       
@@ -325,25 +514,88 @@ export default {
       const userMessage = this.newMessage
       this.newMessage = ''
       
-      // 模拟专家回复
+      if (this.selectedExpert.id === 'ai') {
+        // 发送到AI专家
+        this.sendToAI(userMessage)
+      } else {
+        // 模拟人工专家回复
+        this.simulateExpertReply(userMessage)
+      }
+    },
+    
+    sendToAI(message) {
+      if (!this.isConnected) {
+        this.addMessage('error', 'AI服务未连接，请稍后重试')
+        return
+      }
+      
+      try {
+        const chatMessage = {
+          type: 'chat',
+          content: message,
+          userId: 'user_' + Date.now(),
+          timestamp: Date.now()
+        }
+        
+        this.websocket.send(JSON.stringify(chatMessage))
+        this.aiTyping = true
+        
+      } catch (error) {
+        console.error('发送消息到AI失败:', error)
+        this.addMessage('error', '发送消息失败，请重试')
+      }
+    },
+    
+    simulateExpertReply(userMessage) {
+      // 模拟专家正在输入
       this.expertTyping = true
       setTimeout(() => {
         this.expertTyping = false
         this.generateExpertReply(userMessage)
       }, 2000)
     },
+    
+    // 消息处理
     addMessage(type, content) {
       const message = {
         id: Date.now() + Math.random(),
         type,
         content,
-        time: new Date().toLocaleTimeString()
+        time: new Date().toLocaleTimeString(),
+        sender: type === 'user' ? 'user' : (this.selectedExpert?.id === 'ai' ? 'ai' : 'expert')
       }
       this.currentMessages.push(message)
       this.$nextTick(() => {
         this.scrollToBottom()
       })
     },
+    
+    getMessageAvatar(message) {
+      if (message.type === 'user') {
+        return '/default-user-avatar.png'
+      } else if (message.sender === 'ai' || message.type === 'ai') {
+        return '/ai-expert-avatar.png'
+      } else if (this.selectedExpert) {
+        return this.selectedExpert.avatar
+      }
+      return '/default-expert-avatar.png'
+    },
+    
+    getMessageSender(message) {
+      if (message.type === 'user') {
+        return '您'
+      } else if (message.sender === 'ai' || message.type === 'ai') {
+        return 'AI智能专家'
+      } else if (message.type === 'system') {
+        return '系统'
+      } else if (message.type === 'error') {
+        return '错误'
+      } else if (this.selectedExpert) {
+        return this.selectedExpert.name
+      }
+      return '专家'
+    },
+    
     generateExpertReply(userMessage) {
       // 简单的关键词回复逻辑
       let reply = ''
@@ -359,25 +611,33 @@ export default {
       
       this.addMessage('expert', reply)
     },
+    
     scrollToBottom() {
       const chatMessages = this.$refs.chatMessages
       if (chatMessages) {
         chatMessages.scrollTop = chatMessages.scrollHeight
       }
     },
+    
     clearChat() {
       if (confirm('确定要清空当前对话吗？')) {
         this.currentMessages = []
         if (this.selectedExpert) {
-          this.addMessage('expert', `您好！我是${this.selectedExpert.name}，专业领域是${this.selectedExpert.specialty}。请问有什么可以帮助您的？`)
+          if (this.selectedExpert.id === 'ai') {
+            this.addMessage('ai', '您好！我是AI智能专家，专业领域覆盖管道监测全领域。请问有什么可以帮助您的？')
+          } else {
+            this.addMessage('expert', `您好！我是${this.selectedExpert.name}，专业领域是${this.selectedExpert.specialty}。请问有什么可以帮助您的？`)
+          }
         }
       }
     },
+    
     saveConsultation() {
       if (this.currentMessages.length > 1) {
         alert('咨询记录已保存到历史记录中')
       }
     },
+    
     loadConsultation(consultation) {
       // 加载历史咨询记录
       this.currentMessages = [
@@ -389,9 +649,11 @@ export default {
         }
       ]
     },
+    
     startNewConsultation() {
       this.showNewConsultationModal = true
     },
+    
     createConsultation() {
       // 创建新的咨询
       console.log('创建咨询:', this.consultationForm)
@@ -403,8 +665,14 @@ export default {
         description: ''
       }
     },
+    
     refreshData() {
       console.log('刷新专家系统数据')
+      // 重新连接WebSocket
+      this.disconnectWebSocket()
+      setTimeout(() => {
+        this.connectWebSocket()
+      }, 1000)
     }
   }
 }

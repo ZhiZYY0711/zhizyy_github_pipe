@@ -129,7 +129,7 @@ CREATE TABLE log (
     user_id BIGINT NOT NULL COMMENT '管理员或检修员的id',
     type TINYINT NOT NULL COMMENT '操作员的类型 0 管理员 1 检修员',
     operate VARCHAR(50) NOT NULL COMMENT '进行的操作',
-    status TINYINT NOT NULL COMMENT '操作的状态 0 成功 1 失败 2 未知',
+    status TINYINT NOT NULL COMMENT '操作的状态 0 成功 1 失败 2 警告 3 调试 4未知',
     ip_address VARCHAR(45) NOT NULL COMMENT '操作者的ip地址',
     details TEXT COMMENT '操作详情',
     period DATETIME NOT NULL COMMENT '持续时间',

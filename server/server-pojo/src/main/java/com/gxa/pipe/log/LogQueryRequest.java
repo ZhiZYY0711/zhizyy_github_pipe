@@ -12,49 +12,36 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class LogQueryRequest {
-
+    /**
+     * 区域id
+     */
+    @JsonProperty("area_id")
+    private long areaId;
+    /**
+     * 操作时间最小值，为空时不限制最大时间 时间戳
+     */
+    @JsonProperty("operation_time_max")
+    private Long operationTimeMax;
+    /**
+     * 操作时间最小值，为空时不限制最小时间 时间戳
+     */
+    @JsonProperty("operation_time_min")
+    private Long operationTimeMin;
     /**
      * 页码
      */
     private Integer page;
-
     /**
-     * 每页大小
+     * 每页数据量
      */
     @JsonProperty("page_size")
     private Integer pageSize;
-
     /**
-     * 用户ID
+     * 操作的状态
      */
-    @JsonProperty("user_id")
-    private Long userId;
-
+    private Long status;
     /**
-     * 操作员类型 0 管理员 1 检修员
+     * 操作员类型
      */
-    private Integer type;
-
-    /**
-     * 操作状态 0 成功 1 失败 2 未知
-     */
-    private Integer status;
-
-    /**
-     * IP地址
-     */
-    @JsonProperty("ip_address")
-    private String ipAddress;
-
-    /**
-     * 开始时间
-     */
-    @JsonProperty("start_time")
-    private String startTime;
-
-    /**
-     * 结束时间
-     */
-    @JsonProperty("end_time")
-    private String endTime;
+    private Long type;
 }

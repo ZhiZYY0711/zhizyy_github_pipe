@@ -1,6 +1,5 @@
 package com.gxa.pipe.log;
 
-import com.gxa.pipe.entity.Log;
 import com.gxa.pipe.utils.PageResult;
 
 /**
@@ -11,40 +10,24 @@ public interface LogService {
     /**
      * 分页查询日志
      * 
-     * @param request 查询请求
+     * @param request 查询请求参数
      * @return 分页结果
      */
-    PageResult<Log> getByPage(LogQueryRequest request);
+    PageResult<LogQueryResponse> queryLogs(LogQueryRequest request);
 
     /**
-     * 根据ID查询日志
+     * 根据ID查询日志详细信息
      * 
      * @param id 日志ID
-     * @return 日志信息
+     * @return 日志详细信息
      */
-    Log getById(Long id);
+    LogQueryResponse getLogById(Long id);
 
     /**
-     * 创建日志
+     * 获取日志指标卡
      * 
-     * @param log 日志信息
-     * @return 是否成功
+     * @param areaId 区域ID（可选）
+     * @return 日志指标卡数据
      */
-    boolean create(Log log);
-
-    /**
-     * 更新日志
-     * 
-     * @param log 日志信息
-     * @return 是否成功
-     */
-    boolean update(Log log);
-
-    /**
-     * 删除日志
-     * 
-     * @param id 日志ID
-     * @return 是否成功
-     */
-    boolean delete(Long id);
+    LogIndicardResponse getLogIndicatorCard(Long areaId);
 }

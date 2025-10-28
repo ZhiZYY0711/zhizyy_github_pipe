@@ -2,88 +2,225 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.gxa.pipe.log.LogMapper">
 
-    <!-- 结果映射 -->
-    <resultMap id="BaseResultMap" type="com.gxa.pipe.entity.Log">
-        <id column="id" property="id" jdbcType="BIGINT"/>
-        <result column="user_id" property="userId" jdbcType="BIGINT"/>
-        <result column="type" property="type" jdbcType="INTEGER"/>
-        <result column="operate" property="operate" jdbcType="VARCHAR"/>
-        <result column="status" property="status" jdbcType="INTEGER"/>
-        <result column="ip_address" property="ipAddress" jdbcType="VARCHAR"/>
-        <result column="details" property="details" jdbcType="VARCHAR"/>
-        <result column="period" property="period" jdbcType="DECIMAL"/>
-        <result column="operation_time" property="operationTime" jdbcType="TIMESTAMP"/>
-        <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
-        <result column="update_time" property="updateTime" jdbcType="TIMESTAMP"/>
+    <!-- LogQueryResponse结果映射 -->
+    <resultMap id="LogQueryResponseMap" type="com.gxa.pipe.log.LogQueryResponse">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="type" column="type"/>
+        <result property="operate" column="operate"/>
+        <result property="status" column="status"/>
+        <result property="ipAddress" column="ip_address"/>
+        <result property="details" column="details"/>
+        <result property="period" column="period"/>
+        <result property="operateTime" column="operate_time"/>
+        <result property="username" column="username"/>
     </resultMap>
 
-    <!-- 基础字段 -->
-    <sql id="Base_Column_List">
-        id, user_id, type, operate, status, ip_address, details, period, operation_time, create_time, update_time
-    </sql>
-
-    <!-- 分页查询日志 -->
-    <select id="selectByPage" resultMap="BaseResultMap">
-        SELECT
-        <include refid="Base_Column_List"/>
-        FROM log
+    <!-- 根据条件分页查询日志信息 -->
+    <select id="selectLogsByParams" parameterType="com.gxa.pipe.log.LogQueryRequest" 
+            resultMap="LogQueryResponseMap">
+        SELECT 
+            l.id,
+            l.user_id,
+            l.type,
+            l.operate,
+            l.status,
+            l.ip_address,
+            l.details,
+            UNIX_TIMESTAMP(l.period) * 1000 as period,
+            UNIX_TIMESTAMP(l.operation_time) * 1000 as operate_time,
+            CASE 
+                WHEN l.type = 0 THEN ar.username
+                WHEN l.type = 1 THEN rr.username
+                ELSE NULL
+            END as username
+        FROM log l
+        LEFT JOIN admin_registration ar ON l.user_id = ar.id AND l.type = 0
+        LEFT JOIN repairman_registration rr ON l.user_id = rr.id AND l.type = 1
         <where>
-            <if test="userId != null">
-                AND user_id = #{userId}
+            <!-- 根据区域ID过滤，需要通过检修员表关联 -->
+            <if test="areaId != null and areaId > 0">
+                AND (
+                    (l.type = 0) OR 
+                    (l.type = 1 AND EXISTS (
+                        SELECT 1 FROM repairman r WHERE r.id = l.user_id AND r.area_id = #{areaId}
+                    ))
+                )
             </if>
+            <!-- 根据操作员类型过滤 -->
             <if test="type != null">
-                AND type = #{type}
+                AND l.type = #{type}
             </if>
+            <!-- 根据操作状态过滤 -->
             <if test="status != null">
-                AND status = #{status}
+                AND l.status = #{status}
             </if>
-            <if test="ipAddress != null and ipAddress != ''">
-                AND ip_address = #{ipAddress}
+            <!-- 根据操作时间最小值过滤 -->
+            <if test="operationTimeMin != null and operationTimeMin > 0">
+                AND l.operation_time &gt;= FROM_UNIXTIME(#{operationTimeMin} / 1000)
             </if>
-            <if test="startTime != null">
-                AND operation_time &gt;= #{startTime}
-            </if>
-            <if test="endTime != null">
-                AND operation_time &lt;= #{endTime}
+            <!-- 根据操作时间最大值过滤 -->
+            <if test="operationTimeMax != null and operationTimeMax > 0">
+                AND l.operation_time &lt;= FROM_UNIXTIME(#{operationTimeMax} / 1000)
             </if>
         </where>
-        ORDER BY operation_time DESC
+        ORDER BY l.operation_time DESC
     </select>
 
-    <!-- 根据ID查询日志 -->
-    <select id="selectById" resultMap="BaseResultMap">
-        SELECT
-        <include refid="Base_Column_List"/>
-        FROM log
-        WHERE id = #{id}
+    <!-- 根据条件统计日志总数 -->
+    <select id="countLogsByParams" parameterType="com.gxa.pipe.log.LogQueryRequest" 
+            resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM log l
+        <where>
+            <!-- 根据区域ID过滤，需要通过检修员表关联 -->
+            <if test="areaId != null and areaId > 0">
+                AND (
+                    (l.type = 0) OR 
+                    (l.type = 1 AND EXISTS (
+                        SELECT 1 FROM repairman r WHERE r.id = l.user_id AND r.area_id = #{areaId}
+                    ))
+                )
+            </if>
+            <!-- 根据操作员类型过滤 -->
+            <if test="type != null">
+                AND l.type = #{type}
+            </if>
+            <!-- 根据操作状态过滤 -->
+            <if test="status != null">
+                AND l.status = #{status}
+            </if>
+            <!-- 根据操作时间最小值过滤 -->
+            <if test="operationTimeMin != null and operationTimeMin > 0">
+                AND l.operation_time &gt;= FROM_UNIXTIME(#{operationTimeMin} / 1000)
+            </if>
+            <!-- 根据操作时间最大值过滤 -->
+            <if test="operationTimeMax != null and operationTimeMax > 0">
+                AND l.operation_time &lt;= FROM_UNIXTIME(#{operationTimeMax} / 1000)
+            </if>
+        </where>
     </select>
 
-    <!-- 插入日志 -->
-    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO log (user_id, type, operate, status, ip_address, details, period, operation_time, create_time, update_time)
-        VALUES (#{userId}, #{type}, #{operate}, #{status}, #{ipAddress}, #{details}, #{period}, #{operationTime}, #{createTime}, #{updateTime})
-    </insert>
+    <!-- 根据用户ID和类型查询用户名 -->
+    <select id="selectUsernameByUserIdAndType" resultType="java.lang.String">
+        <choose>
+            <when test="type == 0">
+                SELECT username FROM admin_registration WHERE id = #{userId}
+            </when>
+            <when test="type == 1">
+                SELECT username FROM repairman_registration WHERE id = #{userId}
+            </when>
+            <otherwise>
+                SELECT NULL
+            </otherwise>
+        </choose>
+    </select>
 
-    <!-- 更新日志 -->
-    <update id="update">
-        UPDATE log
-        <set>
-            <if test="userId != null">user_id = #{userId},</if>
-            <if test="type != null">type = #{type},</if>
-            <if test="operate != null">operate = #{operate},</if>
-            <if test="status != null">status = #{status},</if>
-            <if test="ipAddress != null">ip_address = #{ipAddress},</if>
-            <if test="details != null">details = #{details},</if>
-            <if test="period != null">period = #{period},</if>
-            <if test="operationTime != null">operation_time = #{operationTime},</if>
-            <if test="updateTime != null">update_time = #{updateTime},</if>
-        </set>
-        WHERE id = #{id}
-    </update>
+    <!-- 根据日志ID查询日志详细信息 -->
+    <select id="selectLogById" parameterType="java.lang.Long" 
+            resultMap="LogQueryResponseMap">
+        SELECT 
+            l.id,
+            l.user_id,
+            l.type,
+            l.operate,
+            l.status,
+            l.ip_address,
+            l.details,
+            UNIX_TIMESTAMP(l.period) * 1000 as period,
+            UNIX_TIMESTAMP(l.operation_time) * 1000 as operate_time,
+            CASE 
+                WHEN l.type = 0 THEN ar.username
+                WHEN l.type = 1 THEN rr.username
+                ELSE NULL
+            END as username
+        FROM log l
+        LEFT JOIN admin_registration ar ON l.user_id = ar.id AND l.type = 0
+        LEFT JOIN repairman_registration rr ON l.user_id = rr.id AND l.type = 1
+        WHERE l.id = #{id}
+    </select>
 
-    <!-- 删除日志 -->
-    <delete id="deleteById">
-        DELETE FROM log WHERE id = #{id}
-    </delete>
+    <!-- 统计全部日志数量 -->
+    <select id="countAllLogs" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM log l
+        <where>
+            <if test="areaId != null and areaId > 0">
+                AND (
+                    (l.type = 0) OR 
+                    (l.type = 1 AND EXISTS (
+                        SELECT 1 FROM repairman r WHERE r.id = l.user_id AND r.area_id = #{areaId}
+                    ))
+                )
+            </if>
+        </where>
+    </select>
 
+    <!-- 统计警告日志数量（状态为2） -->
+    <select id="countWarningLogs" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM log l
+        <where>
+            AND l.status = 2
+            <if test="areaId != null and areaId > 0">
+                AND (
+                    (l.type = 0) OR 
+                    (l.type = 1 AND EXISTS (
+                        SELECT 1 FROM repairman r WHERE r.id = l.user_id AND r.area_id = #{areaId}
+                    ))
+                )
+            </if>
+        </where>
+    </select>
+
+    <!-- 统计错误日志数量（状态为1） -->
+    <select id="countErrorLogs" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM log l
+        <where>
+            AND l.status = 1
+            <if test="areaId != null and areaId > 0">
+                AND (
+                    (l.type = 0) OR 
+                    (l.type = 1 AND EXISTS (
+                        SELECT 1 FROM repairman r WHERE r.id = l.user_id AND r.area_id = #{areaId}
+                    ))
+                )
+            </if>
+        </where>
+    </select>
+
+    <!-- 统计调试日志数量（状态为3） -->
+    <select id="countDebuggingLogs" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM log l
+        <where>
+            AND l.status = 3
+            <if test="areaId != null and areaId > 0">
+                AND (
+                    (l.type = 0) OR 
+                    (l.type = 1 AND EXISTS (
+                        SELECT 1 FROM repairman r WHERE r.id = l.user_id AND r.area_id = #{areaId}
+                    ))
+                )
+            </if>
+        </where>
+    </select>
+
+    <!-- 统计今日日志数量 -->
+    <select id="countTodayLogs" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM log l
+        <where>
+            AND DATE(l.operation_time) = CURDATE()
+            <if test="areaId != null and areaId > 0">
+                AND (
+                    (l.type = 0) OR 
+                    (l.type = 1 AND EXISTS (
+                        SELECT 1 FROM repairman r WHERE r.id = l.user_id AND r.area_id = #{areaId}
+                    ))
+                )
+            </if>
+        </where>
+    </select>
 </mapper>

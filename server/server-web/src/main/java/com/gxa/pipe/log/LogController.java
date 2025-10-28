@@ -21,98 +21,60 @@ public class LogController {
     private final LogService logService;
 
     /**
-     * 分页查询日志
+     * 查询日志（非id）
+     * 查询日志信息 支持条件查询 通过非日志id的参数
+     * 进入页面时触发一次 点击搜索按钮时触发一次
      */
-    @GetMapping("/page")
-    public Result<PageResult<Log>> getLogsByPage(@Valid LogQueryRequest request) {
+    @PostMapping("/find_logs_params")
+    public Result<PageResult<LogQueryResponse>> queryLogs(@Valid @RequestBody LogQueryRequest request) {
         log.info("分页查询日志，请求参数：{}", request);
 
         try {
-            PageResult<Log> result = logService.getByPage(request);
+            PageResult<LogQueryResponse> result = logService.queryLogs(request);
             return Result.success(result);
         } catch (Exception e) {
-            log.error("分页查询日志失败：{}", e.getMessage());
+            log.error("分页查询日志失败：{}", e.getMessage(), e);
             return Result.error("查询日志失败");
         }
     }
 
     /**
-     * 根据ID查询日志
+     * 查询日志信息（id）
+     * 通过日志ID查询日志详细信息
      */
-    @GetMapping("/{id}")
-    public Result<Log> getLogById(@PathVariable Long id) {
-        log.info("根据ID查询日志，ID：{}", id);
+    @PostMapping("/find_logs_id")
+    public Result<LogQueryResponse> getLogById(@RequestParam("id") Long id) {
+        log.info("根据ID查询日志详细信息，日志ID：{}", id);
 
         try {
-            Log logData = logService.getById(id);
-            if (logData == null) {
-                return Result.error("日志不存在");
-            }
-            return Result.success(logData);
+            LogQueryResponse result = logService.getLogById(id);
+            return Result.success(result);
+        } catch (IllegalArgumentException e) {
+            log.warn("参数错误：{}", e.getMessage());
+            return Result.error("参数错误：" + e.getMessage());
+        } catch (RuntimeException e) {
+            log.warn("查询失败：{}", e.getMessage());
+            return Result.error(e.getMessage());
         } catch (Exception e) {
-            log.error("查询日志失败：{}", e.getMessage());
+            log.error("根据ID查询日志失败：{}", e.getMessage(), e);
             return Result.error("查询日志失败");
         }
     }
 
     /**
-     * 创建日志
+     * 获取日志指标卡
+     * 获取日志记录的统计指标
      */
-    @PostMapping
-    public Result<String> createLog(@Valid @RequestBody Log logData) {
-        log.info("创建日志，日志信息：{}", logData);
+    @GetMapping("/indicator_card")
+    public Result<LogIndicardResponse> getLogIndicatorCard(@RequestParam(value = "area_id", required = false) Long areaId) {
+        log.info("获取日志指标卡，区域ID：{}", areaId);
 
         try {
-            boolean success = logService.create(logData);
-            if (success) {
-                return Result.success("日志创建成功");
-            } else {
-                return Result.error("日志创建失败");
-            }
+            LogIndicardResponse result = logService.getLogIndicatorCard(areaId);
+            return Result.success(result);
         } catch (Exception e) {
-            log.error("创建日志失败：{}", e.getMessage());
-            return Result.error("创建日志失败");
-        }
-    }
-
-    /**
-     * 更新日志
-     */
-    @PutMapping("/{id}")
-    public Result<String> updateLog(@PathVariable Long id, @Valid @RequestBody Log logData) {
-        log.info("更新日志，ID：{}，日志信息：{}", id, logData);
-
-        try {
-            logData.setId(id);
-            boolean success = logService.update(logData);
-            if (success) {
-                return Result.success("日志更新成功");
-            } else {
-                return Result.error("日志更新失败");
-            }
-        } catch (Exception e) {
-            log.error("更新日志失败：{}", e.getMessage());
-            return Result.error("更新日志失败");
-        }
-    }
-
-    /**
-     * 删除日志
-     */
-    @DeleteMapping("/{id}")
-    public Result<String> deleteLog(@PathVariable Long id) {
-        log.info("删除日志，ID：{}", id);
-
-        try {
-            boolean success = logService.delete(id);
-            if (success) {
-                return Result.success("日志删除成功");
-            } else {
-                return Result.error("日志删除失败");
-            }
-        } catch (Exception e) {
-            log.error("删除日志失败：{}", e.getMessage());
-            return Result.error("删除日志失败");
+            log.error("获取日志指标卡失败：{}", e.getMessage(), e);
+            return Result.error("获取日志指标卡失败");
         }
     }
 }

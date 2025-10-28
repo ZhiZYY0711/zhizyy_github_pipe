@@ -20,4 +20,18 @@ public interface TaskDetailsService {
      * @return 任务数量趋势列表
      */
     List<TaskNumberResponse> getTaskNumberTrend(TaskResquest request);
+    
+    /**
+     * 获取区域任务对比
+     * @param request 任务请求参数
+     * @return 同级区域任务对比列表
+     */
+    List<AreaTaskResponse> getAreaTaskContrast(TaskResquest request);
+    
+    /**
+     * 获取KPI榜单
+     * @param request KPI榜单请求参数
+     * @return KPI榜单列表
+     */
+    List<TaskKpiResponse> getKpiList(TaskKpiRequest request);
 }

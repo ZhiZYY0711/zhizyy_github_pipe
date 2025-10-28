@@ -31,4 +31,50 @@ public interface TaskDetailsMapper {
     List<TaskNumberResponse> selectTaskNumberTrend(@Param("areaId") Integer areaId, 
                                                   @Param("startTime") Long startTime, 
                                                   @Param("endTime") Long endTime);
+    
+    /**
+     * 根据区域ID范围和时间范围查询同级区域任务对比
+     * @param startRange 区域ID起始范围
+     * @param endRange 区域ID结束范围
+     * @param startTime 开始时间（时间戳，可为null）
+     * @param endTime 结束时间（时间戳，可为null）
+     * @return 区域任务对比列表
+     */
+    List<AreaTaskResponse> selectAreaTaskContrast(@Param("startRange") Integer startRange,
+                                                 @Param("endRange") Integer endRange,
+                                                 @Param("startTime") Long startTime,
+                                                 @Param("endTime") Long endTime);
+    
+    /**
+     * 查询完成任务数榜单
+     * @param areaId 区域ID
+     * @param startTime 开始时间（时间戳，可为null）
+     * @param endTime 结束时间（时间戳，可为null）
+     * @return 完成任务数榜单列表
+     */
+    List<TaskKpiResponse> selectTaskCompletionRanking(@Param("areaId") Integer areaId,
+                                                     @Param("startTime") Long startTime,
+                                                     @Param("endTime") Long endTime);
+    
+    /**
+     * 查询平均响应时间榜单
+     * @param areaId 区域ID
+     * @param startTime 开始时间（时间戳，可为null）
+     * @param endTime 结束时间（时间戳，可为null）
+     * @return 平均响应时间榜单列表
+     */
+    List<TaskKpiResponse> selectAverageResponseTimeRanking(@Param("areaId") Integer areaId,
+                                                          @Param("startTime") Long startTime,
+                                                          @Param("endTime") Long endTime);
+    
+    /**
+     * 查询平均完成时间榜单
+     * @param areaId 区域ID
+     * @param startTime 开始时间（时间戳，可为null）
+     * @param endTime 结束时间（时间戳，可为null）
+     * @return 平均完成时间榜单列表
+     */
+    List<TaskKpiResponse> selectAverageCompletionTimeRanking(@Param("areaId") Integer areaId,
+                                                            @Param("startTime") Long startTime,
+                                                            @Param("endTime") Long endTime);
 }

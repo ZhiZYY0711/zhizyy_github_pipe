@@ -19,20 +19,20 @@ public class RepairmanKpiResponse {
    * 检修员数量
    */
   @JsonProperty("repairman_number")
-  private String repairmanNumber;
+  private Integer repairmanNumber;
   /**
    * 今日任务数量
    */
   @JsonProperty("today_task_number")
-  private String todayTaskNumber;
+  private Integer todayTaskNumber;
   /**
    * 任务完成率
    */
   @JsonProperty("task_rate")
-  private String taskRate;
+  private Integer taskRate;
   /**
    * 平均完成时间
    */
   @JsonProperty("average_time")
-  private String averageTime;
+  private Integer averageTime;
 }

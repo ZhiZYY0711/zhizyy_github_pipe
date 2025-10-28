@@ -18,25 +18,25 @@ public class PipeDetailResponse {
    * 流量
    */
   @JsonProperty("ave_flow")
-  private String aveFlow;
+  private Double aveFlow;
 
   /**
    * 压力
    */
   @JsonProperty("ave_pressure")
-  private String avePressure;
+  private Double avePressure;
 
   /**
    * 温度
    */
   @JsonProperty("ave_temperature")
-  private String aveTemperature;
+  private Double aveTemperature;
 
   /**
    * 震动
    */
   @JsonProperty("ave_vibration")
-  private String aveVibration;
+  private Double aveVibration;
 
   /**
    * 时间戳

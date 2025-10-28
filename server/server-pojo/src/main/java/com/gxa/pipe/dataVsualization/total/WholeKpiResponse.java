@@ -19,29 +19,29 @@ public class WholeKpiResponse {
    * 传感器数量
    */
   @JsonProperty("sensor_numbers")
-  private String sensorNumbers;
+  private long sensorNumbers;
 
   /**
    * 异常传感器数量
    */
   @JsonProperty("abnormal_sensor_numbers")
-  private String abnormalSensorNumbers;
+  private long abnormalSensorNumbers;
 
   /**
    * 警告数量
    */
   @JsonProperty("warnings")
-  private String warnings;
+  private long warnings;
 
   /**
    * 进行中的任务数量
    */
   @JsonProperty("underway_task")
-  private String underwayTask;
+  private long underwayTask;
 
   /**
    * 超时任务数量
    */
   @JsonProperty("overtime_task")
-  private String overtimeTask;
+  private long overtimeTask;
 }

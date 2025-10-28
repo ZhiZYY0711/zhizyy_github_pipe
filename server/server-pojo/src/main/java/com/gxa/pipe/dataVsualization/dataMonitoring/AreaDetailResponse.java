@@ -15,28 +15,28 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class AreaDetailResponse {
   /**
-   * 流量
+   * 平均流量
    */
   @JsonProperty("ave_flow")
-  private String aveFlow;
+  private Double aveFlow;
 
   /**
-   * 压力
+   * 平均压力
    */
   @JsonProperty("ave_pressure")
-  private String avePressure;
+  private Double avePressure;
 
   /**
-   * 温度
+   * 平均温度
    */
   @JsonProperty("ave_temperature")
-  private String aveTemperature;
+  private Double aveTemperature;
 
   /**
-   * 震动
+   * 平均震动
    */
   @JsonProperty("ave_vibration")
-  private String aveVibration;
+  private Double aveVibration;
 
   /**
    * 时间戳

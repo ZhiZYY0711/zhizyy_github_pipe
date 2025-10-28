@@ -12,7 +12,7 @@
     
     <modules>
         <module>server-pojo</module>
-        <module>server-utils</module>
+        <module>server-support</module>
         <module>server-web</module>
         <module>server-mobile</module>
     </modules>

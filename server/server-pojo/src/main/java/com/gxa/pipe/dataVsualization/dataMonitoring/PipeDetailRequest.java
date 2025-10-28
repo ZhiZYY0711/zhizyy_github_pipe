@@ -18,17 +18,17 @@ public class PipeDetailRequest {
    * 区域ID
    */
   @JsonProperty("area_id")
-  private String areaId;
+  private Long areaId;
 
   /**
    * 开始时间
    */
   @JsonProperty("start_time")
-  private String startTime;
+  private Long startTime;
 
   /**
    * 结束时间
    */
   @JsonProperty("end_time")
-  private String endTime;
+  private Long endTime;
 }

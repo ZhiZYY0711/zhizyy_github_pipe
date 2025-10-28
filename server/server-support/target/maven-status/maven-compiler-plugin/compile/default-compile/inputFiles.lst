@@ -2,11 +2,8 @@ F:\projects\pipeline_management_system\server\server-support\src\main\java\com\g
 F:\projects\pipeline_management_system\server\server-support\src\main\java\com\gxa\pipe\config\DeepSeekConfig.java
 F:\projects\pipeline_management_system\server\server-support\src\main\java\com\gxa\pipe\config\MybatisPageHelperConfig.java
 F:\projects\pipeline_management_system\server\server-support\src\main\java\com\gxa\pipe\config\WebConfig.java
-F:\projects\pipeline_management_system\server\server-support\src\main\java\com\gxa\pipe\config\WebSocketConfig.java
 F:\projects\pipeline_management_system\server\server-support\src\main\java\com\gxa\pipe\handler\GlobalExceptionHandler.java
 F:\projects\pipeline_management_system\server\server-support\src\main\java\com\gxa\pipe\interceptor\JwtInterceptor.java
 F:\projects\pipeline_management_system\server\server-support\src\main\java\com\gxa\pipe\utils\JwtUtils.java
 F:\projects\pipeline_management_system\server\server-support\src\main\java\com\gxa\pipe\utils\PageResult.java
 F:\projects\pipeline_management_system\server\server-support\src\main\java\com\gxa\pipe\utils\Result.java
-F:\projects\pipeline_management_system\server\server-support\src\main\java\com\gxa\pipe\virtualExpert\DeepSeekService.java
-F:\projects\pipeline_management_system\server\server-support\src\main\java\com\gxa\pipe\virtualExpert\WebSocketHandler.java

@@ -43,4 +43,7 @@ F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\p
 F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\manoeuvre\ManoeuvreService.java
 F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\manoeuvre\ManoeuvreServiceImpl.java
 F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\PipelineManagementWebApplication.java
+F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\virtualExpert\DeepSeekService.java
 F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\virtualExpert\VirtualExpertController.java
+F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\virtualExpert\WebSocketConfig.java
+F:\projects\pipeline_management_system\server\server-web\src\main\java\com\gxa\pipe\virtualExpert\WebSocketHandler.java

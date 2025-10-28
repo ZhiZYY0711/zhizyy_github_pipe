@@ -153,7 +153,7 @@
 
     <!-- 统计维护中设备数量 -->
     <select id="countMaintenance" resultType="int">
-        SELECT COUNT(*) FROM sensor WHERE status = 1
+        SELECT COUNT(*) FROM sensor WHERE status = 3
     </select>
 
     <!-- 统计离线设备数量 -->

@@ -3,7 +3,6 @@ com\gxa\pipe\dataVsualization\dataMonitoring\PipeDetailResponse.class
 com\gxa\pipe\entity\Task.class
 com\gxa\pipe\log\LogQueryRequest.class
 com\gxa\pipe\dataManagement\task\TaskIndicatorResponse.class
-com\gxa\pipe\virtualExpert\dto\DeepSeekResponse$Message.class
 com\gxa\pipe\manoeuvre\ManoeuvreQueryResponse.class
 com\gxa\pipe\login\AdminLoginRequest.class
 com\gxa\pipe\dataManagement\repairman\RepairmanUpdateRequest.class
@@ -12,17 +11,15 @@ com\gxa\pipe\entity\RepairmanRegistration.class
 com\gxa\pipe\entity\Pipe.class
 com\gxa\pipe\common\area\AreaResponse.class
 com\gxa\pipe\log\LogIndicardResponse.class
-com\gxa\pipe\virtualExpert\dto\DeepSeekResponse$Choice.class
 com\gxa\pipe\entity\Manoeuvre.class
 com\gxa\pipe\dataVsualization\dataMonitoring\PipeDetailRequest.class
 com\gxa\pipe\entity\Log.class
 com\gxa\pipe\entity\ConnManoeuvreRepairman.class
-com\gxa\pipe\virtualExpert\dto\DeepSeekResponse.class
+com\gxa\pipe\virtualExpert\DeepSeekResponse$Message.class
 com\gxa\pipe\dataManagement\repairman\RepairmanQueryByIdRequest.class
 com\gxa\pipe\dataManagement\equipment\EquipmentResponse.class
 com\gxa\pipe\dataVsualization\taskDetail\TaskResquest.class
 com\gxa\pipe\dataManagement\task\TaskAddRequest.class
-com\gxa\pipe\virtualExpert\dto\DeepSeekResponse$Usage.class
 com\gxa\pipe\dataVsualization\taskDetail\TaskStatusResponse.class
 com\gxa\pipe\dataManagement\monitoring\MonitoringDataIndicatorResponse.class
 com\gxa\pipe\dataVsualization\taskDetail\AreaTaskResponse.class
@@ -45,6 +42,7 @@ com\gxa\pipe\dataManagement\repairman\RepairmanAddRequest.class
 com\gxa\pipe\manoeuvre\ManoeuvreRepairmanInfo.class
 com\gxa\pipe\dataManagement\equipment\EquipmentAddRequest.class
 com\gxa\pipe\entity\Repairman.class
+com\gxa\pipe\virtualExpert\DeepSeekResponse$Choice.class
 com\gxa\pipe\virtualExpert\DeepSeekRequest.class
 com\gxa\pipe\dataManagement\monitoring\MonitoringDataUpdateRequest.class
 com\gxa\pipe\dataManagement\repairman\RepairmanQueryResponse.class
@@ -57,6 +55,7 @@ com\gxa\pipe\manoeuvre\ManoeuvreQueryRequest.class
 com\gxa\pipe\dataManagement\task\TaskUpdateRequest.class
 com\gxa\pipe\virtualExpert\DeepSeekRequest$Message.class
 com\gxa\pipe\dataVsualization\total\RepairmanKpiResponse.class
+com\gxa\pipe\virtualExpert\DeepSeekResponse$Usage.class
 com\gxa\pipe\dataManagement\monitoring\MonitoringDataQueryResponse.class
 com\gxa\pipe\dataVsualization\dataMonitoring\AreaDetailRequest.class
 com\gxa\pipe\dataManagement\repairman\RepairmanQueryRequest.class
@@ -67,3 +66,4 @@ com\gxa\pipe\entity\AdminRegistration.class
 com\gxa\pipe\entity\Sensor.class
 com\gxa\pipe\dataManagement\repairman\RepairmanIndicatorRequest.class
 com\gxa\pipe\dataVsualization\total\RunningWaterResponse.class
+com\gxa\pipe\virtualExpert\DeepSeekResponse.class

@@ -1,6 +1,7 @@
 package com.gxa.pipe.virtualExpert;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gxa.pipe.virtualExpert.ChatMessage;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;

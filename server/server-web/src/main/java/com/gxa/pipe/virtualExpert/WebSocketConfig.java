@@ -18,7 +18,7 @@ import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry
  * @author 初学者教程
  * @date 2024
  */
-@Configuration // 标记这是一个Spring配置类，Spring会自动扫描并加载
+@Configuration("virtualExpertWebSocketConfig") // 指定自定义的Bean名称以避免冲突
 @EnableWebSocket // 启用WebSocket功能，这个注解告诉Spring Boot开启WebSocket支持
 public class WebSocketConfig implements WebSocketConfigurer {
 

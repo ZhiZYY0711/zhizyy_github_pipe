@@ -50,9 +50,16 @@ F:\projects\pipeline_management_system\server\server-pojo\src\main\java\com\gxa\
 F:\projects\pipeline_management_system\server\server-pojo\src\main\java\com\gxa\pipe\entity\RepairmanRegistration.java
 F:\projects\pipeline_management_system\server\server-pojo\src\main\java\com\gxa\pipe\entity\Sensor.java
 F:\projects\pipeline_management_system\server\server-pojo\src\main\java\com\gxa\pipe\entity\Task.java
+F:\projects\pipeline_management_system\server\server-pojo\src\main\java\com\gxa\pipe\log\LogIndicardResponse.java
 F:\projects\pipeline_management_system\server\server-pojo\src\main\java\com\gxa\pipe\log\LogQueryRequest.java
+F:\projects\pipeline_management_system\server\server-pojo\src\main\java\com\gxa\pipe\log\LogQueryResponse.java
 F:\projects\pipeline_management_system\server\server-pojo\src\main\java\com\gxa\pipe\login\AdminLoginRequest.java
 F:\projects\pipeline_management_system\server\server-pojo\src\main\java\com\gxa\pipe\login\AdminLoginResponse.java
 F:\projects\pipeline_management_system\server\server-pojo\src\main\java\com\gxa\pipe\manoeuvre\ManoeuvreAddRequest.java
 F:\projects\pipeline_management_system\server\server-pojo\src\main\java\com\gxa\pipe\manoeuvre\ManoeuvreQueryRequest.java
 F:\projects\pipeline_management_system\server\server-pojo\src\main\java\com\gxa\pipe\manoeuvre\ManoeuvreQueryResponse.java
+F:\projects\pipeline_management_system\server\server-pojo\src\main\java\com\gxa\pipe\manoeuvre\ManoeuvreRepairmanInfo.java
+F:\projects\pipeline_management_system\server\server-pojo\src\main\java\com\gxa\pipe\manoeuvre\ManoeuvreUpdateRequest.java
+F:\projects\pipeline_management_system\server\server-pojo\src\main\java\com\gxa\pipe\virtualExpert\ChatMessage.java
+F:\projects\pipeline_management_system\server\server-pojo\src\main\java\com\gxa\pipe\virtualExpert\DeepSeekRequest.java
+F:\projects\pipeline_management_system\server\server-pojo\src\main\java\com\gxa\pipe\virtualExpert\DeepSeekResponse.java

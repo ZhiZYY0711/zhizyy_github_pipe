@@ -8,7 +8,20 @@
 
 ```
 pipeline_management_system/
-├── backstage-vue/          # Vue.js Web端管理系统
+├── backstage-vue/          # Vue.js Web端管理系统 (模块化架构)
+│   ├── src/
+│   │   ├── modules/        # 功能模块
+│   │   │   ├── auth/       # 认证模块
+│   │   │   ├── dashboard/  # 仪表板模块
+│   │   │   ├── monitoring/ # 监控模块
+│   │   │   ├── management/ # 管理模块
+│   │   │   ├── emergency/  # 应急模块
+│   │   │   ├── logs/       # 日志模块
+│   │   │   └── shared/     # 共享组件和工具
+│   │   ├── router/         # 路由配置
+│   │   ├── store/          # 全局状态管理
+│   │   └── main.js         # 应用入口
+│   └── vue.config.js       # Vue配置 (包含模块路径别名)
 ├── repairman-uniapp/       # UniApp移动端应用
 ├── server/                 # Java Spring Boot后端服务
 ├── utils/                  # 工具脚本和数据处理
@@ -52,6 +65,12 @@ pipeline_management_system/
 ## 技术栈详解
 
 ### 前端技术栈 (Web端)
+
+#### 架构设计
+- **模块化架构**: 基于功能模块的代码组织结构
+- **路径别名**: 使用@modules、@shared等别名简化导入路径
+- **模块化状态管理**: 每个功能模块独立的Vuex store
+- **组件复用**: 共享组件库提高代码复用率
 
 #### 核心框架
 - **Vue.js 2.6.14**: 渐进式JavaScript框架
@@ -161,7 +180,7 @@ pipeline_management_system/
 
 ### 工具脚本和数据处理
 
-#### 数据生成工具 (Python)
+#### 数据生成工具 (Python+Faker)
 - **功能**: 自动生成测试数据和模拟数据
 - **技术栈**: Python 3.x + MySQL连接器
 - **支持数据类型**: 

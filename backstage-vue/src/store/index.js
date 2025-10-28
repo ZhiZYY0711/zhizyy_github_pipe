@@ -1,71 +1,57 @@
 import Vue from 'vue'
 import Vuex from 'vuex'
 
+// 导入各模块的状态管理
+import auth from '@/modules/auth/store'
+import dashboard from '@/modules/dashboard/store'
+import monitoring from '@/modules/monitoring/store'
+import management from '@/modules/management/store'
+import emergency from '@/modules/emergency/store'
+import logs from '@/modules/logs/store'
+
 Vue.use(Vuex)
 
 export default new Vuex.Store({
+  modules: {
+    auth,
+    dashboard,
+    monitoring,
+    management,
+    emergency,
+    logs
+  },
   state: {
-    // 用户信息
-    userInfo: null,
-    // 是否已登录
-    isLoggedIn: false,
-    // 管理员类型
-    adminType: ''
+    // 全局应用状态
+    loading: false,
+    sidebarCollapsed: false
   },
   mutations: {
-    // 设置用户信息
-    SET_USER_INFO(state, userInfo) {
-      state.userInfo = userInfo
+    SET_LOADING(state, loading) {
+      state.loading = loading
     },
-    // 设置登录状态
-    SET_LOGIN_STATUS(state, status) {
-      state.isLoggedIn = status
+    TOGGLE_SIDEBAR(state) {
+      state.sidebarCollapsed = !state.sidebarCollapsed
     },
-    // 设置管理员类型
-    SET_ADMIN_TYPE(state, type) {
-      state.adminType = type
-    },
-    // 清除用户信息（登出时使用）
-    CLEAR_USER_INFO(state) {
-      state.userInfo = null
-      state.isLoggedIn = false
-      state.adminType = ''
+    SET_SIDEBAR_COLLAPSED(state, collapsed) {
+      state.sidebarCollapsed = collapsed
     }
   },
   actions: {
-    // 登录操作
-    login({ commit }, loginData) {
-      return new Promise((resolve, reject) => {
-        // 这里将来会使用axios发送请求
-        // 模拟登录成功
-        setTimeout(() => {
-          const userInfo = {
-            id: 1,
-            username: loginData.username,
-            adminType: loginData.adminType
-          }
-          commit('SET_USER_INFO', userInfo)
-          commit('SET_LOGIN_STATUS', true)
-          commit('SET_ADMIN_TYPE', loginData.adminType)
-          resolve(userInfo)
-        }, 1000)
-      })
+    // 全局loading控制
+    setLoading({ commit }, loading) {
+      commit('SET_LOADING', loading)
     },
-    // 登出操作
-    logout({ commit }) {
-      return new Promise((resolve) => {
-        // 这里将来会使用axios发送请求
-        commit('CLEAR_USER_INFO')
-        resolve()
-      })
+    // 侧边栏控制
+    toggleSidebar({ commit }) {
+      commit('TOGGLE_SIDEBAR')
+    },
+    setSidebarCollapsed({ commit }, collapsed) {
+      commit('SET_SIDEBAR_COLLAPSED', collapsed)
     }
   },
   getters: {
-    // 获取用户信息
-    userInfo: state => state.userInfo,
-    // 获取登录状态
-    isLoggedIn: state => state.isLoggedIn,
-    // 获取管理员类型
-    adminType: state => state.adminType
+    // 全局状态获取器
+    loading: state => state.loading,
+    sidebarCollapsed: state => state.sidebarCollapsed
   }
 })

@@ -7,82 +7,86 @@ const routes = [
   {
     path: '/',
     name: 'Login',
-    component: () => import('../views/login/LoginPage.vue')
+    component: () => import('../modules/auth/views/LoginPage.vue')
   },
   {
     path: '/main',
-    component: () => import('../views/Layout.vue'),
+    component: () => import('../modules/shared/components/Layout.vue'),
     meta: { requiresAuth: true },
     children: [
       {
         path: '',
         redirect: 'visualization'
       },
-
+      // 仪表板模块
       {
         path: 'visualization',
         name: 'DataVisualization',
-        component: () => import('../views/data-visualization/DataVisualization.vue')
-      },
-      {
-        path: 'data-monitoring',
-        name: 'DataMonitoring',
-        component: () => import('../views/data-visualization/DataMonitoring.vue')
+        component: () => import('../modules/dashboard/views/DataVisualization.vue')
       },
       {
         path: 'area-details',
         name: 'AreaDetails',
-        component: () => import('../views/data-visualization/details/AreaDetails.vue')
+        component: () => import('../modules/dashboard/views/AreaDetails.vue')
       },
       {
         path: 'pipeline-details',
         name: 'PipelineDetails',
-        component: () => import('../views/data-visualization/details/PipelineDetails.vue')
+        component: () => import('../modules/dashboard/views/PipelineDetails.vue')
       },
+      // 监控模块
       {
-        path: 'task-details',
-        name: 'TaskDetails',
-        component: () => import('../views/data-visualization/TaskDetails.vue')
+        path: 'data-monitoring',
+        name: 'DataMonitoring',
+        component: () => import('../modules/monitoring/views/DataMonitoring.vue')
       },
       {
         path: 'monitoring',
         name: 'Monitoring',
-        component: () => import('../views/data-management/Monitoring.vue')
+        component: () => import('../modules/monitoring/views/Monitoring.vue')
       },
+      // 管理模块
       {
         path: 'equipment',
         name: 'Equipment',
-        component: () => import('../views/data-management/Equipment.vue')
+        component: () => import('../modules/management/views/Equipment.vue')
       },
       {
         path: 'tasks',
         name: 'Tasks',
-        component: () => import('../views/data-management/Tasks.vue')
+        component: () => import('../modules/management/views/Tasks.vue')
+      },
+      {
+        path: 'task-details',
+        name: 'TaskDetails',
+        component: () => import('../modules/management/views/TaskDetails.vue')
       },
       {
         path: 'repairman',
         name: 'Repairman',
-        component: () => import('../views/data-management/Repairman.vue')
+        component: () => import('../modules/management/views/Repairman.vue')
       },
+      // 应急模块
       {
         path: 'virtual-expert',
         name: 'VirtualExpert',
-        component: () => import('../views/virtual-expert/VirtualExpert.vue')
+        component: () => import('../modules/emergency/views/VirtualExpert.vue')
       },
       {
         path: 'simulation-drill',
         name: 'SimulationDrill',
-        component: () => import('../views/simulation-drill/SimulationDrill.vue')
+        component: () => import('../modules/emergency/views/SimulationDrill.vue')
       },
       {
         path: 'emergency',
         name: 'Emergency',
-        component: () => import('../views/emergency/AccidentResponse.vue')
+        component: () => import('../modules/emergency/views/AccidentResponse.vue')
       },
+      // 日志模块
       {
         path: 'logs',
         name: 'Logs',
-        component: () => import('../views/logs/LogRecording.vue')
+        component: () => import('../modules/logs/views/LogRecording.vue')
       }
     ]
   },

@@ -108,7 +108,7 @@
 </template>
 
 <script>
-import WeatherDate from '@/components/WeatherDate.vue';
+import WeatherDate from '@monitoring/components/WeatherDate.vue';
 
 export default {
   name: 'Layout',

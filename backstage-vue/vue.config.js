@@ -4,7 +4,7 @@ const path = require('path')
 module.exports = defineConfig({
   transpileDependencies: true,
   lintOnSave: false, // 关闭eslint语法检查
-  
+
   configureWebpack: {
     resolve: {
       alias: {
@@ -20,7 +20,7 @@ module.exports = defineConfig({
       }
     }
   },
-  
+
   devServer: {
     port: 8081,
     open: true,

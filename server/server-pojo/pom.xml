@@ -31,17 +31,5 @@
             <artifactId>jackson-databind</artifactId>
         </dependency>
         
-        <!-- Spring Context for @Service annotation -->
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-context</artifactId>
-        </dependency>
-        
-        <!-- server-support for OSSUtils -->
-        <dependency>
-            <groupId>com.gxa.pipe</groupId>
-            <artifactId>server-support</artifactId>
-            <version>0.0.1-SNAPSHOT</version>
-        </dependency>
     </dependencies>
 </project>

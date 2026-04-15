@@ -96,12 +96,6 @@
             <artifactId>jjwt</artifactId>
         </dependency>
         
-        <!-- WebSocket -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-websocket</artifactId>
-        </dependency>
-        
         <!-- HTTP Client for DeepSeek API -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -115,4 +109,5 @@
             <version>0.0.1-SNAPSHOT</version>
         </dependency>
     </dependencies>
+
 </project>

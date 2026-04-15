@@ -109,7 +109,13 @@ const router = new VueRouter({
 
 // 路由守卫，检查用户是否已登录
 router.beforeEach((to, from, next) => {
-  const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true'
+  const token = localStorage.getItem('token') || localStorage.getItem('jwt')
+  const isLoggedIn = Boolean(token)
+
+  // 无有效token时，清理可能残留的旧登录标记
+  if (!token) {
+    localStorage.removeItem('isLoggedIn')
+  }
 
   if (to.matched.some(record => record.meta.requiresAuth)) {
     // 需要登录的页面

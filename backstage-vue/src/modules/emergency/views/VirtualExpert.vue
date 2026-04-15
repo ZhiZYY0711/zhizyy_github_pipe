@@ -1,188 +1,163 @@
 <template>
   <div class="virtual-expert-container">
-    <!-- 页面标题 -->
-    <div class="page-header">
-      <h2 class="page-title">虚拟专家系统</h2>
-      <div class="header-actions">
-        <div class="connection-status" :class="{ connected: isConnected, disconnected: !isConnected }">
-          <span class="status-indicator"></span>
-          {{ isConnected ? '已连接' : '未连接' }}
-        </div>
-        <button class="btn btn-primary" @click="startNewConsultation">
-          <i class="icon">💬</i> 新建咨询
-        </button>
-        <button class="btn btn-secondary" @click="refreshData">
-          <i class="icon">↻</i> 刷新
-        </button>
-      </div>
-    </div>
-
-    <!-- 专家系统统计 -->
-    <div class="stats-section">
-      <div class="stat-card">
-        <div class="stat-number">{{ expertStats.totalConsultations }}</div>
-        <div class="stat-label">总咨询次数</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-number">{{ expertStats.activeExperts }}</div>
-        <div class="stat-label">在线专家</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-number">{{ expertStats.resolvedIssues }}</div>
-        <div class="stat-label">已解决问题</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-number">{{ expertStats.avgResponseTime }}</div>
-        <div class="stat-label">平均响应时间(分钟)</div>
-      </div>
-    </div>
-
-    <!-- 主要功能区域 -->
+    <!-- 主要内容区域 -->
     <div class="main-content">
-      <!-- 左侧：专家列表和咨询历史 -->
+      <!-- 左侧：历史记录列表 -->
       <div class="left-panel">
-        <!-- AI专家卡片 -->
-        <div class="expert-list-section">
-          <h3 class="section-title">AI虚拟专家</h3>
-          <div class="expert-list">
-            <div 
-              class="expert-card ai-expert"
-              :class="{ active: selectedExpert?.id === 'ai' }"
-              @click="selectAIExpert"
-            >
-              <div class="expert-avatar">
-                <img src="/ai-expert-avatar.png" alt="AI专家" style="background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);">
-                <span class="status-indicator" :class="isConnected ? 'online' : 'offline'"></span>
+        <div class="history-header">
+          <h3 class="history-title">聊天历史</h3>
+          <button class="btn btn-primary btn-sm" @click="startNewChat">
+            <i class="icon">+</i> 新建对话
+          </button>
+        </div>
+
+        <div class="history-list">
+          <div v-if="loadingHistory" class="loading-indicator">
+            <div class="loading-spinner"></div>
+            <span>加载聊天历史中...</span>
+          </div>
+          <div v-else-if="chatHistory.length === 0" class="empty-history">
+            <span>暂无聊天历史</span>
+          </div>
+          <div
+            v-else
+            v-for="session in chatHistory"
+            :key="session.id"
+            class="history-item"
+            :class="{ active: selectedSessionId === session.id }"
+            @click="selectSession(session)"
+          >
+            <div class="session-info">
+              <div class="session-title">{{ session.title || "新对话" }}</div>
+              <div class="session-time">
+                {{ formatTime(session.startTime) }}
               </div>
-              <div class="expert-info">
-                <div class="expert-name">AI智能专家</div>
-                <div class="expert-specialty">管道监测全领域专家</div>
-                <div class="expert-rating">
-                  <span class="stars">★★★★★</span>
-                  <span class="rating-score">5.0</span>
-                </div>
-              </div>
+            </div>
+            <div class="session-preview">{{ session.lastMessage }}</div>
+            <div class="session-meta">
+              <span class="message-count"
+                >{{ session.messageCount }} 条消息</span
+              >
+              <span class="session-status" :class="session.status">
+                {{ session.status === "active" ? "进行中" : "已结束" }}
+              </span>
             </div>
           </div>
         </div>
 
-        <!-- 传统专家列表 -->
-        <div class="expert-list-section">
-          <h3 class="section-title">人工专家</h3>
-          <div class="expert-list">
-            <div 
-              v-for="expert in availableExperts" 
-              :key="expert.id"
-              class="expert-card"
-              :class="{ active: selectedExpert?.id === expert.id }"
-              @click="selectExpert(expert)"
-            >
-              <div class="expert-avatar">
-                <img :src="expert.avatar" :alt="expert.name">
-                <span class="status-indicator" :class="expert.status"></span>
-              </div>
-              <div class="expert-info">
-                <div class="expert-name">{{ expert.name }}</div>
-                <div class="expert-specialty">{{ expert.specialty }}</div>
-                <div class="expert-rating">
-                  <span class="stars">★★★★★</span>
-                  <span class="rating-score">{{ expert.rating }}</span>
-                </div>
-              </div>
-            </div>
+        <!-- 连接状态 -->
+        <div class="connection-status-panel">
+          <div
+            class="connection-status"
+            :class="{ connected: isConnected, disconnected: !isConnected }"
+          >
+            <span class="status-indicator"></span>
+            <span class="status-text">{{
+              isConnected ? "AI专家在线" : "AI专家离线"
+            }}</span>
           </div>
-        </div>
-
-        <!-- 咨询历史 -->
-        <div class="history-section">
-          <h3 class="section-title">咨询历史</h3>
-          <div class="history-list">
-            <div 
-              v-for="consultation in consultationHistory" 
-              :key="consultation.id"
-              class="history-item"
-              @click="loadConsultation(consultation)"
-            >
-              <div class="history-header">
-                <span class="consultation-title">{{ consultation.title }}</span>
-                <span class="consultation-time">{{ consultation.time }}</span>
-              </div>
-              <div class="consultation-expert">专家：{{ consultation.expertName }}</div>
-              <div class="consultation-status" :class="consultation.status">
-                {{ consultation.statusText }}
-              </div>
-            </div>
-          </div>
+          <button
+            v-if="!isConnected"
+            class="btn btn-secondary btn-sm"
+            @click="connectWebSocket"
+          >
+            重新连接
+          </button>
         </div>
       </div>
 
-      <!-- 右侧：对话区域 -->
+      <!-- 右侧：聊天对话框 -->
       <div class="right-panel">
         <div class="chat-container">
-          <!-- 对话头部 -->
-          <div class="chat-header" v-if="selectedExpert">
-            <div class="expert-info-header">
-              <img :src="selectedExpert.avatar || '/ai-expert-avatar.png'" :alt="selectedExpert.name" class="expert-avatar-small">
-              <div>
-                <div class="expert-name-header">{{ selectedExpert.name }}</div>
-                <div class="expert-specialty-header">{{ selectedExpert.specialty }}</div>
-                <div v-if="selectedExpert.id === 'ai'" class="ai-status">
-                  {{ isConnected ? '🟢 AI在线' : '🔴 AI离线' }}
-                </div>
+          <!-- 聊天头部 -->
+          <div class="chat-header">
+            <div class="chat-info">
+              <div class="expert-avatar">
+                <img src="/ai-expert-avatar.png" alt="AI专家" />
+              </div>
+              <div class="expert-details">
+                <div class="expert-name">AI智能专家</div>
+                <div class="expert-specialty">管道监测全领域专家</div>
               </div>
             </div>
             <div class="chat-actions">
-              <button class="btn btn-sm btn-secondary" @click="clearChat">清空对话</button>
-              <button class="btn btn-sm btn-primary" @click="saveConsultation">保存咨询</button>
+              <button
+                class="btn btn-secondary btn-sm"
+                @click="clearCurrentChat"
+                :disabled="!selectedSessionId"
+              >
+                清空对话
+              </button>
+              <button
+                class="btn btn-primary btn-sm"
+                @click="saveCurrentChat"
+                :disabled="!selectedSessionId"
+              >
+                保存对话
+              </button>
             </div>
           </div>
 
-          <!-- 对话内容 -->
+          <!-- 聊天消息区域 -->
           <div class="chat-messages" ref="chatMessages">
-            <div v-if="!selectedExpert" class="no-expert-selected">
-              <div class="welcome-message">
-                <h3>欢迎使用虚拟专家系统</h3>
-                <p>请选择AI智能专家或人工专家开始咨询</p>
+            <div v-if="!selectedSessionId" class="welcome-screen">
+              <div class="welcome-content">
+                <div class="welcome-icon">🤖</div>
+                <h3>欢迎使用AI虚拟专家系统</h3>
+                <p>选择历史对话或开始新的对话</p>
                 <div v-if="!isConnected" class="connection-warning">
-                  <p>⚠️ WebSocket连接未建立，AI专家功能不可用</p>
-                  <button class="btn btn-primary" @click="connectWebSocket">连接AI服务</button>
+                  <p>⚠️ 当前未连接到AI服务</p>
+                  <button class="btn btn-primary" @click="connectWebSocket">
+                    连接AI服务
+                  </button>
                 </div>
               </div>
             </div>
-            <div v-else>
-              <div 
-                v-for="message in currentMessages" 
+
+            <div v-else class="messages-list">
+              <div v-if="loadingMessages" class="loading-indicator">
+                <div class="loading-spinner"></div>
+                <span>加载消息中...</span>
+              </div>
+              <div
+                v-else
+                v-for="message in currentMessages"
                 :key="message.id"
                 class="message"
-                :class="message.type"
+                :class="[message.type, message.sender]"
               >
                 <div class="message-avatar">
-                  <img 
-                    :src="getMessageAvatar(message)" 
+                  <img
+                    :src="getMessageAvatar(message)"
                     :alt="getMessageSender(message)"
-                  >
+                  />
                 </div>
                 <div class="message-content">
                   <div class="message-header">
-                    <span class="message-sender">
-                      {{ getMessageSender(message) }}
-                    </span>
-                    <span class="message-time">{{ message.time }}</span>
+                    <span class="message-sender">{{
+                      getMessageSender(message)
+                    }}</span>
+                    <span class="message-time">{{
+                      formatMessageTime(message.timestamp)
+                    }}</span>
                   </div>
                   <div class="message-text">{{ message.content }}</div>
                 </div>
               </div>
-              
+
               <!-- AI正在输入指示器 -->
               <div v-if="aiTyping" class="message ai typing-indicator">
                 <div class="message-avatar">
-                  <img src="/ai-expert-avatar.png" alt="AI专家">
+                  <img src="/ai-expert-avatar.png" alt="AI专家" />
                 </div>
                 <div class="message-content">
-                  <div class="typing-dots">
-                    <span></span>
-                    <span></span>
-                    <span></span>
+                  <div class="typing-animation">
+                    <span class="typing-text">AI正在思考</span>
+                    <div class="typing-dots">
+                      <span></span>
+                      <span></span>
+                      <span></span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -190,76 +165,30 @@
           </div>
 
           <!-- 输入区域 -->
-          <div class="chat-input" v-if="selectedExpert">
+          <div class="chat-input">
             <div class="input-container">
-              <textarea 
+              <textarea
                 v-model="newMessage"
                 placeholder="请输入您的问题..."
                 class="message-input"
                 rows="3"
-                @keydown.enter.prevent="sendMessage"
-                :disabled="selectedExpert.id === 'ai' && !isConnected"
+                @keydown.enter.prevent="handleEnterKey"
+                :disabled="!isConnected"
               ></textarea>
               <div class="input-actions">
-                <button 
-                  class="btn btn-primary" 
-                  @click="sendMessage" 
-                  :disabled="!newMessage.trim() || (selectedExpert.id === 'ai' && !isConnected)"
+                <button
+                  class="btn btn-primary"
+                  @click="sendMessage"
+                  :disabled="!newMessage.trim() || !isConnected"
                 >
                   发送
                 </button>
-                <div v-if="selectedExpert.id === 'ai' && !isConnected" class="connection-hint">
-                  请先连接AI服务
-                </div>
               </div>
             </div>
+            <div v-if="!isConnected" class="connection-hint">
+              请先连接AI服务才能发送消息
+            </div>
           </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 新建咨询模态框 -->
-    <div v-if="showNewConsultationModal" class="modal-overlay" @click="showNewConsultationModal = false">
-      <div class="modal-content" @click.stop>
-        <div class="modal-header">
-          <h3>新建咨询</h3>
-          <button class="close-btn" @click="showNewConsultationModal = false">×</button>
-        </div>
-        <div class="modal-body">
-          <form @submit.prevent="createConsultation">
-            <div class="form-group">
-              <label>咨询主题：</label>
-              <input v-model="consultationForm.title" required class="input-field" placeholder="请输入咨询主题">
-            </div>
-            <div class="form-group">
-              <label>问题类型：</label>
-              <select v-model="consultationForm.category" required class="select-field">
-                <option value="">请选择问题类型</option>
-                <option value="设备故障">设备故障</option>
-                <option value="管道维护">管道维护</option>
-                <option value="安全问题">安全问题</option>
-                <option value="技术咨询">技术咨询</option>
-                <option value="应急处理">应急处理</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>优先级：</label>
-              <select v-model="consultationForm.priority" required class="select-field">
-                <option value="低">低</option>
-                <option value="中">中</option>
-                <option value="高">高</option>
-                <option value="紧急">紧急</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>问题描述：</label>
-              <textarea v-model="consultationForm.description" rows="4" class="input-field" placeholder="请详细描述您遇到的问题"></textarea>
-            </div>
-            <div class="form-actions">
-              <button type="button" class="btn btn-secondary" @click="showNewConsultationModal = false">取消</button>
-              <button type="submit" class="btn btn-primary">创建咨询</button>
-            </div>
-          </form>
         </div>
       </div>
     </div>
@@ -268,740 +197,894 @@
 
 <script>
 export default {
-  name: 'VirtualExpert',
+  name: "VirtualExpert",
   data() {
     return {
-      // WebSocket相关
-      websocket: null,
+      // SSE连接相关
+      eventSource: null,
       isConnected: false,
       reconnectAttempts: 0,
       maxReconnectAttempts: 5,
       reconnectInterval: 3000,
-      
-      // 选中的专家和消息
-      selectedExpert: null,
+      currentAiMessageId: null,
+      connectedConversationId: null,
+
+      // 聊天相关
+      selectedSessionId: null,
       currentMessages: [],
-      newMessage: '',
+      newMessage: "",
       aiTyping: false,
-      
-      // 模态框和表单
-      showNewConsultationModal: false,
-      consultationForm: {
-        title: '',
-        category: '',
-        priority: '中',
-        description: ''
-      },
-      
-      // 专家数据
-      availableExperts: [
-        {
-          id: 1,
-          name: '张工程师',
-          specialty: '管道设计与维护',
-          avatar: '/expert-avatar-1.png',
-          status: 'online',
-          rating: 4.8
-        },
-        {
-          id: 2,
-          name: '李专家',
-          specialty: '设备故障诊断',
-          avatar: '/expert-avatar-2.png',
-          status: 'online',
-          rating: 4.9
-        },
-        {
-          id: 3,
-          name: '王教授',
-          specialty: '安全风险评估',
-          avatar: '/expert-avatar-3.png',
-          status: 'busy',
-          rating: 4.7
-        },
-        {
-          id: 4,
-          name: '赵顾问',
-          specialty: '应急响应处理',
-          avatar: '/expert-avatar-4.png',
-          status: 'online',
-          rating: 4.6
-        }
-      ],
-      
-      // 咨询历史
-      consultationHistory: [
-        {
-          id: 1,
-          title: '管道压力异常问题咨询',
-          expertName: 'AI智能专家',
-          time: '2024-01-15 14:30',
-          status: 'resolved',
-          statusText: '已解决'
-        },
-        {
-          id: 2,
-          title: '传感器故障排查',
-          expertName: '李专家',
-          time: '2024-01-14 10:15',
-          status: 'resolved',
-          statusText: '已解决'
-        },
-        {
-          id: 3,
-          title: '应急预案制定咨询',
-          expertName: '赵顾问',
-          time: '2024-01-13 16:45',
-          status: 'pending',
-          statusText: '待回复'
-        }
-      ]
-    }
-  },
-  computed: {
-    expertStats() {
-      return {
-        totalConsultations: 156,
-        activeExperts: this.availableExperts.filter(expert => expert.status === 'online').length + (this.isConnected ? 1 : 0),
-        resolvedIssues: 142,
-        avgResponseTime: this.isConnected ? 2 : 8
-      }
-    }
+
+      // 历史记录
+      chatHistory: [],
+
+      // 当前会话信息
+      currentSessionInfo: null,
+
+      // 加载状态
+      loadingHistory: false,
+      loadingMessages: false,
+    };
   },
   mounted() {
-    // 组件挂载后自动连接WebSocket
-    this.connectWebSocket()
+    // 组件挂载后自动连接SSE和加载历史记录
+    this.connectWebSocket();
+    this.loadChatHistory();
   },
   beforeUnmount() {
-    // 组件销毁前断开WebSocket连接
-    this.disconnectWebSocket()
+    // 组件销毁前断开SSE连接
+    this.disconnectWebSocket();
   },
   methods: {
-    // WebSocket连接管理
+    // 获取JWT token
+    getJwtToken() {
+      return (
+        this.$store?.getters?.["auth/token"] ||
+        localStorage.getItem("token") ||
+        localStorage.getItem("jwt")
+      );
+    },
+
+    // SSE连接管理（保留原方法名，避免模板改动）
     connectWebSocket() {
-      if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
-        console.log('WebSocket已连接')
-        return
+      if (this.eventSource && this.isConnected) {
+        console.log("SSE已连接");
+        return;
       }
 
       try {
-        // 根据当前协议选择WebSocket协议
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-        const host = window.location.hostname
-        const port = '8080' // 后端服务端口
-        const wsUrl = `${protocol}//${host}:${port}/manager/websocket/demo`
-        
-        console.log('正在连接WebSocket:', wsUrl)
-        this.websocket = new WebSocket(wsUrl)
-        
-        this.websocket.onopen = this.onWebSocketOpen
-        this.websocket.onmessage = this.onWebSocketMessage
-        this.websocket.onclose = this.onWebSocketClose
-        this.websocket.onerror = this.onWebSocketError
-        
+        const protocol = window.location.protocol;
+        const host = window.location.hostname;
+        const port = "8080";
+        const conversationId = this.selectedSessionId || `session_${Date.now()}`;
+        const userId = localStorage.getItem("username") || "web_user";
+        const token = this.getJwtToken();
+        const sseUrl = `${protocol}//${host}:${port}/manager/virtual-expert/stream?conversationId=${encodeURIComponent(
+          conversationId
+        )}&userId=${encodeURIComponent(userId)}${
+          token ? `&token=${encodeURIComponent(token)}` : ""
+        }`;
+
+        if (this.eventSource) {
+          this.eventSource.close();
+        }
+        this.eventSource = new EventSource(sseUrl);
+        this.selectedSessionId = conversationId;
+        this.connectedConversationId = conversationId;
+        this.eventSource.onopen = () => this.onSseOpen();
+        this.eventSource.onerror = (error) => this.onSseError(error);
+        ["status", "delta", "done", "error", "system"].forEach((eventType) => {
+          this.eventSource.addEventListener(eventType, (event) =>
+            this.handleSseEvent(eventType, event)
+          );
+        });
       } catch (error) {
-        console.error('WebSocket连接失败:', error)
-        this.isConnected = false
+        console.error("SSE连接失败:", error);
+        this.isConnected = false;
+        this.$message.error("连接AI服务失败");
       }
     },
-    
+
     disconnectWebSocket() {
-      if (this.websocket) {
-        this.websocket.close()
-        this.websocket = null
+      if (this.eventSource) {
+        this.eventSource.close();
+        this.eventSource = null;
       }
-      this.isConnected = false
+      this.isConnected = false;
+      this.connectedConversationId = null;
     },
-    
-    // WebSocket事件处理
-    onWebSocketOpen(event) {
-      console.log('WebSocket连接已建立:', event)
-      this.isConnected = true
-      this.reconnectAttempts = 0
-      
-      // 如果当前选中的是AI专家，发送欢迎消息
-      if (this.selectedExpert && this.selectedExpert.id === 'ai') {
-        this.addMessage('ai', '您好！我是AI智能专家，专业领域覆盖管道监测全领域。请问有什么可以帮助您的？')
+
+    onSseOpen() {
+      console.log("SSE连接已建立");
+      this.isConnected = true;
+      this.reconnectAttempts = 0;
+      this.$message.success("AI服务连接成功");
+    },
+
+    onSseError(error) {
+      console.error("SSE连接错误:", error);
+      this.isConnected = false;
+      if (this.eventSource) {
+        this.eventSource.close();
+        this.eventSource = null;
       }
-    },
-    
-    onWebSocketMessage(event) {
-      console.log('收到WebSocket消息:', event.data)
-      
-      try {
-        const message = JSON.parse(event.data)
-        this.handleWebSocketMessage(message)
-      } catch (error) {
-        console.error('解析WebSocket消息失败:', error)
-        // 处理纯文本消息
-        this.addMessage('ai', event.data)
-      }
-    },
-    
-    onWebSocketClose(event) {
-      console.log('WebSocket连接已关闭:', event)
-      this.isConnected = false
-      
-      // 如果不是主动关闭，尝试重连
-      if (event.code !== 1000 && this.reconnectAttempts < this.maxReconnectAttempts) {
-        console.log(`尝试重连 (${this.reconnectAttempts + 1}/${this.maxReconnectAttempts})`)
+      if (this.reconnectAttempts < this.maxReconnectAttempts) {
         setTimeout(() => {
-          this.reconnectAttempts++
-          this.connectWebSocket()
-        }, this.reconnectInterval)
-      }
-    },
-    
-    onWebSocketError(error) {
-      console.error('WebSocket连接错误:', error)
-      this.isConnected = false
-    },
-    
-    // 处理WebSocket消息
-    handleWebSocketMessage(message) {
-      switch (message.type) {
-        case 'ai_response':
-          this.aiTyping = false
-          this.addMessage('ai', message.content)
-          break
-        case 'status':
-          if (message.content.includes('思考')) {
-            this.aiTyping = true
-          }
-          break
-        case 'system_response':
-          this.addMessage('system', message.content)
-          break
-        case 'error':
-          this.addMessage('error', message.content)
-          break
-        default:
-          console.log('未知消息类型:', message)
-      }
-    },
-    
-    // 专家选择
-    selectAIExpert() {
-      this.selectedExpert = {
-        id: 'ai',
-        name: 'AI智能专家',
-        specialty: '管道监测全领域专家',
-        avatar: '/ai-expert-avatar.png'
-      }
-      this.currentMessages = []
-      
-      if (this.isConnected) {
-        this.addMessage('ai', '您好！我是AI智能专家，专业领域覆盖管道监测全领域。请问有什么可以帮助您的？')
+          this.reconnectAttempts++;
+          this.connectWebSocket();
+        }, this.reconnectInterval);
       } else {
-        this.addMessage('system', 'AI专家暂时离线，正在尝试连接...')
-        this.connectWebSocket()
+        this.$message.error("AI服务连接失败，请手动重新连接");
       }
     },
-    
-    selectExpert(expert) {
-      this.selectedExpert = expert
-      this.currentMessages = []
-      // 模拟专家欢迎消息
-      this.addMessage('expert', `您好！我是${expert.name}，专业领域是${expert.specialty}。请问有什么可以帮助您的？`)
+
+    handleSseEvent(eventType, event) {
+      try {
+        const payload = JSON.parse(event.data || "{}");
+        const content = payload.content || "";
+
+        if (eventType === "status") {
+          if (content && content.includes("思考")) {
+            this.aiTyping = true;
+          }
+          return;
+        }
+
+        if (eventType === "delta") {
+          this.aiTyping = true;
+          this.appendAiDelta(content);
+          return;
+        }
+
+        if (eventType === "done") {
+          this.aiTyping = false;
+          this.currentAiMessageId = null;
+          return;
+        }
+
+        if (eventType === "error") {
+          this.aiTyping = false;
+          this.currentAiMessageId = null;
+          this.addMessage("error", content || "AI回复出现错误");
+          this.$message.error("AI回复出现错误");
+          return;
+        }
+
+        if (eventType === "system") {
+          this.addMessage("system", content);
+        }
+      } catch (error) {
+        console.error("解析SSE消息失败:", error);
+      }
     },
-    
+
+    appendAiDelta(content) {
+      if (!content) return;
+      const lastMessage =
+        this.currentAiMessageId &&
+        this.currentMessages.find((msg) => msg.id === this.currentAiMessageId);
+      if (lastMessage) {
+        lastMessage.content += content;
+        lastMessage.timestamp = Date.now();
+      } else {
+        const message = {
+          id: Date.now() + Math.random(),
+          type: "ai",
+          content: content,
+          timestamp: Date.now(),
+          sender: "ai",
+        };
+        this.currentMessages.push(message);
+        this.currentAiMessageId = message.id;
+      }
+      this.$nextTick(() => {
+        this.scrollToBottom();
+      });
+    },
+
     // 消息发送
     sendMessage() {
-      if (!this.newMessage.trim()) return
-      
+      if (!this.newMessage.trim() || !this.isConnected) return;
+
+      // 如果没有选中会话，创建新会话
+      if (!this.selectedSessionId) {
+        this.startNewChat();
+      }
+
       // 添加用户消息
-      this.addMessage('user', this.newMessage)
-      const userMessage = this.newMessage
-      this.newMessage = ''
-      
-      if (this.selectedExpert.id === 'ai') {
-        // 发送到AI专家
-        this.sendToAI(userMessage)
-      } else {
-        // 模拟人工专家回复
-        this.simulateExpertReply(userMessage)
-      }
+      this.addMessage("user", this.newMessage);
+      const userMessage = this.newMessage;
+      this.newMessage = "";
+
+      // 发送到AI
+      this.sendToAI(userMessage);
     },
-    
-    sendToAI(message) {
+
+    async sendToAI(message) {
       if (!this.isConnected) {
-        this.addMessage('error', 'AI服务未连接，请稍后重试')
-        return
+        this.$message.error("AI服务未连接，请稍后重试");
+        return;
       }
-      
+
+      if (this.connectedConversationId !== this.selectedSessionId) {
+        this.disconnectWebSocket();
+        this.connectWebSocket();
+      }
+
       try {
-        const chatMessage = {
-          type: 'chat',
+        const protocol = window.location.protocol;
+        const host = window.location.hostname;
+        const port = "8080";
+        const payload = {
+          conversationId: this.selectedSessionId,
+          userId: localStorage.getItem("username") || "web_user",
+          type: "chat",
           content: message,
-          userId: 'user_' + Date.now(),
-          timestamp: Date.now()
+        };
+        const headers = {
+          "Content-Type": "application/json",
+        };
+        const token = this.getJwtToken();
+        if (token) {
+          headers.Authorization = `Bearer ${token}`;
         }
-        
-        this.websocket.send(JSON.stringify(chatMessage))
-        this.aiTyping = true
-        
+
+        const response = await fetch(`${protocol}//${host}:${port}/manager/virtual-expert/messages`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(payload),
+        });
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        const result = await response.json();
+        if (!result.success) {
+          throw new Error(result.message || "发送失败");
+        }
+        this.aiTyping = true;
+        this.currentAiMessageId = null;
       } catch (error) {
-        console.error('发送消息到AI失败:', error)
-        this.addMessage('error', '发送消息失败，请重试')
+        console.error("发送消息到AI失败:", error);
+        this.$message.error("发送消息失败，请重试");
       }
     },
-    
-    simulateExpertReply(userMessage) {
-      // 模拟专家正在输入
-      this.expertTyping = true
-      setTimeout(() => {
-        this.expertTyping = false
-        this.generateExpertReply(userMessage)
-      }, 2000)
-    },
-    
+
     // 消息处理
     addMessage(type, content) {
       const message = {
         id: Date.now() + Math.random(),
         type,
         content,
-        time: new Date().toLocaleTimeString(),
-        sender: type === 'user' ? 'user' : (this.selectedExpert?.id === 'ai' ? 'ai' : 'expert')
+        timestamp: Date.now(),
+        sender: type === "user" ? "user" : type === "ai" ? "ai" : "system",
+      };
+
+      this.currentMessages.push(message);
+
+      // 更新当前会话的最后消息
+      if (this.selectedSessionId) {
+        this.updateSessionLastMessage(content, type);
       }
-      this.currentMessages.push(message)
+
       this.$nextTick(() => {
-        this.scrollToBottom()
-      })
+        this.scrollToBottom();
+      });
     },
-    
-    getMessageAvatar(message) {
-      if (message.type === 'user') {
-        return '/default-user-avatar.png'
-      } else if (message.sender === 'ai' || message.type === 'ai') {
-        return '/ai-expert-avatar.png'
-      } else if (this.selectedExpert) {
-        return this.selectedExpert.avatar
-      }
-      return '/default-expert-avatar.png'
-    },
-    
-    getMessageSender(message) {
-      if (message.type === 'user') {
-        return '您'
-      } else if (message.sender === 'ai' || message.type === 'ai') {
-        return 'AI智能专家'
-      } else if (message.type === 'system') {
-        return '系统'
-      } else if (message.type === 'error') {
-        return '错误'
-      } else if (this.selectedExpert) {
-        return this.selectedExpert.name
-      }
-      return '专家'
-    },
-    
-    generateExpertReply(userMessage) {
-      // 简单的关键词回复逻辑
-      let reply = ''
-      if (userMessage.includes('压力') || userMessage.includes('泄漏')) {
-        reply = '根据您描述的压力问题，建议首先检查管道连接处是否有松动，然后查看压力传感器读数是否正常。如果问题持续，可能需要进行管道完整性检测。'
-      } else if (userMessage.includes('设备') || userMessage.includes('故障')) {
-        reply = '设备故障需要系统性排查。请提供设备型号、故障现象和错误代码（如有），我会为您提供详细的故障诊断步骤。'
-      } else if (userMessage.includes('安全') || userMessage.includes('应急')) {
-        reply = '安全问题需要立即重视。请详细描述当前情况，我会为您提供相应的应急处理措施和安全预案。'
-      } else {
-        reply = '感谢您的咨询。请提供更多详细信息，包括具体的问题现象、发生时间和相关参数，这样我能为您提供更准确的建议。'
-      }
-      
-      this.addMessage('expert', reply)
-    },
-    
-    scrollToBottom() {
-      const chatMessages = this.$refs.chatMessages
-      if (chatMessages) {
-        chatMessages.scrollTop = chatMessages.scrollHeight
+
+    // 会话管理
+    startNewChat() {
+      const newSession = {
+        id: "session_" + Date.now(),
+        title: "新对话",
+        startTime: Date.now(),
+        lastMessage: "",
+        messageCount: 0,
+        status: "active",
+      };
+
+      this.chatHistory.unshift(newSession);
+      this.selectedSessionId = newSession.id;
+      this.currentMessages = [];
+      this.disconnectWebSocket();
+      this.connectWebSocket();
+
+      // 添加欢迎消息
+      if (this.isConnected) {
+        this.addMessage(
+          "ai",
+          "您好！我是AI智能专家，专业领域覆盖管道监测全领域。请问有什么可以帮助您的？"
+        );
       }
     },
-    
-    clearChat() {
-      if (confirm('确定要清空当前对话吗？')) {
-        this.currentMessages = []
-        if (this.selectedExpert) {
-          if (this.selectedExpert.id === 'ai') {
-            this.addMessage('ai', '您好！我是AI智能专家，专业领域覆盖管道监测全领域。请问有什么可以帮助您的？')
-          } else {
-            this.addMessage('expert', `您好！我是${this.selectedExpert.name}，专业领域是${this.selectedExpert.specialty}。请问有什么可以帮助您的？`)
+
+    selectSession(session) {
+      this.selectedSessionId = session.id;
+      // 从后端加载具体的消息历史
+      this.loadSessionMessages(session.id);
+    },
+
+    async loadSessionMessages(sessionId) {
+      this.loadingMessages = true;
+      try {
+        // 找到对应的会话记录
+        const session = this.chatHistory.find((s) => s.id === sessionId);
+        if (!session || !session.fileName) {
+          console.error("未找到会话记录或文件名");
+          this.currentMessages = [];
+          return;
+        }
+
+        // 准备请求头，包含认证信息
+        const headers = {
+          "Content-Type": "application/json",
+        };
+
+        // 添加认证头
+        const token = this.getJwtToken();
+        if (token) {
+          headers["Authorization"] = `Bearer ${token}`;
+        }
+
+        // 调用后端API获取聊天记录内容
+        const response = await fetch(
+          `http://localhost:8080/manager/chat-logs/${encodeURIComponent(
+            session.fileName
+          )}`,
+          {
+            method: "GET",
+            headers,
           }
+        );
+
+        const result = await response.json();
+
+        if (result.success) {
+          // 解析聊天记录内容
+          const content = result.content;
+          const messages = this.parseChatContent(content);
+
+          this.currentMessages = messages;
+
+          // 更新会话的消息数量
+          session.messageCount = messages.length;
+
+          console.log("成功加载会话消息:", messages.length, "条");
+        } else {
+          console.error("获取聊天记录内容失败:", result.message);
+          this.$message.error("获取聊天记录内容失败: " + result.message);
+          this.currentMessages = [];
+        }
+      } catch (error) {
+        console.error("加载会话消息失败:", error);
+        this.$message.error("加载会话消息失败，请检查网络连接");
+        this.currentMessages = [];
+      } finally {
+        this.loadingMessages = false;
+      }
+    },
+
+    // 解析聊天记录内容，将文本转换为消息对象数组
+    parseChatContent(content) {
+      if (!content || typeof content !== "string") {
+        return [];
+      }
+
+      const messages = [];
+      const lines = content.split("\n").filter((line) => line.trim());
+
+      let currentMessage = null;
+      let messageId = 1;
+
+      for (const line of lines) {
+        const trimmedLine = line.trim();
+
+        // 检查是否是时间戳行（格式：[2024-01-01 12:00:00]）
+        const timestampMatch = trimmedLine.match(
+          /^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]/
+        );
+        if (timestampMatch) {
+          // 如果有当前消息，先保存它
+          if (currentMessage) {
+            messages.push(currentMessage);
+          }
+
+          // 解析时间戳
+          const timestamp = new Date(timestampMatch[1]).getTime();
+
+          // 检查发送者（用户或AI）
+          const remainingText = trimmedLine
+            .substring(timestampMatch[0].length)
+            .trim();
+          let sender = "ai";
+          let content = remainingText;
+
+          if (
+            remainingText.startsWith("用户:") ||
+            remainingText.startsWith("User:")
+          ) {
+            sender = "user";
+            content = remainingText
+              .substring(remainingText.indexOf(":") + 1)
+              .trim();
+          } else if (
+            remainingText.startsWith("AI:") ||
+            remainingText.startsWith("助手:")
+          ) {
+            sender = "ai";
+            content = remainingText
+              .substring(remainingText.indexOf(":") + 1)
+              .trim();
+          }
+
+          currentMessage = {
+            id: messageId++,
+            type: sender,
+            content: content,
+            timestamp: timestamp || Date.now(),
+            sender: sender,
+          };
+        } else if (currentMessage) {
+          // 如果不是时间戳行，且有当前消息，则追加到当前消息内容
+          currentMessage.content += "\n" + trimmedLine;
+        } else {
+          // 如果没有时间戳格式，创建一个默认消息
+          currentMessage = {
+            id: messageId++,
+            type: "ai",
+            content: trimmedLine,
+            timestamp: Date.now(),
+            sender: "ai",
+          };
         }
       }
-    },
-    
-    saveConsultation() {
-      if (this.currentMessages.length > 1) {
-        alert('咨询记录已保存到历史记录中')
+
+      // 保存最后一条消息
+      if (currentMessage) {
+        messages.push(currentMessage);
       }
-    },
-    
-    loadConsultation(consultation) {
-      // 加载历史咨询记录
-      this.currentMessages = [
-        {
+
+      // 如果没有解析到任何消息，创建一个默认消息显示原始内容
+      if (messages.length === 0 && content.trim()) {
+        messages.push({
           id: 1,
-          type: 'user',
-          content: '这是历史咨询记录的内容...',
-          time: consultation.time
+          type: "ai",
+          content: content.trim(),
+          timestamp: Date.now(),
+          sender: "ai",
+        });
+      }
+
+      return messages;
+    },
+
+    updateSessionLastMessage(content, type) {
+      const session = this.chatHistory.find(
+        (s) => s.id === this.selectedSessionId
+      );
+      if (session) {
+        session.lastMessage =
+          content.length > 50 ? content.substring(0, 50) + "..." : content;
+        session.messageCount = this.currentMessages.length;
+
+        // 如果是用户消息且没有标题，用第一条用户消息作为标题
+        if (type === "user" && session.title === "新对话") {
+          session.title =
+            content.length > 20 ? content.substring(0, 20) + "..." : content;
         }
-      ]
-    },
-    
-    startNewConsultation() {
-      this.showNewConsultationModal = true
-    },
-    
-    createConsultation() {
-      // 创建新的咨询
-      console.log('创建咨询:', this.consultationForm)
-      this.showNewConsultationModal = false
-      this.consultationForm = {
-        title: '',
-        category: '',
-        priority: '中',
-        description: ''
       }
     },
-    
-    refreshData() {
-      console.log('刷新专家系统数据')
-      // 重新连接WebSocket
-      this.disconnectWebSocket()
-      setTimeout(() => {
-        this.connectWebSocket()
-      }, 1000)
-    }
-  }
-}
+
+    clearCurrentChat() {
+      if (this.selectedSessionId) {
+        this.currentMessages = [];
+        const session = this.chatHistory.find(
+          (s) => s.id === this.selectedSessionId
+        );
+        if (session) {
+          session.messageCount = 0;
+          session.lastMessage = "";
+        }
+      }
+    },
+
+    saveCurrentChat() {
+      if (this.selectedSessionId) {
+        // 这里应该调用API保存到后端
+        this.$message.success("对话已保存");
+      }
+    },
+
+    // 历史记录管理
+    async loadChatHistory() {
+      this.loadingHistory = true;
+      try {
+        // 准备请求头，包含认证信息
+        const headers = {
+          "Content-Type": "application/json",
+        };
+
+        // 添加认证头
+        const token = this.getJwtToken();
+        if (token) {
+          headers["Authorization"] = `Bearer ${token}`;
+        }
+
+        // 调用后端API获取聊天记录列表
+        const response = await fetch(
+          "http://localhost:8080/manager/chat-logs",
+          {
+            method: "GET",
+            headers,
+          }
+        );
+
+        const result = await response.json();
+
+        if (result.success) {
+          // 转换后端数据格式为前端需要的格式
+          this.chatHistory = result.fileList
+            .map((file) => {
+              // 解析文件名获取信息
+              let title = "聊天记录";
+              let startTime = Date.now();
+
+              // 如果文件名包含时间戳信息，解析它
+              if (file.timestamp) {
+                try {
+                  startTime = parseInt(file.timestamp);
+                } catch (e) {
+                  console.warn("解析时间戳失败:", file.timestamp);
+                }
+              }
+
+              // 如果有sessionId，使用它作为标题的一部分
+              if (file.sessionId) {
+                title = `对话 ${file.sessionId.substring(0, 8)}`;
+              }
+
+              return {
+                id: file.sessionId || file.fileName,
+                title: title,
+                startTime: startTime,
+                lastMessage: "点击查看详细内容",
+                messageCount: 0, // 需要加载具体内容后才能知道
+                status: "completed",
+                fileName: file.fileName, // 保存文件名用于后续加载内容
+                fileSize: file.size,
+                lastModified: file.lastModified,
+              };
+            })
+            .sort((a, b) => b.startTime - a.startTime); // 按时间倒序排列
+
+          console.log("成功加载聊天历史:", this.chatHistory.length, "条记录");
+        } else {
+          console.error("获取聊天历史失败:", result.message);
+          this.$message.error("获取聊天历史失败: " + result.message);
+          // 如果获取失败，使用空数组
+          this.chatHistory = [];
+        }
+      } catch (error) {
+        console.error("加载聊天历史失败:", error);
+        this.$message.error("加载聊天历史失败，请检查网络连接");
+        // 如果请求失败，使用空数组
+        this.chatHistory = [];
+      } finally {
+        this.loadingHistory = false;
+      }
+    },
+
+    // 工具方法
+    getMessageAvatar(message) {
+      if (message.sender === "user") {
+        return "/default-user-avatar.png";
+      } else if (message.sender === "ai") {
+        return "/ai-expert-avatar.png";
+      }
+      return "/system-avatar.png";
+    },
+
+    getMessageSender(message) {
+      if (message.sender === "user") {
+        return "您";
+      } else if (message.sender === "ai") {
+        return "AI专家";
+      }
+      return "系统";
+    },
+
+    formatTime(timestamp) {
+      const date = new Date(timestamp);
+      const now = new Date();
+      const diff = now - date;
+
+      if (diff < 60000) {
+        // 1分钟内
+        return "刚刚";
+      } else if (diff < 3600000) {
+        // 1小时内
+        return Math.floor(diff / 60000) + "分钟前";
+      } else if (diff < 86400000) {
+        // 1天内
+        return Math.floor(diff / 3600000) + "小时前";
+      } else {
+        return date.toLocaleDateString();
+      }
+    },
+
+    formatMessageTime(timestamp) {
+      return new Date(timestamp).toLocaleTimeString();
+    },
+
+    scrollToBottom() {
+      const messagesContainer = this.$refs.chatMessages;
+      if (messagesContainer) {
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      }
+    },
+
+    handleEnterKey(event) {
+      if (!event.shiftKey) {
+        this.sendMessage();
+      }
+    },
+  },
+};
 </script>
 
 <style scoped>
 .virtual-expert-container {
-  padding: 20px;
-  background-color: #f5f5f5;
-  min-height: 100vh;
-}
-
-.page-header {
+  height: 100vh;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-  padding: 20px;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.page-title {
-  font-size: 24px;
-  font-weight: bold;
-  color: #333;
-  margin: 0;
-}
-
-.header-actions {
-  display: flex;
-  gap: 10px;
-}
-
-.stats-section {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 20px;
-  margin-bottom: 20px;
-}
-
-.stat-card {
-  background: white;
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  text-align: center;
-}
-
-.stat-number {
-  font-size: 32px;
-  font-weight: bold;
-  color: #1E3A8A;
-  margin-bottom: 5px;
-}
-
-.stat-label {
-  font-size: 14px;
-  color: #6B7280;
+  flex-direction: column;
+  background: #f5f5f5;
 }
 
 .main-content {
-  display: grid;
-  grid-template-columns: 350px 1fr;
-  gap: 20px;
-  height: 600px;
+  flex: 1;
+  display: flex;
+  height: calc(100vh - 60px);
 }
 
+/* 左侧历史记录面板 */
 .left-panel {
+  width: 320px;
+  background: white;
+  border-right: 1px solid #e0e0e0;
   display: flex;
   flex-direction: column;
-  gap: 20px;
-}
-
-.expert-list-section, .history-section {
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  overflow: hidden;
-}
-
-.expert-list-section {
-  flex: 1;
-}
-
-.history-section {
-  flex: 1;
-}
-
-.section-title {
-  padding: 15px 20px;
-  margin: 0;
-  background-color: #F9FAFB;
-  border-bottom: 1px solid #E5E7EB;
-  font-size: 16px;
-  font-weight: 600;
-  color: #374151;
-}
-
-.expert-list {
-  padding: 10px;
-  max-height: 300px;
-  overflow-y: auto;
-}
-
-.expert-card {
-  display: flex;
-  align-items: center;
-  padding: 12px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  margin-bottom: 8px;
-}
-
-.expert-card:hover {
-  background-color: #F3F4F6;
-}
-
-.expert-card.active {
-  background-color: #EBF8FF;
-  border: 2px solid #3B82F6;
-}
-
-.expert-avatar {
-  position: relative;
-  margin-right: 12px;
-}
-
-.expert-avatar img {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  object-fit: cover;
-}
-
-.status-indicator {
-  position: absolute;
-  bottom: 0;
-  right: 0;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  border: 2px solid white;
-}
-
-.status-indicator.online {
-  background-color: #10B981;
-}
-
-.status-indicator.busy {
-  background-color: #F59E0B;
-}
-
-.status-indicator.offline {
-  background-color: #6B7280;
-}
-
-.expert-info {
-  flex: 1;
-}
-
-.expert-name {
-  font-weight: 600;
-  color: #374151;
-  margin-bottom: 2px;
-}
-
-.expert-specialty {
-  font-size: 12px;
-  color: #6B7280;
-  margin-bottom: 4px;
-}
-
-.expert-rating {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.stars {
-  color: #F59E0B;
-  font-size: 12px;
-}
-
-.rating-score {
-  font-size: 12px;
-  color: #6B7280;
-}
-
-.history-list {
-  padding: 10px;
-  max-height: 300px;
-  overflow-y: auto;
-}
-
-.history-item {
-  padding: 12px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  margin-bottom: 8px;
-  border: 1px solid #E5E7EB;
-}
-
-.history-item:hover {
-  background-color: #F3F4F6;
 }
 
 .history-header {
+  padding: 20px;
+  border-bottom: 1px solid #e0e0e0;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 4px;
 }
 
-.consultation-title {
+.history-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+.history-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+.history-item {
+  padding: 15px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+}
+
+.history-item:hover {
+  background: #f8f9fa;
+  border-color: #e3f2fd;
+}
+
+.history-item.active {
+  background: #e3f2fd;
+  border-color: #2196f3;
+}
+
+.session-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.session-title {
   font-weight: 500;
-  color: #374151;
+  color: #333;
   font-size: 14px;
 }
 
-.consultation-time {
+.session-time {
   font-size: 12px;
-  color: #6B7280;
+  color: #666;
 }
 
-.consultation-expert {
+.session-preview {
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.session-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   font-size: 12px;
-  color: #6B7280;
-  margin-bottom: 4px;
 }
 
-.consultation-status {
-  font-size: 12px;
-  padding: 2px 6px;
-  border-radius: 4px;
-  display: inline-block;
+.message-count {
+  color: #999;
 }
 
-.consultation-status.resolved {
-  background-color: #D1FAE5;
-  color: #065F46;
+.session-status {
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
 }
 
-.consultation-status.pending {
-  background-color: #FEF3C7;
-  color: #92400E;
+.session-status.active {
+  background: #e8f5e8;
+  color: #4caf50;
 }
 
+.session-status.completed {
+  background: #f0f0f0;
+  color: #666;
+}
+
+.connection-status-panel {
+  padding: 15px 20px;
+  border-top: 1px solid #e0e0e0;
+  background: #fafafa;
+}
+
+.connection-status {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+
+.connection-status.connected .status-indicator {
+  background: #4caf50;
+}
+
+.connection-status.disconnected .status-indicator {
+  background: #f44336;
+}
+
+.status-text {
+  font-size: 13px;
+  color: #666;
+}
+
+/* 右侧聊天面板 */
 .right-panel {
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  flex: 1;
   display: flex;
   flex-direction: column;
+  background: white;
 }
 
 .chat-container {
+  flex: 1;
   display: flex;
   flex-direction: column;
   height: 100%;
 }
 
 .chat-header {
-  padding: 15px 20px;
-  border-bottom: 1px solid #E5E7EB;
+  padding: 20px;
+  border-bottom: 1px solid #e0e0e0;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  background: white;
 }
 
-.expert-info-header {
+.chat-info {
   display: flex;
   align-items: center;
-  gap: 12px;
 }
 
-.expert-avatar-small {
-  width: 32px;
-  height: 32px;
+.expert-avatar {
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
+  margin-right: 12px;
+  overflow: hidden;
+}
+
+.expert-avatar img {
+  width: 100%;
+  height: 100%;
   object-fit: cover;
 }
 
-.expert-name-header {
+.expert-name {
   font-weight: 600;
-  color: #374151;
+  color: #333;
+  margin-bottom: 4px;
 }
 
-.expert-specialty-header {
-  font-size: 12px;
-  color: #6B7280;
+.expert-specialty {
+  font-size: 13px;
+  color: #666;
 }
 
 .chat-actions {
   display: flex;
-  gap: 8px;
+  gap: 10px;
 }
 
 .chat-messages {
   flex: 1;
-  padding: 20px;
   overflow-y: auto;
-  background-color: #F9FAFB;
+  padding: 20px;
+  background: #fafafa;
 }
 
-.no-expert-selected {
+.welcome-screen {
   display: flex;
   align-items: center;
   justify-content: center;
   height: 100%;
+}
+
+.welcome-content {
   text-align: center;
+  color: #666;
 }
 
-.welcome-message h3 {
-  color: #374151;
+.welcome-icon {
+  font-size: 48px;
+  margin-bottom: 20px;
+}
+
+.welcome-content h3 {
   margin-bottom: 10px;
+  color: #333;
 }
 
-.welcome-message p {
-  color: #6B7280;
+.connection-warning {
+  margin-top: 20px;
+  padding: 15px;
+  background: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 8px;
+  color: #856404;
+}
+
+.messages-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
 }
 
 .message {
   display: flex;
-  margin-bottom: 20px;
   align-items: flex-start;
+  gap: 12px;
 }
 
 .message.user {
@@ -1009,86 +1092,157 @@ export default {
 }
 
 .message-avatar {
-  margin: 0 10px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
 }
 
 .message-avatar img {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
 }
 
 .message-content {
+  flex: 1;
   max-width: 70%;
-  background: white;
-  border-radius: 12px;
-  padding: 12px 16px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
 .message.user .message-content {
-  background: #3B82F6;
-  color: white;
+  text-align: right;
 }
 
 .message-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 4px;
-}
-
-.message-sender {
-  font-weight: 600;
+  margin-bottom: 5px;
   font-size: 12px;
+  color: #666;
 }
 
-.message.user .message-sender {
-  color: rgba(255,255,255,0.9);
-}
-
-.message-time {
-  font-size: 11px;
-  color: #6B7280;
-}
-
-.message.user .message-time {
-  color: rgba(255,255,255,0.7);
+.message.user .message-header {
+  flex-direction: row-reverse;
 }
 
 .message-text {
-  line-height: 1.5;
+  background: white;
+  padding: 12px 16px;
+  border-radius: 18px;
+  line-height: 1.4;
+  word-wrap: break-word;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.message.user .message-text {
+  background: #2196f3;
+  color: white;
+}
+
+.message.ai .message-text {
+  background: #f0f0f0;
+}
+
+.message.system .message-text {
+  background: #fff3cd;
+  color: #856404;
 }
 
 .typing-indicator .message-content {
-  padding: 16px;
+  background: #f0f0f0;
+  padding: 12px 16px;
+  border-radius: 18px;
+}
+
+.typing-animation {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.typing-text {
+  font-size: 13px;
+  color: #666;
 }
 
 .typing-dots {
   display: flex;
-  gap: 4px;
+  gap: 3px;
 }
 
 .typing-dots span {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background-color: #6B7280;
+  background: #999;
   animation: typing 1.4s infinite ease-in-out;
 }
 
-.typing-dots span:nth-child(1) { animation-delay: -0.32s; }
-.typing-dots span:nth-child(2) { animation-delay: -0.16s; }
+.typing-dots span:nth-child(1) {
+  animation-delay: -0.32s;
+}
+.typing-dots span:nth-child(2) {
+  animation-delay: -0.16s;
+}
 
 @keyframes typing {
-  0%, 80%, 100% { transform: scale(0); }
-  40% { transform: scale(1); }
+  0%,
+  80%,
+  100% {
+    transform: scale(0);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* 加载指示器样式 */
+.loading-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  color: #666;
+  font-size: 14px;
+}
+
+.loading-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #f3f3f3;
+  border-top: 2px solid #2196f3;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-right: 10px;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.empty-history {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  color: #999;
+  font-size: 14px;
+  text-align: center;
 }
 
 .chat-input {
   padding: 20px;
-  border-top: 1px solid #E5E7EB;
+  border-top: 1px solid #e0e0e0;
+  background: white;
 }
 
 .input-container {
@@ -1099,29 +1253,74 @@ export default {
 
 .message-input {
   flex: 1;
-  padding: 12px;
-  border: 1px solid #D1D5DB;
-  border-radius: 8px;
+  border: 1px solid #ddd;
+  border-radius: 20px;
+  padding: 12px 16px;
   resize: none;
   font-family: inherit;
+  font-size: 14px;
+  line-height: 1.4;
+  outline: none;
+  transition: border-color 0.2s;
 }
 
 .message-input:focus {
-  outline: none;
-  border-color: #3B82F6;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+  border-color: #2196f3;
 }
 
+.message-input:disabled {
+  background: #f5f5f5;
+  color: #999;
+}
+
+.input-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.connection-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #f44336;
+  text-align: center;
+}
+
+/* 按钮样式 */
 .btn {
   padding: 8px 16px;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
-  font-size: 14px;
-  display: flex;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s;
+  display: inline-flex;
   align-items: center;
-  gap: 5px;
-  transition: all 0.3s ease;
+  gap: 6px;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: #2196f3;
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #1976d2;
+}
+
+.btn-secondary {
+  background: #f5f5f5;
+  color: #666;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: #e0e0e0;
 }
 
 .btn-sm {
@@ -1129,132 +1328,40 @@ export default {
   font-size: 12px;
 }
 
-.btn-primary {
-  background-color: #1E3A8A;
-  color: white;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background-color: #0F2C6B;
-}
-
-.btn-primary:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-secondary {
-  background-color: #6B7280;
-  color: white;
-}
-
-.btn-secondary:hover {
-  background-color: #4B5563;
-}
-
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-}
-
-.modal-content {
-  background: white;
-  border-radius: 8px;
-  width: 90%;
-  max-width: 500px;
-  max-height: 90vh;
-  overflow-y: auto;
-}
-
-.modal-header {
-  padding: 20px;
-  border-bottom: 1px solid #E5E7EB;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.modal-header h3 {
-  margin: 0;
-  color: #374151;
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 24px;
-  cursor: pointer;
-  color: #6B7280;
-}
-
-.modal-body {
-  padding: 20px;
-}
-
-.form-group {
-  margin-bottom: 15px;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 5px;
-  font-weight: 500;
-  color: #374151;
-}
-
-.input-field, .select-field {
-  width: 100%;
-  padding: 8px 12px;
-  border: 1px solid #D1D5DB;
-  border-radius: 4px;
-  font-size: 14px;
-}
-
-.input-field:focus, .select-field:focus {
-  outline: none;
-  border-color: #1E3A8A;
-  box-shadow: 0 0 0 2px rgba(30, 58, 138, 0.1);
-}
-
-textarea.input-field {
-  resize: vertical;
-  min-height: 80px;
-}
-
-.form-actions {
-  display: flex;
-  gap: 10px;
-  justify-content: flex-end;
-  margin-top: 20px;
-  padding-top: 20px;
-  border-top: 1px solid #E5E7EB;
-}
-
 .icon {
   font-style: normal;
 }
 
+/* 滚动条样式 */
+.history-list::-webkit-scrollbar,
+.chat-messages::-webkit-scrollbar {
+  width: 6px;
+}
+
+.history-list::-webkit-scrollbar-track,
+.chat-messages::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.history-list::-webkit-scrollbar-thumb,
+.chat-messages::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.history-list::-webkit-scrollbar-thumb:hover,
+.chat-messages::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* 响应式设计 */
 @media (max-width: 768px) {
-  .main-content {
-    grid-template-columns: 1fr;
-    height: auto;
-  }
-  
   .left-panel {
-    order: 2;
+    width: 280px;
   }
-  
-  .right-panel {
-    order: 1;
-    height: 400px;
+
+  .message-content {
+    max-width: 85%;
   }
 }
 </style>

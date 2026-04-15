@@ -2,11 +2,15 @@ package com.gxa.pipe.virtualExpert;
 
 import com.gxa.pipe.virtualExpert.DeepSeekRequest;
 import com.gxa.pipe.virtualExpert.DeepSeekResponse;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
@@ -27,6 +31,7 @@ public class DeepSeekService {
 
     @Autowired
     private WebClient deepSeekWebClient;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     /**
      * 发送消息到DeepSeek API
@@ -78,6 +83,70 @@ public class DeepSeekService {
         } catch (Exception e) {
             logger.error("同步调用DeepSeek API失败", e);
             return "抱歉，系统暂时无法连接到AI服务，请稍后再试。";
+        }
+    }
+
+    /**
+     * 流式发送消息到DeepSeek API。
+     */
+    public Flux<String> streamMessage(String userMessage) {
+        logger.info("发送流式消息到DeepSeek API: {}", userMessage);
+
+        DeepSeekRequest request = new DeepSeekRequest();
+        request.setStream(true);
+        request.setMessages(Arrays.asList(
+                new DeepSeekRequest.Message("system", "你是一个专业的油气管道监测管理系统的虚拟专家助手，请用专业、友好的语气回答用户关于管道监测、维护、故障诊断等相关问题。"),
+                new DeepSeekRequest.Message("user", userMessage)));
+
+        return deepSeekWebClient
+                .post()
+                .uri("/v1/chat/completions")
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.TEXT_EVENT_STREAM)
+                .bodyValue(request)
+                .retrieve()
+                .bodyToFlux(String.class)
+                .timeout(Duration.ofSeconds(60))
+                .map(this::parseStreamChunk)
+                .filter(chunk -> chunk != null && !chunk.isEmpty())
+                .onErrorResume(throwable -> {
+                    logger.error("流式调用DeepSeek API失败", throwable);
+                    return Flux.just("抱歉，系统暂时无法连接到AI服务，请稍后再试。");
+                });
+    }
+
+    private String parseStreamChunk(String line) {
+        if (line == null) {
+            return "";
+        }
+        String trimmed = line.trim();
+        if (trimmed.isEmpty()) {
+            return "";
+        }
+        if (trimmed.startsWith("data:")) {
+            trimmed = trimmed.substring(5).trim();
+        }
+        if ("[DONE]".equals(trimmed)) {
+            return "";
+        }
+        try {
+            JsonNode root = objectMapper.readTree(trimmed);
+            JsonNode choices = root.path("choices");
+            if (!choices.isArray() || choices.isEmpty()) {
+                return "";
+            }
+            JsonNode deltaContent = choices.get(0).path("delta").path("content");
+            if (!deltaContent.isMissingNode() && !deltaContent.isNull()) {
+                return deltaContent.asText("");
+            }
+            JsonNode fullContent = choices.get(0).path("message").path("content");
+            if (!fullContent.isMissingNode() && !fullContent.isNull()) {
+                return fullContent.asText("");
+            }
+            return "";
+        } catch (Exception parseError) {
+            logger.debug("解析流式chunk失败，跳过: {}", trimmed);
+            return "";
         }
     }
 

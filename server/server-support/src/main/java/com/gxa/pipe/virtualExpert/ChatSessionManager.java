@@ -3,16 +3,12 @@ package com.gxa.pipe.virtualExpert;
 import com.gxa.pipe.utils.OSSUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
-import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -27,7 +23,7 @@ public class ChatSessionManager {
 
     /**
      * 存储所有活跃的会话
-     * Key: WebSocket连接ID
+     * Key: 业务会话ID(conversationId)
      * Value: 聊天会话对象
      */
     private final Map<String, ChatSession> activeSessions = new ConcurrentHashMap<>();
@@ -40,86 +36,86 @@ public class ChatSessionManager {
 
     /**
      * 创建新的聊天会话
-     * 
-     * @param connectionId WebSocket连接ID
+     *
+     * @param conversationId 业务会话ID
      * @param userId 用户ID
      * @return 创建的会话对象
      */
-    public ChatSession createSession(String connectionId, String userId) {
-        ChatSession session = new ChatSession(connectionId, userId);
-        activeSessions.put(connectionId, session);
-        
-        logger.info("创建新的聊天会话: sessionId={}, connectionId={}, userId={}", 
-                   session.getSessionId(), connectionId, userId);
-        
+    public ChatSession createSession(String conversationId, String userId) {
+        ChatSession session = new ChatSession(conversationId, userId);
+        activeSessions.put(conversationId, session);
+
+        logger.info("创建新的聊天会话: sessionId={}, connectionId={}, userId={}",
+                session.getSessionId(), conversationId, userId);
+
         return session;
     }
 
     /**
      * 获取会话
-     * 
-     * @param connectionId WebSocket连接ID
+     *
+     * @param conversationId 业务会话ID
      * @return 会话对象，如果不存在则返回null
      */
-    public ChatSession getSession(String connectionId) {
-        return activeSessions.get(connectionId);
+    public ChatSession getSession(String conversationId) {
+        return activeSessions.get(conversationId);
     }
 
     /**
      * 获取或创建会话
-     * 
-     * @param connectionId WebSocket连接ID
+     *
+     * @param conversationId 业务会话ID
      * @param userId 用户ID
      * @return 会话对象
      */
-    public ChatSession getOrCreateSession(String connectionId, String userId) {
-        ChatSession session = activeSessions.get(connectionId);
+    public ChatSession getOrCreateSession(String conversationId, String userId) {
+        ChatSession session = activeSessions.get(conversationId);
         if (session == null) {
-            session = createSession(connectionId, userId);
+            session = createSession(conversationId, userId);
         }
         return session;
     }
 
     /**
      * 向会话添加消息
-     * 
-     * @param connectionId WebSocket连接ID
+     *
+     * @param conversationId 业务会话ID
      * @param message 消息对象
      */
-    public void addMessage(String connectionId, ChatSessionMessage message) {
-        ChatSession session = activeSessions.get(connectionId);
+    public void addMessage(String conversationId, ChatSessionMessage message) {
+        ChatSession session = activeSessions.get(conversationId);
         if (session != null) {
             // 设置消息序号
             message.setSequenceNumber(session.getMessageCount() + 1);
             session.addMessage(message);
-            
-            logger.debug("向会话添加消息: sessionId={}, messageType={}, content={}", 
-                        session.getSessionId(), message.getMessageType(), 
-                        message.getContent().length() > 50 ? 
-                        message.getContent().substring(0, 50) + "..." : message.getContent());
+
+            logger.debug("向会话添加消息: sessionId={}, messageType={}, content={}",
+                    session.getSessionId(), message.getMessageType(),
+                    message.getContent().length() > 50 ?
+                            message.getContent().substring(0, 50) + "..." : message.getContent());
         } else {
-            logger.warn("尝试向不存在的会话添加消息: connectionId={}", connectionId);
+            logger.warn("尝试向不存在的会话添加消息: conversationId={}", conversationId);
         }
     }
 
     /**
      * 结束会话并保存到OSS
-     * 
-     * @param connectionId WebSocket连接ID
+     *
+     * @param conversationId 业务会话ID
      * @return 是否成功保存
      */
-    public boolean endSessionAndSave(String connectionId) {
-        ChatSession session = activeSessions.remove(connectionId);
+    public boolean endSessionAndSave(String conversationId) {
+        ChatSession session = activeSessions.remove(conversationId);
         if (session == null) {
-            logger.warn("尝试结束不存在的会话: connectionId={}", connectionId);
+            logger.warn("尝试结束不存在的会话: conversationId={}", conversationId);
             return false;
         }
 
         // 结束会话
         session.endSession();
-        
-        logger.info("结束聊天会话: sessionId={}, 持续时间={}分钟, 消息数量={}", 
-                   session.getSessionId(), session.getDurationMinutes(), session.getMessageCount());
+
+        logger.info("结束聊天会话: sessionId={}, 持续时间={}分钟, 消息数量={}",
+                session.getSessionId(), session.getDurationMinutes(), session.getMessageCount());
 
         // 如果会话中没有消息，不保存
         if (session.getMessageCount() == 0) {
@@ -133,7 +129,7 @@ public class ChatSessionManager {
 
     /**
      * 保存会话到OSS
-     * 
+     *
      * @param session 会话对象
      * @return 是否保存成功
      */
@@ -141,42 +137,42 @@ public class ChatSessionManager {
         try {
             // 生成TXT格式的对话记录
             String chatContent = generateChatTxtContent(session);
-            
+
             // 生成文件名
             String fileName = generateFileName(session);
-            
+
             // 转换为输入流
             InputStream inputStream = new ByteArrayInputStream(chatContent.getBytes("UTF-8"));
-            
+
             // 上传到OSS
             String ossPath = "chat-logs/" + fileName;
             boolean success = OSSUtils.uploadFile(ossPath, inputStream);
-            
+
             if (success) {
-                logger.info("会话记录已保存到OSS: sessionId={}, ossPath={}", 
-                           session.getSessionId(), ossPath);
+                logger.info("会话记录已保存到OSS: sessionId={}, ossPath={}",
+                        session.getSessionId(), ossPath);
             } else {
                 logger.error("保存会话记录到OSS失败: sessionId={}", session.getSessionId());
             }
-            
+
             return success;
-            
+
         } catch (Exception e) {
-            logger.error("保存会话记录到OSS时发生异常: sessionId={}, error={}", 
-                        session.getSessionId(), e.getMessage(), e);
+            logger.error("保存会话记录到OSS时发生异常: sessionId={}, error={}",
+                    session.getSessionId(), e.getMessage(), e);
             return false;
         }
     }
 
     /**
      * 生成聊天记录的TXT内容
-     * 
+     *
      * @param session 会话对象
      * @return TXT格式的聊天记录
      */
     private String generateChatTxtContent(ChatSession session) {
         StringBuilder content = new StringBuilder();
-        
+
         // 添加会话头部信息
         content.append("=".repeat(80)).append("\n");
         content.append("聊天会话记录\n");
@@ -191,7 +187,7 @@ public class ChatSessionManager {
             content.append("会话标题: ").append(session.getTitle()).append("\n");
         }
         content.append("=".repeat(80)).append("\n\n");
-        
+
         // 添加消息记录
         AtomicInteger messageIndex = new AtomicInteger(1);
         session.getMessages().forEach(message -> {
@@ -201,19 +197,19 @@ public class ChatSessionManager {
             content.append(message.getContent()).append("\n");
             content.append("-".repeat(40)).append("\n");
         });
-        
+
         // 添加尾部信息
         content.append("\n").append("=".repeat(80)).append("\n");
         content.append("记录生成时间: ").append(java.time.LocalDateTime.now().format(DATETIME_FORMATTER)).append("\n");
         content.append("系统: 油气管道监测管理系统 - 虚拟专家助手\n");
         content.append("=".repeat(80));
-        
+
         return content.toString();
     }
 
     /**
      * 获取发送者显示名称
-     * 
+     *
      * @param message 消息对象
      * @return 显示名称
      */
@@ -236,7 +232,7 @@ public class ChatSessionManager {
 
     /**
      * 生成文件名
-     * 
+     *
      * @param session 会话对象
      * @return 文件名
      */
@@ -244,13 +240,13 @@ public class ChatSessionManager {
         String timestamp = session.getStartTime().format(FILE_DATETIME_FORMATTER);
         String sessionIdShort = session.getSessionId().substring(0, 8);
         String userId = session.getUserId() != null ? session.getUserId() : "unknown";
-        
+
         return String.format("chat_%s_%s_%s.txt", timestamp, userId, sessionIdShort);
     }
 
     /**
      * 获取活跃会话数量
-     * 
+     *
      * @return 活跃会话数量
      */
     public int getActiveSessionCount() {
@@ -262,16 +258,16 @@ public class ChatSessionManager {
      */
     public void cleanupAllSessions() {
         logger.info("开始清理所有活跃会话，当前会话数: {}", activeSessions.size());
-        
-        activeSessions.forEach((connectionId, session) -> {
+
+        activeSessions.forEach((conversationId, session) -> {
             try {
-                endSessionAndSave(connectionId);
+                endSessionAndSave(conversationId);
             } catch (Exception e) {
-                logger.error("清理会话时发生异常: sessionId={}, error={}", 
-                           session.getSessionId(), e.getMessage(), e);
+                logger.error("清理会话时发生异常: sessionId={}, error={}",
+                        session.getSessionId(), e.getMessage(), e);
             }
         });
-        
+
         activeSessions.clear();
         logger.info("所有会话清理完成");
     }

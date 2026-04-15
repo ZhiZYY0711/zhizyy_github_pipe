@@ -1,6 +1,6 @@
-import { 
-  getAccidentList, 
-  createAccidentReport, 
+import {
+  getAccidentList,
+  createAccidentReport,
   updateAccidentStatus,
   getVirtualExpertAdvice,
   getKnowledgeBase,
@@ -57,7 +57,6 @@ const state = {
 }
 
 const mutations = {
-  // 事故响应
   SET_ACCIDENT_LIST(state, { list, total }) {
     state.accidents.list = list
     state.accidents.total = total
@@ -313,11 +312,11 @@ const actions = {
   // 应急级别评估
   assessEmergencyLevel({ commit }, { accidents, sensorData }) {
     let level = 'normal'
-    
+
     // 根据事故数量和严重程度评估
     const criticalAccidents = accidents.filter(acc => acc.severity === 'critical').length
     const warningAccidents = accidents.filter(acc => acc.severity === 'warning').length
-    
+
     if (criticalAccidents > 0) {
       level = 'emergency'
     } else if (warningAccidents > 2) {
@@ -325,7 +324,7 @@ const actions = {
     } else if (warningAccidents > 0) {
       level = 'warning'
     }
-    
+
     commit('UPDATE_EMERGENCY_LEVEL', level)
     return level
   }

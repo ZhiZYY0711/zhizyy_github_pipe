@@ -14,8 +14,12 @@ const service = axios.create({
 service.interceptors.request.use(
   config => {
     // 添加token
-    if (store.getters['auth/token']) {
-      config.headers['Authorization'] = `Bearer ${store.getters['auth/token']}`
+    const storeToken = store.getters['auth/token']
+    const localToken = localStorage.getItem('token') || localStorage.getItem('jwt')
+    const token = storeToken || localToken
+
+    if (token) {
+      config.headers['Authorization'] = `Bearer ${token}`
     }
     return config
   },
@@ -29,7 +33,7 @@ service.interceptors.request.use(
 service.interceptors.response.use(
   response => {
     const res = response.data
-    
+
     // 如果返回的状态码不是200，则认为是错误
     if (res.code !== 200) {
       Message({
@@ -37,14 +41,14 @@ service.interceptors.response.use(
         type: 'error',
         duration: 5 * 1000
       })
-      
+
       // 401: 未授权，跳转到登录页
       if (res.code === 401) {
         store.dispatch('auth/logout').then(() => {
-          router.push('/login')
+          router.push({ name: 'Login' })
         })
       }
-      
+
       return Promise.reject(new Error(res.message || 'Error'))
     } else {
       return res
@@ -52,14 +56,14 @@ service.interceptors.response.use(
   },
   error => {
     console.error('Response error:', error)
-    
+
     let message = error.message
     if (error.response) {
       switch (error.response.status) {
         case 401:
           message = '未授权，请重新登录'
           store.dispatch('auth/logout').then(() => {
-            router.push('/login')
+            router.push({ name: 'Login' })
           })
           break
         case 403:
@@ -95,13 +99,13 @@ service.interceptors.response.use(
     } else {
       message = '连接到服务器失败'
     }
-    
+
     Message({
       message,
       type: 'error',
       duration: 5 * 1000
     })
-    
+
     return Promise.reject(error)
   }
 )

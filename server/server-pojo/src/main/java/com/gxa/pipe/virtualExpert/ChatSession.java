@@ -21,9 +21,9 @@ public class ChatSession {
     private String sessionId;
 
     /**
-     * WebSocket连接ID
+     * 业务会话ID（用于SSE连接和消息路由）
      */
-    private String connectionId;
+    private String conversationId;
 
     /**
      * 用户ID
@@ -62,9 +62,9 @@ public class ChatSession {
         this.messages = new ArrayList<>();
     }
 
-    public ChatSession(String connectionId, String userId) {
+    public ChatSession(String conversationId, String userId) {
         this();
-        this.connectionId = connectionId;
+        this.conversationId = conversationId;
         this.userId = userId;
     }
 
@@ -117,12 +117,26 @@ public class ChatSession {
         this.sessionId = sessionId;
     }
 
-    public String getConnectionId() {
-        return connectionId;
+    public String getConversationId() {
+        return conversationId;
     }
 
+    public void setConversationId(String conversationId) {
+        this.conversationId = conversationId;
+    }
+
+    /**
+     * 兼容旧代码：仍允许按connectionId访问。
+     */
+    public String getConnectionId() {
+        return conversationId;
+    }
+
+    /**
+     * 兼容旧代码：仍允许按connectionId写入。
+     */
     public void setConnectionId(String connectionId) {
-        this.connectionId = connectionId;
+        this.conversationId = connectionId;
     }
 
     public String getUserId() {
@@ -195,7 +209,7 @@ public class ChatSession {
     public String toString() {
         return "ChatSession{" +
                 "sessionId='" + sessionId + '\'' +
-                ", connectionId='" + connectionId + '\'' +
+                ", conversationId='" + conversationId + '\'' +
                 ", userId='" + userId + '\'' +
                 ", startTime=" + startTime +
                 ", endTime=" + endTime +

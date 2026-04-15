@@ -3,6 +3,7 @@ package com.gxa.pipe.config;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.util.StringUtils;
 import org.springframework.web.reactive.function.client.WebClient;
 
 /**
@@ -25,7 +26,7 @@ public class DeepSeekConfig {
     /**
      * DeepSeek API密钥
      */
-    @Value("${deepseek.api.key:sk-38555c5ba53a47d4825f3220d81133c8}")
+    @Value("${deepseek.api.key:}")
     private String apiKey;
 
     /**
@@ -35,9 +36,15 @@ public class DeepSeekConfig {
      */
     @Bean
     public WebClient deepSeekWebClient() {
+        if (!StringUtils.hasText(apiKey)) {
+            throw new IllegalStateException("deepseek.api.key 未配置，请在 application.yml 或环境变量中设置");
+        }
+        String normalizedToken = apiKey.startsWith("Bearer ")
+                ? apiKey.substring(7).trim()
+                : apiKey.trim();
         return WebClient.builder()
                 .baseUrl(baseUrl)
-                .defaultHeader("Authorization", "Bearer " + apiKey)
+                .defaultHeader("Authorization", "Bearer " + normalizedToken)
                 .defaultHeader("Content-Type", "application/json")
                 .build();
     }

@@ -13,7 +13,6 @@ com\gxa\pipe\entity\Pipe.class
 com\gxa\pipe\common\area\AreaResponse.class
 com\gxa\pipe\log\LogIndicardResponse.class
 com\gxa\pipe\entity\Manoeuvre.class
-com\gxa\pipe\virtualExpert\ChatSessionManager.class
 com\gxa\pipe\dataVsualization\dataMonitoring\PipeDetailRequest.class
 com\gxa\pipe\entity\Log.class
 com\gxa\pipe\virtualExpert\ChatSessionMessage$MessageType.class
@@ -45,7 +44,6 @@ com\gxa\pipe\dataManagement\repairman\RepairmanAddRequest.class
 com\gxa\pipe\manoeuvre\ManoeuvreRepairmanInfo.class
 com\gxa\pipe\dataManagement\equipment\EquipmentAddRequest.class
 com\gxa\pipe\virtualExpert\ChatSession$SessionStatus.class
-com\gxa\pipe\virtualExpert\ChatSessionManager$1.class
 com\gxa\pipe\entity\Repairman.class
 com\gxa\pipe\virtualExpert\DeepSeekResponse$Choice.class
 com\gxa\pipe\virtualExpert\DeepSeekRequest.class

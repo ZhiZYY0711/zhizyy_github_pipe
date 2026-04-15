@@ -2,7 +2,7 @@
 import { login, logout, getUserInfo } from '../api'
 
 const state = {
-  token: localStorage.getItem('token') || '',
+  token: localStorage.getItem('token') || localStorage.getItem('jwt') || '',
   userInfo: null,
   isAuthenticated: false
 }
@@ -16,6 +16,7 @@ const mutations = {
   CLEAR_TOKEN(state) {
     state.token = ''
     localStorage.removeItem('token')
+    localStorage.removeItem('jwt')
   },
   
   SET_USER_INFO(state, userInfo) {
@@ -34,9 +35,14 @@ const actions = {
   async login({ commit }, loginForm) {
     try {
       const response = await login(loginForm)
-      const { token, userInfo } = response.data
+      const { token, jwt, userInfo } = response.data || {}
+      const finalToken = token || jwt
       
-      commit('SET_TOKEN', token)
+      if (!finalToken) {
+        throw new Error('登录响应缺少 token/jwt 字段')
+      }
+
+      commit('SET_TOKEN', finalToken)
       commit('SET_USER_INFO', userInfo)
       
       return response
@@ -54,6 +60,8 @@ const actions = {
     } finally {
       commit('CLEAR_TOKEN')
       commit('CLEAR_USER_INFO')
+      localStorage.removeItem('isLoggedIn')
+      localStorage.removeItem('username')
     }
   },
   
@@ -66,6 +74,8 @@ const actions = {
     } catch (error) {
       commit('CLEAR_TOKEN')
       commit('CLEAR_USER_INFO')
+      localStorage.removeItem('isLoggedIn')
+      localStorage.removeItem('username')
       throw error
     }
   }

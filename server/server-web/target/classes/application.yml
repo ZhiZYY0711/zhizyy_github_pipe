@@ -9,7 +9,7 @@ spring:
   
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/pipeline_management_system?useSSL=false&useUnicode=true&characterEncoding=utf-8&serverTimezone=GMT%2B8
+    url: jdbc:mysql://127.0.0.1:3306/pipeline_management_system?useSSL=false&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
     username: root
     password: root
   
@@ -60,3 +60,9 @@ aliyun:
     access-key-id: LTAI5tJ4AEtQ3tPqzMGok2gt
     access-key-secret: 19HhwdCzjeICeqZexFc8JUxRbJPBkp
     bucket-name: zhizyy-bucket1
+
+# DeepSeek配置（请替换为你自己的有效API Key）
+deepseek:
+  api:
+    base-url: https://api.deepseek.com
+    key: sk-de9a214458694b21a3ca9576a9ce24d4

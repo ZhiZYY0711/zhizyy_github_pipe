@@ -31,33 +31,39 @@ pipeline_management_system/
 ## 核心功能模块
 
 ### 🎯 数据可视化模块
+
 - **实时监控大屏**: 基于ECharts的数据可视化展示
 - **中国地图展示**: 管道分布和监测点位置可视化
 - **数据监控**: 实时压力、温度、流量、震动数据监控
 - **任务详情**: 检修任务状态和进度跟踪
 
 ### 📊 数据管理模块
+
 - **监测数据管理**: 传感器数据的存储、查询和分析
 - **设备信息管理**: 传感器设备的配置和状态管理
 - **任务管理**: 检修任务的创建、分配和跟踪
 - **检修员信息**: 检修人员的基本信息和绩效管理
 
 ### 🤖 虚拟专家系统
+
 - **智能分析**: 基于WebSocket的实时数据分析
 - **专家建议**: AI辅助的故障诊断和处理建议
 - **知识库**: 管道维护和故障处理知识库
 
 ### 🎮 模拟与演练
+
 - **事故模拟**: 各种管道事故场景的模拟演练
 - **应急演练**: 应急响应流程的训练和评估
 - **演练记录**: 演练过程和结果的记录分析
 
 ### 🚨 事故响应
+
 - **实时报警**: 异常数据的自动报警机制
 - **应急处理**: 事故响应流程和处理记录
 - **事故分析**: 事故原因分析和预防措施
 
 ### 📝 日志记录
+
 - **操作日志**: 系统操作的完整记录
 - **审计追踪**: 用户行为和数据变更的审计
 - **系统监控**: 系统运行状态和性能监控
@@ -67,22 +73,26 @@ pipeline_management_system/
 ### 前端技术栈 (Web端)
 
 #### 架构设计
+
 - **模块化架构**: 基于功能模块的代码组织结构
 - **路径别名**: 使用@modules、@shared等别名简化导入路径
 - **模块化状态管理**: 每个功能模块独立的Vuex store
 - **组件复用**: 共享组件库提高代码复用率
 
 #### 核心框架
+
 - **Vue.js 2.6.14**: 渐进式JavaScript框架
 - **Vue Router 3.6.5**: 官方路由管理器
 - **Vuex 3.6.2**: 状态管理模式
 
 #### UI组件和样式
+
 - **自定义UI组件**: 基于业务需求的定制化组件
 - **响应式设计**: 支持多种屏幕尺寸的自适应布局
 - **CSS3动画**: 丰富的交互动画效果
 
 #### 数据可视化
+
 - **ECharts 6.0.0**: 百度开源的数据可视化库
   - 地图组件 (ChinaMap.vue, EChartsMap.vue)
   - 图表组件 (EChartsPie.vue, FlowTrendChart.vue)
@@ -90,14 +100,17 @@ pipeline_management_system/
 - **Vue-ChartJS 5.3.2**: Chart.js的Vue.js封装
 
 #### 网络通信
+
 - **Axios 1.13.0**: HTTP客户端库
 - **WebSocket**: 实时数据通信
 
 #### 工具库
+
 - **Crypto-js 4.2.0**: 加密解密工具
 - **Vue-toasted 1.1.28**: 消息提示组件
 
 #### 开发工具
+
 - **Vue CLI 5.0.0**: Vue.js开发工具链
 - **Babel**: JavaScript编译器
 - **ESLint**: 代码质量检查工具
@@ -105,10 +118,12 @@ pipeline_management_system/
 ### 移动端技术栈 (UniApp)
 
 #### 核心框架
+
 - **uni-app**: 跨平台应用开发框架
 - **Vue.js**: 基于Vue.js语法的移动端开发
 
 #### 支持平台
+
 - **H5**: 移动端Web应用
 - **微信小程序**: 微信生态应用
 - **App**: 原生移动应用 (Android/iOS)
@@ -119,6 +134,7 @@ pipeline_management_system/
 - **快应用**: 华为/小米等厂商快应用
 
 #### 功能模块
+
 - **登录认证**: 检修员身份验证
 - **任务管理**: 移动端任务查看和处理
 - **绩效统计**: 个人工作绩效展示
@@ -127,33 +143,39 @@ pipeline_management_system/
 ### 后端技术栈 (Java)
 
 #### 核心框架
+
 - **Spring Boot 3.5.7**: 企业级Java应用框架
 - **Spring Framework**: 依赖注入和AOP支持
 - **Spring Web**: RESTful API开发
 - **Spring WebSocket**: WebSocket通信支持
 
 #### 数据持久化
+
 - **MyBatis 3.0.5**: 持久层框架
 - **MyBatis Spring Boot Starter**: MyBatis与Spring Boot集成
 - **PageHelper 6.1.0**: MyBatis分页插件
 - **MySQL**: 关系型数据库
 
 #### 安全认证
+
 - **JWT (jjwt 0.9.1)**: JSON Web Token认证
 - **Spring Security**: 安全框架 (通过JWT实现)
 - **密码加密**: BCrypt密码哈希
 
 #### 云服务集成
+
 - **阿里云OSS 3.17.4**: 对象存储服务
 - **JAXB**: XML绑定支持
 
 #### 开发工具
+
 - **Lombok**: 代码生成工具
 - **Jakarta Validation**: 数据验证框架
 - **Jackson**: JSON序列化/反序列化
 - **Spring AOP**: 面向切面编程
 
 #### 项目结构
+
 - **server-web**: Web端API服务 (端口8080)
 - **server-mobile**: 移动端API服务 (端口8081)
 - **server-pojo**: 数据传输对象
@@ -162,6 +184,7 @@ pipeline_management_system/
 ### 数据库设计
 
 #### 核心数据表
+
 - **area**: 区域表 (3209条记录) - 省市区三级行政区划
 - **pipe**: 管道表 (2000条记录) - 管道基础信息
 - **sensor**: 传感器表 (30000条记录) - 传感器设备信息
@@ -170,10 +193,12 @@ pipeline_management_system/
 - **task**: 任务表 (50000条记录) - 检修任务信息
 
 #### 用户认证表
+
 - **admin_registration**: 管理员登录表 (10条记录)
 - **repairman_registration**: 检修员登录表 (500条记录)
 
 #### 业务扩展表
+
 - **manoeuvre**: 演习表 (100条记录) - 演练活动记录
 - **conn_manoeuvre_repairman**: 演习检修员关联表 (500条记录)
 - **log**: 日志表 (100000条记录) - 系统操作日志
@@ -181,6 +206,7 @@ pipeline_management_system/
 ### 工具脚本和数据处理
 
 #### 数据生成工具 (Python+Faker)
+
 - **功能**: 自动生成测试数据和模拟数据
 - **技术栈**: Python 3.x + MySQL连接器
 - **支持数据类型**: 
@@ -189,18 +215,21 @@ pipeline_management_system/
   - 登录记录、系统日志等
 
 #### 地理数据爬虫 (Python)
+
 - **功能**: 从阿里云DataV获取中国行政区划地理边界数据
 - **技术栈**: Python 3.x + Requests + JSON处理
 - **数据级别**: 省、市、区三级行政区划
 - **输出格式**: GeoJSON地理数据
 
 #### 数据替换工具 (Python)
+
 - **功能**: 批量更新和替换数据库中的区域数据
 - **技术栈**: Python 3.x + SQL脚本处理
 
 ## 系统特色
 
 ### 🔥 技术亮点
+
 1. **微服务架构**: 前后端完全分离，支持独立部署和扩展
 2. **跨平台支持**: 一套代码支持Web、移动端、小程序等多平台
 3. **实时通信**: WebSocket实现实时数据推送和交互
@@ -208,12 +237,14 @@ pipeline_management_system/
 5. **智能分析**: 集成AI能力，提供智能故障诊断和建议
 
 ### 🛡️ 安全特性
+
 1. **JWT认证**: 无状态的安全认证机制
 2. **角色权限**: 管理员和检修员的分级权限管理
 3. **数据加密**: 敏感数据的加密存储和传输
 4. **操作审计**: 完整的操作日志和审计追踪
 
 ### 📈 性能优化
+
 1. **分页查询**: 大数据量的分页处理机制
 2. **缓存策略**: 合理的数据缓存提升响应速度
 3. **异步处理**: 非阻塞的异步数据处理
@@ -222,6 +253,7 @@ pipeline_management_system/
 ## 快速开始
 
 ### 环境要求
+
 - **Java**: JDK 17+
 - **Node.js**: 14.0+
 - **MySQL**: 8.0+
@@ -230,6 +262,7 @@ pipeline_management_system/
 ### 安装部署
 
 #### 1. 数据库初始化
+
 ```sql
 -- 创建数据库
 CREATE DATABASE pipeline_management_system;
@@ -242,6 +275,7 @@ source 相关文件/数据库表/insert_area.sql;
 ```
 
 #### 2. 后端服务启动
+
 ```bash
 cd server
 
@@ -255,6 +289,7 @@ mvn spring-boot:run
 ```
 
 #### 3. 前端应用启动
+
 ```bash
 # Web端管理系统
 cd backstage-vue
@@ -268,6 +303,7 @@ npm run dev:h5
 ```
 
 #### 4. 数据生成 (可选)
+
 ```bash
 cd utils/generateData
 pip install -r requirements.txt
@@ -275,10 +311,11 @@ python main.py all
 ```
 
 ### 访问地址
-- **Web管理端**: http://localhost:8080
-- **移动端H5**: http://localhost:8081
-- **Web端API**: http://localhost:8080/manager
-- **移动端API**: http://localhost:8081
+
+- **Web管理端**: [http://localhost:8080](http://localhost:8080)
+- **移动端H5**: [http://localhost:8081](http://localhost:8081)
+- **Web端API**: [http://localhost:8080/manager](http://localhost:8080/manager)
+- **移动端API**: [http://localhost:8081](http://localhost:8081)
 
 ## 项目文档
 
@@ -290,6 +327,7 @@ python main.py all
 ## 开发团队
 
 本项目适用于：
+
 - 工业物联网监测系统
 - 管道运维管理平台
 - 设备监控和维护系统

@@ -19,29 +19,36 @@ public class ChatSessionService {
     /**
      * 创建新的聊天会话
      */
-    public ChatSession createSession(String connectionId, String userId) {
-        return sessionManager.createSession(connectionId, userId);
+    public ChatSession createSession(String conversationId, String userId) {
+        return sessionManager.createSession(conversationId, userId);
     }
     
     /**
      * 获取会话
      */
-    public ChatSession getSession(String connectionId) {
-        return sessionManager.getSession(connectionId);
+    public ChatSession getSession(String conversationId) {
+        return sessionManager.getSession(conversationId);
+    }
+
+    /**
+     * 获取或创建会话
+     */
+    public ChatSession getOrCreateSession(String conversationId, String userId) {
+        return sessionManager.getOrCreateSession(conversationId, userId);
     }
     
     /**
      * 添加消息到会话
      */
-    public void addMessage(String connectionId, ChatSessionMessage message) {
-        sessionManager.addMessage(connectionId, message);
+    public void addMessage(String conversationId, ChatSessionMessage message) {
+        sessionManager.addMessage(conversationId, message);
     }
     
     /**
      * 结束会话并保存到OSS
      */
-    public void endSession(String connectionId) {
-        sessionManager.endSession(connectionId);
+    public void endSession(String conversationId) {
+        sessionManager.endSessionAndSave(conversationId);
     }
     
     /**

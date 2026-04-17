@@ -1,6 +1,6 @@
 // API 配置
 export const API_CONFIG = {
-  BASE_URL: 'http://localhost:8080',
+  BASE_URL: '/api',
   ENDPOINTS: {
     PROVINCES: '/manager/area_details/provinces',
     CITIES: '/manager/area_details/citys',
@@ -18,7 +18,7 @@ export const ROUTE_PATHS = {
     TASK_DETAILS: '/main/task-details',
     DATA_MONITORING: '/main/data-monitoring'
   },
-  
+
   // 数据管理模块路径
   DATA_MANAGEMENT: {
     MONITORING: '/main/monitoring',
@@ -27,7 +27,7 @@ export const ROUTE_PATHS = {
     MAINTENANCE: '/main/maintenance',
     REPAIRMAN: '/main/repairman'
   },
-  
+
   // 其他模块路径
   OTHER: {
     VIRTUAL_EXPERT: '/main/virtual-expert',

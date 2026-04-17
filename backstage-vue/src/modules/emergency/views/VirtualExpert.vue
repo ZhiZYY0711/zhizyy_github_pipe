@@ -253,13 +253,11 @@ export default {
       }
 
       try {
-        const protocol = window.location.protocol;
-        const host = window.location.hostname;
-        const port = "8080";
-        const conversationId = this.selectedSessionId || `session_${Date.now()}`;
+        const conversationId =
+          this.selectedSessionId || `session_${Date.now()}`;
         const userId = localStorage.getItem("username") || "web_user";
         const token = this.getJwtToken();
-        const sseUrl = `${protocol}//${host}:${port}/manager/virtual-expert/stream?conversationId=${encodeURIComponent(
+        const sseUrl = `/sse/manager/virtual-expert/stream?conversationId=${encodeURIComponent(
           conversationId
         )}&userId=${encodeURIComponent(userId)}${
           token ? `&token=${encodeURIComponent(token)}` : ""
@@ -412,9 +410,6 @@ export default {
       }
 
       try {
-        const protocol = window.location.protocol;
-        const host = window.location.hostname;
-        const port = "8080";
         const payload = {
           conversationId: this.selectedSessionId,
           userId: localStorage.getItem("username") || "web_user",
@@ -429,7 +424,7 @@ export default {
           headers.Authorization = `Bearer ${token}`;
         }
 
-        const response = await fetch(`${protocol}//${host}:${port}/manager/virtual-expert/messages`, {
+        const response = await fetch("/api/manager/virtual-expert/messages", {
           method: "POST",
           headers,
           body: JSON.stringify(payload),
@@ -527,9 +522,7 @@ export default {
 
         // 调用后端API获取聊天记录内容
         const response = await fetch(
-          `http://localhost:8080/manager/chat-logs/${encodeURIComponent(
-            session.fileName
-          )}`,
+          `/api/manager/chat-logs/${encodeURIComponent(session.fileName)}`,
           {
             method: "GET",
             headers,
@@ -710,13 +703,10 @@ export default {
         }
 
         // 调用后端API获取聊天记录列表
-        const response = await fetch(
-          "http://localhost:8080/manager/chat-logs",
-          {
-            method: "GET",
-            headers,
-          }
-        );
+        const response = await fetch("/api/manager/chat-logs", {
+          method: "GET",
+          headers,
+        });
 
         const result = await response.json();
 

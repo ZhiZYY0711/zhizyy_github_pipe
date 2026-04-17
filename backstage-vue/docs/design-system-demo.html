@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管道管理系统 - 设计系统 Demo</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&family=Source+Sans+Pro:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+    <style>
+        :root {
+            --font-display: 'Orbitron', 'Rajdhani', sans-serif;
+            --font-body: 'Source Sans Pro', -apple-system, sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+
+            --font-size-h1: 48px;
+            --font-size-h2: 36px;
+            --font-size-h3: 28px;
+            --font-size-h4: 22px;
+            --font-size-h5: 18px;
+            --font-size-lg: 16px;
+            --font-size-base: 14px;
+            --font-size-sm: 13px;
+            --font-size-xs: 12px;
+            --font-size-data: 32px;
+
+            --font-weight-light: 300;
+            --font-weight-normal: 400;
+            --font-weight-medium: 500;
+            --font-weight-semibold: 600;
+            --font-weight-bold: 700;
+
+            --line-height-tight: 1.25;
+            --line-height-base: 1.5;
+
+            --spacing-1: 4px;
+            --spacing-2: 8px;
+            --spacing-3: 12px;
+            --spacing-4: 16px;
+            --spacing-5: 20px;
+            --spacing-6: 24px;
+            --spacing-8: 32px;
+
+            --radius-sm: 4px;
+            --radius-base: 8px;
+            --radius-lg: 12px;
+            --radius-full: 9999px;
+
+            --duration-fast: 150ms;
+            --duration-base: 250ms;
+            --duration-slow: 350ms;
+
+            --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+            --ease-out: cubic-bezier(0, 0, 0.2, 1);
+
+            --transition-all: all var(--duration-base) var(--ease-in-out);
+        }
+
+        :root[data-theme="dark"] {
+            --color-primary: #00D4FF;
+            --color-primary-hover: #33DDFF;
+            --color-primary-active: #00BBDD;
+            --color-primary-light: rgba(0, 212, 255, 0.1);
+
+            --color-secondary: #00FF88;
+            --color-success: #00FF88;
+            --color-warning: #FFB800;
+            --color-danger: #FF6B6B;
+            --color-info: #00D4FF;
+
+            --color-bg-page: #0A0E27;
+            --color-bg-surface: #1A1F3A;
+            --color-bg-elevated: #252B4A;
+            --color-bg-overlay: rgba(10, 14, 39, 0.8);
+
+            --color-text-primary: #E2E8F0;
+            --color-text-secondary: #94A3B8;
+            --color-text-disabled: #64748B;
+            --color-text-inverse: #0A0E27;
+
+            --color-border: #334155;
+            --color-border-light: #1E293B;
+            --color-border-focus: #00D4FF;
+
+            --chart-1: #00D4FF;
+            --chart-2: #00FF88;
+            --chart-3: #FFB800;
+            --chart-4: #FF6B6B;
+            --chart-5: #A78BFA;
+
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+            --shadow-base: 0 4px 16px rgba(0, 0, 0, 0.4);
+            --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+
+            --glow-primary: 0 0 20px rgba(0, 212, 255, 0.3);
+            --glow-success: 0 0 20px rgba(0, 255, 136, 0.3);
+            --glow-danger: 0 0 20px rgba(255, 107, 107, 0.3);
+        }
+
+        :root[data-theme="light"] {
+            --color-primary: #1890FF;
+            --color-primary-hover: #40A9FF;
+            --color-primary-active: #096DD9;
+            --color-primary-light: rgba(24, 144, 255, 0.1);
+
+            --color-secondary: #52C41A;
+            --color-success: #52C41A;
+            --color-warning: #FAAD14;
+            --color-danger: #FF4D4F;
+            --color-info: #1890FF;
+
+            --color-bg-page: #F0F2F5;
+            --color-bg-surface: #FFFFFF;
+            --color-bg-elevated: #FAFAFA;
+            --color-bg-overlay: rgba(0, 0, 0, 0.45);
+
+            --color-text-primary: #1E293B;
+            --color-text-secondary: #64748B;
+            --color-text-disabled: #94A3B8;
+            --color-text-inverse: #FFFFFF;
+
+            --color-border: #E2E8F0;
+            --color-border-light: #F1F5F9;
+            --color-border-focus: #1890FF;
+
+            --chart-1: #1890FF;
+            --chart-2: #52C41A;
+            --chart-3: #FAAD14;
+            --chart-4: #FF4D4F;
+            --chart-5: #722ED1;
+
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
+            --shadow-base: 0 4px 16px rgba(0, 0, 0, 0.12);
+            --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.16);
+
+            --glow-primary: 0 0 20px rgba(24, 144, 255, 0.2);
+            --glow-success: 0 0 20px rgba(82, 196, 26, 0.2);
+            --glow-danger: 0 0 20px rgba(255, 77, 79, 0.2);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-body);
+            font-size: var(--font-size-base);
+            line-height: var(--line-height-base);
+            color: var(--color-text-primary);
+            background-color: var(--color-bg-page);
+            transition: var(--transition-all);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .demo-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: var(--spacing-6);
+        }
+
+        .demo-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-8);
+            padding-bottom: var(--spacing-6);
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .demo-title {
+            font-family: var(--font-display);
+            font-size: var(--font-size-h2);
+            font-weight: var(--font-weight-bold);
+            color: var(--color-text-primary);
+        }
+
+        .theme-toggle {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-3);
+        }
+
+        .theme-toggle-label {
+            font-size: var(--font-size-sm);
+            color: var(--color-text-secondary);
+        }
+
+        .theme-toggle-btn {
+            width: 60px;
+            height: 32px;
+            border-radius: var(--radius-full);
+            background-color: var(--color-bg-elevated);
+            border: 2px solid var(--color-border);
+            cursor: pointer;
+            position: relative;
+            transition: var(--transition-all);
+        }
+
+        .theme-toggle-btn::after {
+            content: '';
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background-color: var(--color-primary);
+            top: 2px;
+            left: 2px;
+            transition: var(--transition-all);
+        }
+
+        .theme-toggle-btn.active::after {
+            left: calc(100% - 26px);
+        }
+
+        .section {
+            margin-bottom: var(--spacing-8);
+        }
+
+        .section-title {
+            font-family: var(--font-display);
+            font-size: var(--font-size-h3);
+            font-weight: var(--font-weight-semibold);
+            color: var(--color-text-primary);
+            margin-bottom: var(--spacing-4);
+            padding-bottom: var(--spacing-2);
+            border-bottom: 2px solid var(--color-primary);
+            display: inline-block;
+        }
+
+        .color-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: var(--spacing-4);
+        }
+
+        .color-card {
+            background-color: var(--color-bg-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-base);
+            padding: var(--spacing-4);
+            transition: var(--transition-all);
+        }
+
+        .color-card:hover {
+            border-color: var(--color-primary);
+            box-shadow: var(--shadow-base);
+        }
+
+        .color-preview {
+            width: 100%;
+            height: 80px;
+            border-radius: var(--radius-sm);
+            margin-bottom: var(--spacing-3);
+        }
+
+        .color-name {
+            font-weight: var(--font-weight-semibold);
+            color: var(--color-text-primary);
+            margin-bottom: var(--spacing-1);
+        }
+
+        .color-value {
+            font-family: var(--font-mono);
+            font-size: var(--font-size-xs);
+            color: var(--color-text-secondary);
+        }
+
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: var(--spacing-4);
+        }
+
+        .metric-card {
+            background-color: var(--color-bg-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-base);
+            padding: var(--spacing-4);
+            display: flex;
+            align-items: flex-start;
+            gap: var(--spacing-3);
+            transition: var(--transition-all);
+            cursor: pointer;
+        }
+
+        .metric-card:hover {
+            border-color: var(--color-primary);
+            box-shadow: var(--glow-primary);
+            transform: translateY(-2px);
+        }
+
+        .metric-card--primary .metric-card__icon {
+            background-color: var(--color-primary-light);
+            color: var(--color-primary);
+        }
+
+        .metric-card--success .metric-card__icon {
+            background-color: rgba(0, 255, 136, 0.1);
+            color: var(--color-success);
+        }
+
+        .metric-card--warning .metric-card__icon {
+            background-color: rgba(255, 184, 0, 0.1);
+            color: var(--color-warning);
+        }
+
+        .metric-card--danger .metric-card__icon {
+            background-color: rgba(255, 107, 107, 0.1);
+            color: var(--color-danger);
+        }
+
+        .metric-card__icon {
+            width: 48px;
+            height: 48px;
+            border-radius: var(--radius-base);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            background-color: var(--color-bg-elevated);
+            color: var(--color-text-secondary);
+            flex-shrink: 0;
+        }
+
+        .metric-card__content {
+            flex: 1;
+        }
+
+        .metric-card__label {
+            font-size: var(--font-size-sm);
+            color: var(--color-text-secondary);
+            margin-bottom: var(--spacing-1);
+        }
+
+        .metric-card__value {
+            font-family: var(--font-mono);
+            font-size: var(--font-size-data);
+            font-weight: var(--font-weight-bold);
+            color: var(--color-text-primary);
+            line-height: 1;
+            margin-bottom: var(--spacing-1);
+        }
+
+        .metric-card__trend {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-1);
+            font-size: var(--font-size-xs);
+        }
+
+        .metric-card__trend--up {
+            color: var(--color-success);
+        }
+
+        .metric-card__trend--down {
+            color: var(--color-danger);
+        }
+
+        .btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--spacing-3);
+            margin-bottom: var(--spacing-4);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--spacing-2);
+            padding: var(--spacing-2) var(--spacing-4);
+            border-radius: var(--radius-sm);
+            font-weight: var(--font-weight-medium);
+            font-size: var(--font-size-base);
+            transition: var(--transition-all);
+            cursor: pointer;
+            border: none;
+            outline: none;
+        }
+
+        .btn-primary {
+            background-color: var(--color-primary);
+            color: var(--color-text-inverse);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--color-primary-hover);
+            box-shadow: var(--glow-primary);
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background-color: var(--color-bg-surface);
+            color: var(--color-text-primary);
+            border: 1px solid var(--color-border);
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--color-primary);
+            color: var(--color-primary);
+        }
+
+        .btn-text {
+            background: transparent;
+            color: var(--color-primary);
+            padding: var(--spacing-2);
+        }
+
+        .btn-text:hover {
+            background-color: var(--color-primary-light);
+        }
+
+        .btn-danger {
+            background-color: var(--color-danger);
+            color: var(--color-text-inverse);
+        }
+
+        .btn-danger:hover {
+            box-shadow: var(--glow-danger);
+        }
+
+        .btn-success {
+            background-color: var(--color-success);
+            color: var(--color-text-inverse);
+        }
+
+        .btn-success:hover {
+            box-shadow: var(--glow-success);
+        }
+
+        .btn-sm {
+            padding: var(--spacing-1) var(--spacing-3);
+            font-size: var(--font-size-sm);
+        }
+
+        .btn-lg {
+            padding: var(--spacing-3) var(--spacing-6);
+            font-size: var(--font-size-lg);
+        }
+
+        .status-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--spacing-1);
+            padding: var(--spacing-1) var(--spacing-2);
+            border-radius: var(--radius-sm);
+            font-size: var(--font-size-xs);
+            font-weight: var(--font-weight-medium);
+        }
+
+        .status-tag__dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .status-tag--primary {
+            background-color: var(--color-primary-light);
+            color: var(--color-primary);
+        }
+
+        .status-tag--primary .status-tag__dot {
+            background-color: var(--color-primary);
+        }
+
+        .status-tag--success {
+            background-color: rgba(0, 255, 136, 0.1);
+            color: var(--color-success);
+        }
+
+        .status-tag--success .status-tag__dot {
+            background-color: var(--color-success);
+        }
+
+        .status-tag--warning {
+            background-color: rgba(255, 184, 0, 0.1);
+            color: var(--color-warning);
+        }
+
+        .status-tag--warning .status-tag__dot {
+            background-color: var(--color-warning);
+        }
+
+        .status-tag--danger {
+            background-color: rgba(255, 107, 107, 0.1);
+            color: var(--color-danger);
+        }
+
+        .status-tag--danger .status-tag__dot {
+            background-color: var(--color-danger);
+        }
+
+        .card {
+            background-color: var(--color-bg-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-base);
+            overflow: hidden;
+            transition: var(--transition-all);
+        }
+
+        .card:hover {
+            border-color: var(--color-primary);
+            box-shadow: var(--shadow-base);
+        }
+
+        .card__header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--spacing-4);
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .card__title {
+            font-family: var(--font-display);
+            font-size: var(--font-size-h4);
+            font-weight: var(--font-weight-semibold);
+            color: var(--color-text-primary);
+            margin: 0;
+        }
+
+        .card__body {
+            padding: var(--spacing-4);
+        }
+
+        .card__footer {
+            padding: var(--spacing-3) var(--spacing-4);
+            border-top: 1px solid var(--color-border);
+            display: flex;
+            justify-content: flex-end;
+            gap: var(--spacing-2);
+        }
+
+        .input {
+            width: 100%;
+            background-color: var(--color-bg-elevated);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm);
+            padding: var(--spacing-2) var(--spacing-3);
+            color: var(--color-text-primary);
+            font-size: var(--font-size-base);
+            font-family: var(--font-body);
+            transition: var(--transition-all);
+        }
+
+        .input:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px var(--color-primary-light);
+        }
+
+        .input::placeholder {
+            color: var(--color-text-disabled);
+        }
+
+        .form-group {
+            margin-bottom: var(--spacing-4);
+        }
+
+        .form-label {
+            display: block;
+            font-size: var(--font-size-sm);
+            font-weight: var(--font-weight-medium);
+            color: var(--color-text-secondary);
+            margin-bottom: var(--spacing-2);
+        }
+
+        .chart-placeholder {
+            width: 100%;
+            height: 300px;
+            background: linear-gradient(135deg, var(--color-bg-elevated) 0%, var(--color-bg-surface) 100%);
+            border-radius: var(--radius-base);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--color-text-secondary);
+            font-size: var(--font-size-lg);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chart-placeholder::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg,
+                    transparent,
+                    var(--color-primary-light),
+                    transparent);
+            animation: dataFlow 3s linear infinite;
+        }
+
+        @keyframes dataFlow {
+            0% {
+                transform: translateX(-100%);
+            }
+
+            100% {
+                transform: translateX(100%);
+            }
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--spacing-4);
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--spacing-4);
+        }
+
+        @media (max-width: 768px) {
+
+            .grid-2,
+            .grid-3 {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .demo-footer {
+            margin-top: var(--spacing-8);
+            padding-top: var(--spacing-6);
+            border-top: 1px solid var(--color-border);
+            text-align: center;
+            color: var(--color-text-secondary);
+            font-size: var(--font-size-sm);
+        }
+
+        .glow-text {
+            color: var(--color-primary);
+            text-shadow: 0 0 10px var(--color-primary);
+        }
+
+        .data-flow {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .data-flow::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg,
+                    transparent,
+                    var(--color-primary-light),
+                    transparent);
+            background-size: 200% 100%;
+            animation: dataFlow 3s linear infinite;
+            pointer-events: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="demo-container">
+        <div class="demo-header">
+            <h1 class="demo-title">🎨 管道管理系统 - 设计系统 Demo</h1>
+            <div class="theme-toggle">
+                <span class="theme-toggle-label">浅色</span>
+                <button class="theme-toggle-btn active" id="themeToggle" onclick="toggleTheme()"></button>
+                <span class="theme-toggle-label">深色</span>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">色彩系统</h2>
+            <div class="color-grid">
+                <div class="color-card">
+                    <div class="color-preview" style="background-color: var(--color-primary);"></div>
+                    <div class="color-name">主色调 Primary</div>
+                    <div class="color-value">var(--color-primary)</div>
+                </div>
+                <div class="color-card">
+                    <div class="color-preview" style="background-color: var(--color-success);"></div>
+                    <div class="color-name">成功色 Success</div>
+                    <div class="color-value">var(--color-success)</div>
+                </div>
+                <div class="color-card">
+                    <div class="color-preview" style="background-color: var(--color-warning);"></div>
+                    <div class="color-name">警告色 Warning</div>
+                    <div class="color-value">var(--color-warning)</div>
+                </div>
+                <div class="color-card">
+                    <div class="color-preview" style="background-color: var(--color-danger);"></div>
+                    <div class="color-name">危险色 Danger</div>
+                    <div class="color-value">var(--color-danger)</div>
+                </div>
+                <div class="color-card">
+                    <div class="color-preview"
+                        style="background-color: var(--color-bg-surface); border: 1px solid var(--color-border);"></div>
+                    <div class="color-name">背景色 Surface</div>
+                    <div class="color-value">var(--color-bg-surface)</div>
+                </div>
+                <div class="color-card">
+                    <div class="color-preview" style="background-color: var(--color-text-primary);"></div>
+                    <div class="color-name">主文字色 Text Primary</div>
+                    <div class="color-value">var(--color-text-primary)</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">指标卡组件</h2>
+            <div class="kpi-grid">
+                <div class="metric-card metric-card--primary">
+                    <div class="metric-card__icon">📊</div>
+                    <div class="metric-card__content">
+                        <div class="metric-card__label">传感器总数</div>
+                        <div class="metric-card__value">150</div>
+                        <div class="metric-card__trend metric-card__trend--up">↑ 12%</div>
+                    </div>
+                </div>
+                <div class="metric-card metric-card--danger">
+                    <div class="metric-card__icon">⚠️</div>
+                    <div class="metric-card__content">
+                        <div class="metric-card__label">异常传感器</div>
+                        <div class="metric-card__value">5</div>
+                        <div class="metric-card__trend metric-card__trend--down">↓ 5%</div>
+                    </div>
+                </div>
+                <div class="metric-card metric-card--warning">
+                    <div class="metric-card__icon">🔔</div>
+                    <div class="metric-card__content">
+                        <div class="metric-card__label">警告数量</div>
+                        <div class="metric-card__value">12</div>
+                    </div>
+                </div>
+                <div class="metric-card metric-card--success">
+                    <div class="metric-card__icon">✓</div>
+                    <div class="metric-card__content">
+                        <div class="metric-card__label">进行中任务</div>
+                        <div class="metric-card__value">8</div>
+                        <div class="metric-card__trend metric-card__trend--up">↑ 8%</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">按钮组件</h2>
+            <div class="btn-group">
+                <button class="btn btn-primary">主要按钮</button>
+                <button class="btn btn-secondary">次要按钮</button>
+                <button class="btn btn-text">文字按钮</button>
+                <button class="btn btn-danger">危险按钮</button>
+                <button class="btn btn-success">成功按钮</button>
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-primary btn-sm">小按钮</button>
+                <button class="btn btn-primary">默认按钮</button>
+                <button class="btn btn-primary btn-lg">大按钮</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">状态标签</h2>
+            <div class="btn-group">
+                <span class="status-tag status-tag--primary">
+                    <span class="status-tag__dot"></span>
+                    进行中
+                </span>
+                <span class="status-tag status-tag--success">
+                    <span class="status-tag__dot"></span>
+                    已完成
+                </span>
+                <span class="status-tag status-tag--warning">
+                    <span class="status-tag__dot"></span>
+                    待处理
+                </span>
+                <span class="status-tag status-tag--danger">
+                    <span class="status-tag__dot"></span>
+                    紧急
+                </span>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">表单组件</h2>
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card__header">
+                        <h4 class="card__title">输入框</h4>
+                    </div>
+                    <div class="card__body">
+                        <div class="form-group">
+                            <label class="form-label">用户名</label>
+                            <input type="text" class="input" placeholder="请输入用户名">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">密码</label>
+                            <input type="password" class="input" placeholder="请输入密码">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">搜索</label>
+                            <input type="text" class="input" placeholder="搜索...">
+                        </div>
+                    </div>
+                    <div class="card__footer">
+                        <button class="btn btn-secondary btn-sm">取消</button>
+                        <button class="btn btn-primary btn-sm">提交</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card__header">
+                        <h4 class="card__title">卡片组件</h4>
+                    </div>
+                    <div class="card__body">
+                        <p style="color: var(--color-text-secondary); margin-bottom: var(--spacing-3);">
+                            这是一个基础卡片组件，包含标题、内容和操作区域。
+                        </p>
+                        <p style="color: var(--color-text-primary);">
+                            卡片支持悬浮效果、阴影和边框高亮。
+                        </p>
+                    </div>
+                    <div class="card__footer">
+                        <button class="btn btn-text btn-sm">了解更多</button>
+                        <button class="btn btn-primary btn-sm">确定</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">图表占位（数据流动画）</h2>
+            <div class="grid-3">
+                <div class="card">
+                    <div class="card__header">
+                        <h4 class="card__title">任务状态分布</h4>
+                    </div>
+                    <div class="card__body">
+                        <div class="chart-placeholder data-flow">
+                            📊 饼图
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card__header">
+                        <h4 class="card__title">任务数量趋势</h4>
+                    </div>
+                    <div class="card__body">
+                        <div class="chart-placeholder data-flow">
+                            📈 折线图
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card__header">
+                        <h4 class="card__title">区域任务对比</h4>
+                    </div>
+                    <div class="card__body">
+                        <div class="chart-placeholder data-flow">
+                            📊 柱状图
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">字体系统</h2>
+            <div class="card">
+                <div class="card__body">
+                    <div style="margin-bottom: var(--spacing-4);">
+                        <div
+                            style="font-family: var(--font-display); font-size: var(--font-size-h1); font-weight: var(--font-weight-bold); color: var(--color-primary);">
+                            Display Font - Orbitron
+                        </div>
+                        <div
+                            style="font-size: var(--font-size-sm); color: var(--color-text-secondary); margin-top: var(--spacing-1);">
+                            用于标题、品牌展示
+                        </div>
+                    </div>
+                    <div style="margin-bottom: var(--spacing-4);">
+                        <div
+                            style="font-family: var(--font-body); font-size: var(--font-size-h3); font-weight: var(--font-weight-semibold);">
+                            Body Font - Source Sans Pro
+                        </div>
+                        <div
+                            style="font-size: var(--font-size-sm); color: var(--color-text-secondary); margin-top: var(--spacing-1);">
+                            用于正文、UI元素
+                        </div>
+                    </div>
+                    <div>
+                        <div
+                            style="font-family: var(--font-mono); font-size: var(--font-size-lg); font-weight: var(--font-weight-medium);">
+                            Mono Font - JetBrains Mono
+                        </div>
+                        <div
+                            style="font-size: var(--font-size-sm); color: var(--color-text-secondary); margin-top: var(--spacing-1);">
+                            用于代码、数据展示
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">科技感效果</h2>
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card__header">
+                        <h4 class="card__title">发光效果</h4>
+                    </div>
+                    <div class="card__body">
+                        <div class="btn-group">
+                            <button class="btn btn-primary" style="box-shadow: var(--glow-primary);">
+                                主色发光
+                            </button>
+                            <button class="btn btn-success" style="box-shadow: var(--glow-success);">
+                                成功发光
+                            </button>
+                            <button class="btn btn-danger" style="box-shadow: var(--glow-danger);">
+                                危险发光
+                            </button>
+                        </div>
+                        <div style="margin-top: var(--spacing-4);">
+                            <div class="glow-text"
+                                style="font-family: var(--font-display); font-size: var(--font-size-h3); font-weight: var(--font-weight-bold);">
+                                科技感文字发光
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card__header">
+                        <h4 class="card__title">数据流动画</h4>
+                    </div>
+                    <div class="card__body">
+                        <div class="chart-placeholder data-flow" style="height: 150px;">
+                            实时数据流动效果
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="demo-footer">
+            <p>🎨 管道管理系统设计系统 | 深浅双主题 | 科技感设计</p>
+            <p style="margin-top: var(--spacing-2);">点击右上角切换主题查看效果</p>
+        </div>
+    </div>
+
+    <script>
+        function toggleTheme() {
+            const html = document.documentElement;
+            const btn = document.getElementById('themeToggle');
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+
+            html.setAttribute('data-theme', newTheme);
+            btn.classList.toggle('active');
+
+            localStorage.setItem('theme', newTheme);
+        }
+
+        (function () {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+
+            if (savedTheme === 'dark') {
+                document.getElementById('themeToggle').classList.add('active');
+            } else {
+                document.getElementById('themeToggle').classList.remove('active');
+            }
+        })();
+    </script>
+</body>
+
+</html>

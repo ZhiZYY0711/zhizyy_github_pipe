@@ -6,13 +6,14 @@ server:
 spring:
   application:
     name: pipeline-management-web
-  
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://127.0.0.1:3306/pipeline_management_system?useSSL=false&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
     username: root
     password: root
-  
+
   # Jackson配置
   jackson:
     date-format: yyyy-MM-dd HH:mm:ss
@@ -42,16 +43,9 @@ pagehelper:
 
 # 日志配置
 logging:
-  level:
-    com.gxa.pipe: debug
-    root: info
-    org:
-      springframework:
-        jdbc:
-          support:
-            JdbcTransactionManager: debug
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{50} - %msg%n"
+
 
 # 阿里云OSS配置
 aliyun:
@@ -61,7 +55,7 @@ aliyun:
     access-key-secret: 19HhwdCzjeICeqZexFc8JUxRbJPBkp
     bucket-name: zhizyy-bucket1
 
-# DeepSeek配置（请替换为你自己的有效API Key）
+# DeepSeek配置
 deepseek:
   api:
     base-url: https://api.deepseek.com

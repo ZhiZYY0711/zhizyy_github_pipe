@@ -31,6 +31,13 @@ module.exports = defineConfig({
         pathRewrite: {
           '^/api': ''
         }
+      },
+      '/sse': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        pathRewrite: {
+          '^/sse': ''
+        }
       }
     }
   }

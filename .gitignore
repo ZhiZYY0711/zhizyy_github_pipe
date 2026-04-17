@@ -87,3 +87,6 @@ __pycache__/
 venv/
 env/
 ENV/
+
+.skills/
+.playwright-cli/

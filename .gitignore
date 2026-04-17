@@ -90,3 +90,4 @@ ENV/
 
 .skills/
 .playwright-cli/
+.codex/

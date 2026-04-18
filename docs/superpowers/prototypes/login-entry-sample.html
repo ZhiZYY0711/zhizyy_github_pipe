@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login Entry Sample</title>
+    <link rel="stylesheet" href="./login-entry-sample.css" />
+  </head>
+  <body>
+    <main class="login-page">
+      <section class="login-story">
+        <div class="story-grid"></div>
+        <div class="story-orbit orbit-a"></div>
+        <div class="story-orbit orbit-b"></div>
+        <div class="story-orbit orbit-c"></div>
+        <div class="signal-cluster cluster-a">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+        <div class="signal-cluster cluster-b">
+          <span></span>
+          <span></span>
+        </div>
+
+        <div class="story-content">
+          <p class="eyebrow">Mission Entry</p>
+          <h1>守护主干能源网络的持续安全运行</h1>
+          <p class="story-lead">
+            面向区域主干网的监测、预警、调度与处置协同平台。
+          </p>
+
+          <div class="story-panel">
+            <div class="story-panel__ring">
+              <div>
+                <span>当前联控区域</span>
+                <strong>08</strong>
+                <small>重点区域在线</small>
+              </div>
+            </div>
+
+            <div class="story-panel__meta">
+              <div>
+                <label>系统职责</label>
+                <strong>监测 / 预警 / 调度 / 处置</strong>
+              </div>
+              <div>
+                <label>当前状态</label>
+                <strong>主控链路稳定</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="story-tags">
+            <span>主干网</span>
+            <span>风险预警</span>
+            <span>联动调度</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="login-access">
+        <article class="access-card">
+          <p class="eyebrow">Access Node</p>
+          <h2>进入控制中心</h2>
+          <p class="access-note">请使用已授权账号进入管网监测与调度工作台。</p>
+
+          <label class="field">
+            <span>账号</span>
+            <input type="text" placeholder="请输入操作员账号" />
+          </label>
+
+          <label class="field">
+            <span>密码</span>
+            <input type="password" placeholder="请输入访问密码" />
+          </label>
+
+          <div class="field-row">
+            <label class="field">
+              <span>验证码</span>
+              <input type="text" placeholder="输入验证码" />
+            </label>
+            <div class="captcha">7G4M</div>
+          </div>
+
+          <button class="primary-action" type="button">身份校验并进入</button>
+
+          <div class="access-meta">
+            <span>当前系统状态：稳定运行</span>
+            <span>高风险告警：07</span>
+          </div>
+        </article>
+      </section>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,61 @@
+:root {
+  --color-bg: #04080d;
+  --color-bg-elevated: #070d13;
+  --color-panel: #0b131b;
+  --color-panel-2: #101922;
+  --color-panel-3: #15202b;
+  --color-overlay: rgba(18, 28, 38, 0.92);
+  --color-line: rgba(143, 166, 182, 0.14);
+  --color-line-strong: rgba(143, 166, 182, 0.24);
+  --color-text: #edf3f7;
+  --color-text-muted: #90a0ab;
+  --color-text-dim: #677786;
+  --color-accent-orange: #e7682d;
+  --color-accent-orange-soft: rgba(231, 104, 45, 0.15);
+  --color-accent-cyan: #6ecad4;
+  --color-accent-cyan-soft: rgba(110, 202, 212, 0.14);
+  --color-warning: #ddb054;
+  --color-success: #4ea786;
+
+  --font-sans: "Microsoft YaHei UI", "PingFang SC", "Noto Sans SC", sans-serif;
+  --font-serif: "Noto Serif SC", "Source Han Serif SC", "Songti SC", "STSong", serif;
+  --font-mono: "JetBrains Mono", "IBM Plex Mono", "Consolas", "Courier New", monospace;
+
+  --text-display-lg: 44px;
+  --text-heading-lg: 28px;
+  --text-heading-md: 24px;
+  --text-section: 16px;
+  --text-body-md: 15px;
+  --text-body-sm: 13px;
+  --text-meta: 12px;
+  --text-micro: 10px;
+  --text-data-lg: 48px;
+  --text-data-md: 30px;
+  --text-data-sm: 28px;
+  --text-data-xs: 22px;
+
+  --leading-display: 1.15;
+  --leading-body: 1.6;
+  --leading-relaxed: 1.7;
+  --tracking-wide: 0.24em;
+  --tracking-panel: 0.12em;
+  --tracking-button: 0.14em;
+  --tracking-tight: 0.04em;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 18px;
+  --space-6: 20px;
+  --space-7: 24px;
+  --space-8: 32px;
+  --space-9: 40px;
+  --space-10: 72px;
+  --space-11: 88px;
+
+  --radius-none: 0;
+  --radius-round: 999px;
+  --shadow-shell: 0 20px 50px rgba(0, 0, 0, 0.42);
+  --shadow-card: 0 28px 70px rgba(0, 0, 0, 0.42);
+}

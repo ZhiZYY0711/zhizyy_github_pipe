@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard Prototype</title>
+    <link rel="stylesheet" href="./control-room-sample.css" />
+  </head>
+  <body>
+    <main class="page">
+      <section class="frame">
+        <header class="topbar">
+          <div class="system-block">
+            <span class="eyebrow">National Energy Corridor / Command Layer</span>
+            <h1 class="system-name">油气管网监测指挥中枢</h1>
+          </div>
+
+          <nav class="nav" aria-label="一级模块">
+            <a class="nav-item active" href="#">总览</a>
+            <a class="nav-item" href="#">监测</a>
+            <a class="nav-item" href="#">资产</a>
+            <a class="nav-item" href="#">任务</a>
+            <a class="nav-item" href="#">应急</a>
+            <a class="nav-item" href="#">日志</a>
+          </nav>
+
+          <div class="status-bar">
+            <div class="status-chip alert">
+              <span>高风险告警</span>
+              <strong>07</strong>
+            </div>
+            <div class="status-chip">
+              <span>系统状态</span>
+              <strong>STABLE</strong>
+            </div>
+            <div class="status-chip">
+              <span>当前时间</span>
+              <strong>17:24:36</strong>
+            </div>
+          </div>
+        </header>
+
+        <section class="workspace">
+          <aside class="left-rail">
+            <article class="summary-card summary-card--hero">
+              <div class="summary-card__head">
+                <span class="eyebrow">Current Lens</span>
+                <strong>华北主干网</strong>
+              </div>
+              <div class="lens-ring">
+                <div class="lens-ring__inner">
+                  <span>近 6 小时</span>
+                  <strong>98</strong>
+                  <small>重点监测点</small>
+                </div>
+              </div>
+              <div class="mini-grid">
+                <span>西气东输一线 A 段</span>
+                <span>主干管</span>
+                <span>一级响应</span>
+                <span>空间锁定</span>
+              </div>
+            </article>
+
+            <article class="summary-card summary-card--diagram">
+              <div class="summary-card__head">
+                <span class="eyebrow">System Posture</span>
+                <strong>运行态势</strong>
+              </div>
+              <div class="bars">
+                <div class="bar-row">
+                  <label>在线设备</label>
+                  <div class="bar"><i style="width: 82%"></i></div>
+                  <strong>2,318</strong>
+                </div>
+                <div class="bar-row">
+                  <label>异常监测点</label>
+                  <div class="bar bar--orange"><i style="width: 34%"></i></div>
+                  <strong>43</strong>
+                </div>
+                <div class="bar-row">
+                  <label>高风险区域</label>
+                  <div class="bar bar--yellow"><i style="width: 18%"></i></div>
+                  <strong>3</strong>
+                </div>
+              </div>
+            </article>
+
+            <article class="summary-card summary-card--radar">
+              <div class="summary-card__head">
+                <span class="eyebrow">Priority Focus</span>
+                <strong>关注事项</strong>
+              </div>
+              <div class="radar">
+                <span class="radar-dot radar-dot--a"></span>
+                <span class="radar-dot radar-dot--b"></span>
+                <span class="radar-dot radar-dot--c"></span>
+              </div>
+              <div class="focus-tags">
+                <span>压力抬升</span>
+                <span>逾期闭环</span>
+                <span>阀组异常</span>
+              </div>
+            </article>
+
+            <article class="summary-card summary-card--switches">
+              <div class="summary-card__head">
+                <span class="eyebrow">Quick Switch</span>
+                <strong>快速切换</strong>
+              </div>
+              <div class="switch-row">
+                <span class="mini-chip">华北</span>
+                <span class="mini-chip">华东</span>
+                <span class="mini-chip">西南</span>
+                <span class="mini-chip">主干管</span>
+                <span class="mini-chip">场站</span>
+                <span class="mini-chip">阀室</span>
+              </div>
+            </article>
+          </aside>
+
+          <section class="main-stage">
+            <div class="kpi-strip">
+              <div class="kpi">
+                <span class="label">管线总数</span>
+                <strong>148</strong>
+              </div>
+              <div class="kpi signal">
+                <span class="label">在线监测点</span>
+                <strong>2,318</strong>
+              </div>
+              <div class="kpi warn">
+                <span class="label">高风险告警</span>
+                <strong>07</strong>
+              </div>
+              <div class="kpi">
+                <span class="label">活跃任务</span>
+                <strong>26</strong>
+              </div>
+            </div>
+
+            <div class="board">
+              <section class="map-panel panel">
+                <div class="panel-head">
+                  <h2>区域监控主画面</h2>
+                  <span class="eyebrow">Map-Centric Overview</span>
+                </div>
+
+                <div class="map-body">
+                  <div class="map-shape"></div>
+                  <div class="map-ring r1"></div>
+                  <div class="map-ring r2"></div>
+                  <div class="map-path path-a"></div>
+                  <div class="map-path path-b"></div>
+
+                  <div class="map-callout a">
+                    <small>重点区域</small>
+                    <strong>燕山分输站集群</strong>
+                    <span>一级告警 3 / 待确认任务 5 / 压力波动持续抬升</span>
+                  </div>
+
+                  <div class="map-callout b">
+                    <small>当前焦点</small>
+                    <strong>西气东输一线 A3</strong>
+                    <span>波动指数 8.4% / 异常点位 46 / 需要现场复核</span>
+                  </div>
+
+                  <div class="legend">
+                    <strong>当前视图说明</strong>
+                    地图仍然是唯一主角。左侧负责态势图形摘要，右侧负责风险与处置，不再用长文本把首屏压满。
+                  </div>
+                </div>
+              </section>
+
+              <div class="side-stack">
+                <section class="panel">
+                  <div class="panel-head">
+                    <h2>重点风险</h2>
+                    <span class="eyebrow">Priority / Alerts</span>
+                  </div>
+                  <div class="side-body">
+                    <div class="alert-item critical">
+                      <strong>燕山分输站 A3 压力异常抬升</strong>
+                      <p>异常点位 46，近 12 分钟持续抬升，建议维持一级关注。</p>
+                    </div>
+                    <div class="alert-item warning">
+                      <strong>津沽支线 2 号阀室波动扩大</strong>
+                      <p>通信稳定，趋势未回落，需要继续跟踪阀室状态。</p>
+                    </div>
+                    <div class="alert-item">
+                      <strong>京沪监测链路短时离线</strong>
+                      <p>已触发备用链路，当前不影响核心监控，但需要后续复核。</p>
+                    </div>
+                  </div>
+                </section>
+
+                <section class="panel">
+                  <div class="panel-head">
+                    <h2>处置进度</h2>
+                    <span class="eyebrow">Response / Tasks</span>
+                  </div>
+                  <div class="side-body">
+                    <div class="task-item">
+                      <strong>处理中任务 / 26</strong>
+                      <p>现场派发 8 项，待确认 3 项，任务闭环速率保持稳定。</p>
+                    </div>
+                    <div class="task-item">
+                      <strong>待调度确认 / 3</strong>
+                      <p>燕山分输站与华北巡检队已建立联动，预计 18:00 前完成复核。</p>
+                    </div>
+                    <div class="task-item">
+                      <strong>逾期闭环提醒</strong>
+                      <p>2 项旧任务仍待指挥中心确认，建议在本班次完成状态更新。</p>
+                    </div>
+                  </div>
+                </section>
+              </div>
+            </div>
+          </section>
+        </section>
+      </section>
+    </main>
+  </body>
+</html>

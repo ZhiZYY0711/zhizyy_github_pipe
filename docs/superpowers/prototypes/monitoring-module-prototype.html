@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>监测模块 / 数据监控原型</title>
+    <link rel="stylesheet" href="./monitoring-prototypes.css" />
+  </head>
+  <body>
+    <main class="shell shell--single">
+      <header class="topbar">
+        <div class="brand">
+          <span class="eyebrow">Pipeline Monitoring</span>
+          <h1>油气管网监测调度台</h1>
+        </div>
+        <nav class="nav" aria-label="主导航">
+          <a href="./control-room-sample.html">总览</a>
+          <a class="active" href="./monitoring-module-prototype.html">监测</a>
+          <a href="#">资产</a>
+          <a href="#">任务</a>
+          <a href="#">应急</a>
+          <a href="#">日志</a>
+          <a class="expert" href="#">虚拟专家</a>
+        </nav>
+        <div class="ops">
+          <span>自动刷新 30s</span>
+          <strong>17:24:36</strong>
+        </div>
+      </header>
+
+      <section class="monitor-layout">
+        <aside class="filter-panel panel">
+          <div class="panel-title">
+            <span class="eyebrow">Control Layer</span>
+            <h2>筛选参数</h2>
+          </div>
+
+          <section class="field-group">
+            <label>区域选择</label>
+            <div class="select-like active">华北区 / 西南区 / 东北区</div>
+            <div class="chip-grid">
+              <span class="chip on">华北</span>
+              <span class="chip">西南</span>
+              <span class="chip">东北</span>
+            </div>
+          </section>
+
+          <section class="field-group">
+            <label>管道选择</label>
+            <div class="select-like">京津主干线 / 冀北支线</div>
+            <div class="meter-list">
+              <span><i style="width: 82%"></i>京津主干线</span>
+              <span><i style="width: 54%"></i>冀北支线</span>
+              <span><i style="width: 38%"></i>西气联络线</span>
+            </div>
+          </section>
+
+          <section class="field-group">
+            <label>时间范围</label>
+            <div class="segmented">
+              <button>1h</button>
+              <button class="active">6h</button>
+              <button>24h</button>
+              <button>自定义</button>
+            </div>
+          </section>
+
+          <section class="field-group">
+            <label>数据维度</label>
+            <div class="check-stack">
+              <span><b></b>压力 MPa</span>
+              <span><b></b>流量 m3/h</span>
+              <span><b></b>温度 C</span>
+              <span><b></b>震动 mm/s</span>
+            </div>
+          </section>
+
+          <section class="field-group">
+            <label>刷新频率</label>
+            <div class="radio-stack">
+              <span>实时</span>
+              <span class="active">30 秒</span>
+              <span>1 分钟</span>
+              <span>手动</span>
+            </div>
+          </section>
+
+          <div class="form-actions">
+            <button class="primary">应用筛选</button>
+            <button>重置</button>
+          </div>
+        </aside>
+
+        <section class="analysis-stage">
+          <div class="kpi-grid">
+            <article class="kpi-card">
+              <span>管道总数</span>
+              <strong>148</strong>
+              <small>覆盖 6 个区域</small>
+            </article>
+            <article class="kpi-card signal">
+              <span>在线监测点</span>
+              <strong>2,318</strong>
+              <small>在线率 98.6%</small>
+            </article>
+            <article class="kpi-card warn">
+              <span>高风险告警</span>
+              <strong>07</strong>
+              <small>近 15 分钟新增 2</small>
+            </article>
+            <article class="kpi-card">
+              <span>活跃任务</span>
+              <strong>26</strong>
+              <small>待复核 5</small>
+            </article>
+          </div>
+
+          <section class="chart-panel panel">
+            <div class="panel-title inline">
+              <div>
+                <span class="eyebrow">Trend Core</span>
+                <h2>四维度实时趋势</h2>
+              </div>
+              <div class="toolstrip">
+                <button class="active">压力</button>
+                <button>流量</button>
+                <button>温度</button>
+                <button>震动</button>
+                <button>重置</button>
+              </div>
+            </div>
+            <div class="chart">
+              <div class="scanline"></div>
+              <svg viewBox="0 0 900 360" role="img" aria-label="四维度折线图">
+                <defs>
+                  <linearGradient id="chartFill" x1="0" x2="0" y1="0" y2="1">
+                    <stop offset="0%" stop-color="rgba(110, 202, 212, .22)" />
+                    <stop offset="100%" stop-color="rgba(110, 202, 212, 0)" />
+                  </linearGradient>
+                </defs>
+                <g class="grid-lines">
+                  <path d="M40 50H860M40 110H860M40 170H860M40 230H860M40 290H860" />
+                  <path d="M120 30V320M260 30V320M400 30V320M540 30V320M680 30V320M820 30V320" />
+                </g>
+                <path class="area" d="M40 230 C130 190 180 210 250 166 S380 98 470 132 S600 250 695 126 S790 82 860 116 V320 H40 Z" />
+                <path class="line cyan" d="M40 230 C130 190 180 210 250 166 S380 98 470 132 S600 250 695 126 S790 82 860 116" />
+                <path class="line yellow" d="M40 255 C140 230 210 260 300 210 S430 178 520 190 S670 118 760 172 S830 210 860 196" />
+                <path class="line orange" d="M40 282 C150 278 210 250 290 270 S430 292 520 242 S640 220 720 176 S800 122 860 88" />
+                <g class="hotspots">
+                  <circle cx="720" cy="176" r="7" />
+                  <circle cx="860" cy="88" r="7" />
+                </g>
+              </svg>
+              <div class="chart-tip">
+                <span>冀北支线 P-071</span>
+                <strong>压力 1.82 MPa</strong>
+                <small>连续 12 分钟高于阈值</small>
+              </div>
+            </div>
+          </section>
+
+          <section class="lower-grid">
+            <article class="panel distribution">
+              <div class="panel-title">
+                <span class="eyebrow">Status Split</span>
+                <h2>数据状态分布</h2>
+              </div>
+              <div class="donut" aria-label="数据状态分布图"></div>
+              <div class="legend-list">
+                <span><i class="ok"></i>安全 62%</span>
+                <span><i class="good"></i>良好 24%</span>
+                <span><i class="warn"></i>危险 10%</span>
+                <span><i class="bad"></i>高危 4%</span>
+              </div>
+            </article>
+
+            <article class="panel anomaly">
+              <div class="panel-title inline">
+                <div>
+                  <span class="eyebrow">Marked Anomaly</span>
+                  <h2>异常标注</h2>
+                </div>
+                <a class="link-button" href="./monitoring-data-prototype.html">查看详情</a>
+              </div>
+              <div class="event-list">
+                <div class="event high">
+                  <strong>P-071 压力异常</strong>
+                  <span>冀北支线 / 1.82 MPa / 持续 12 分钟</span>
+                </div>
+                <div class="event">
+                  <strong>V-204 震动升高</strong>
+                  <span>京津主干线 / 4.7 mm/s / 趋势加速</span>
+                </div>
+                <div class="event">
+                  <strong>T-118 温度偏离</strong>
+                  <span>西气联络线 / 73.6 C / 建议复核</span>
+                </div>
+              </div>
+            </article>
+          </section>
+        </section>
+      </section>
+    </main>
+  </body>
+</html>

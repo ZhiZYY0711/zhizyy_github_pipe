@@ -1,0 +1,26 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>虚拟专家模块</title><link rel="stylesheet" href="./style.css"/></head>
+<body>
+<header><strong>虚拟专家工作台（双栏）</strong><span><i class="light"></i> SSE 在线 / GET /status</span></header>
+<main>
+  <aside class="panel">
+    <h2>历史会话与连接状态区</h2>
+    <button>+ 新建对话</button>
+    <div class="session"><strong>会话A：冀北支线压力异常</strong><p class="meta">17:20 / 状态：在线</p></div>
+    <div class="session"><strong>会话B：阀门巡检建议</strong><p class="meta">16:55 / 状态：已关闭</p></div>
+    <div class="session"><strong>会话C：夜间值守策略</strong><p class="meta">16:10 / 状态：离线</p></div>
+    <p class="meta">支持按时间/关键词前端筛选历史会话；记录来源 GET /manager/chat-logs。</p>
+  </aside>
+  <section class="panel">
+    <h2>当前对话主工作区</h2>
+    <div class="chips"><span>给出处置建议</span><span>解释压力波动原因</span><span>生成巡检清单</span></div>
+    <div class="chat">
+      <div class="bubble user">用户：请分析 P-071 压力异常的可能原因。</div>
+      <div class="bubble ai">专家：已收到，正在结合最近 15 分钟的监测波形进行分析。</div>
+      <div class="bubble ai typing">专家（流式）：可能原因 1）阀门开度抖动；2）上游瞬时流量冲击；3）传感器漂移...</div>
+      <div class="bubble ai bad">专家：若连接中断，请重试发送或重新建立 SSE 连接。</div>
+    </div>
+    <div class="input"><div>输入消息（POST /manager/virtual-expert/messages）</div><button>发送</button></div>
+    <p class="meta">会话操作：清空、关闭（POST /manager/virtual-expert/conversations/{conversationId}/close）、查看会话记录。</p>
+  </section>
+</main>
+</body></html>

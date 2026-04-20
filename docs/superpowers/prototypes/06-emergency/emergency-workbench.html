@@ -1,0 +1,25 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>应急模块</title><link rel="stylesheet" href="./style.css"/></head>
+<body>
+<header class="top"><strong>应急演练管理页面（API 驱动）</strong><div>基于 docs/api/09-演练管理模块.md</div></header>
+<main>
+  <section class="panel">
+    <h2>筛选工作区</h2>
+    <div class="filter"><div>名称</div><div>类型</div><div>状态</div><div>区域</div><div>开始时间</div><div>结束时间</div></div>
+    <button class="btn">查询</button> <button class="btn">重置</button>
+    <h2>演练时间流列表</h2>
+    <div class="timeline">
+      <article class="item"><strong>MAN-3001 华北管网夜间联动演练</strong><p class="meta">2026-04-18 19:00 - 21:00 / 已完成 / 华北二区 / 参与 48 人</p><button class="btn">查看详情</button> <button class="btn">编辑</button> <button class="btn">删除</button></article>
+      <article class="item"><strong>MAN-3002 西南区输送中断推演</strong><p class="meta">2026-04-19 14:00 - 16:30 / 进行中 / 西南区 / 参与 36 人</p><button class="btn">查看详情</button> <button class="btn">编辑</button> <button class="btn">删除</button></article>
+      <article class="item"><strong>MAN-3003 东北区应急通信演练</strong><p class="meta">2026-04-20 09:00 - 11:00 / 待开始 / 东北区 / 参与 26 人</p><button class="btn">查看详情</button> <button class="btn">编辑</button> <button class="btn">删除</button></article>
+    </div>
+  </section>
+  <aside class="panel">
+    <h3>右侧摘要/详情区</h3>
+    <p class="meta">当前选中：MAN-3002</p>
+    <p>结果：响应链路完整，处置时延 6.4 分钟。</p>
+    <p>问题：跨班组通知有 2 次延迟。</p>
+    <div class="dialog"><strong>新增/编辑弹窗（示意）</strong><p class="meta">字段：name/type/area_id/location/start_time/end_time/participants/organizer/description。</p></div>
+    <div class="dialog"><strong>删除确认（示意）</strong><p class="meta">调用 GET /manoeuvre/remove_manoeuvre 后刷新列表。</p></div>
+  </aside>
+</main>
+</body></html>

@@ -1,0 +1,26 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>任务模块-页面A</title><link rel="stylesheet" href="./style.css"/></head>
+<body>
+<header class="top"><strong>任务工作台首页（页面A）</strong><a class="btn" href="./tasks-all-list.html">所有任务</a></header>
+<main>
+  <section class="layout">
+    <section class="panel">
+      <h2>重点任务卡片（4-8个）</h2>
+      <article class="task-card"><strong>北段压力异常复核 / TASK-9012</strong><p class="meta"><span class="badge p0">紧急</span> <span class="badge st">进行中</span> 华北二区 / 指派 张晨 / 截止 18:00</p></article>
+      <article class="task-card"><strong>阀门V-204校准 / TASK-9013</strong><p class="meta"><span class="badge p1">高</span> <span class="badge st">待处理</span> 华北二区 / 指派 李骁 / 截止 18:20</p></article>
+      <article class="task-card"><strong>西南流量计离线排查 / TASK-9014</strong><p class="meta"><span class="badge p0">紧急</span> <span class="badge st">进行中</span> 西南区 / 指派 高远 / 截止 17:50</p></article>
+      <article class="task-card"><strong>东北温度波动复检 / TASK-9015</strong><p class="meta"><span class="badge p1">高</span> <span class="badge st">待复核</span> 东北区 / 指派 何哲 / 截止 19:00</p></article>
+    </section>
+    <section class="panel">
+      <h2>任务分析区（图表 + KPI）</h2>
+      <div class="chart-grid">
+        <div class="chart">任务状态分布饼图（task_status）</div>
+        <div class="chart">任务数量趋势折线图（task_nums）</div>
+        <div class="chart">区域任务对比柱状图（task_contrast）</div>
+        <div class="chart">检修员 KPI 榜单（KPI_list）</div>
+      </div>
+    </section>
+    <aside class="filter-float"><strong>右上角筛选框（可压缩）</strong><p class="meta">区域、任务类型、优先级、状态、时间范围。</p><button class="btn">应用筛选</button> <button class="btn">重置</button></aside>
+  </section>
+  <aside class="modal"><strong>任务详情模态框（点击卡片后）</strong><p class="meta">通过 POST /data_management/tasks/find_task_id 查询。</p><button class="btn">关闭</button></aside>
+</main>
+</body></html>

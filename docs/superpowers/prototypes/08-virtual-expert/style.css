@@ -1,0 +1,10 @@
+:root{--bg:#060d17;--panel:#0d1b2d;--panel2:#10243c;--line:#1f3a57;--text:#deebfa;--muted:#8ea4bc;--online:#58d4c5;--stream:#f3ad5e;--offline:#e9c269;--error:#ef7474}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:"Segoe UI","PingFang SC",sans-serif}
+header{display:flex;justify-content:space-between;align-items:center;padding:14px 22px;border-bottom:1px solid var(--line)}
+main{padding:16px 20px;display:grid;grid-template-columns:30% 70%;gap:12px}.panel{border:1px solid var(--line);background:var(--panel);padding:12px}
+.session{border:1px solid var(--line);background:var(--panel2);padding:8px;margin-bottom:8px}.meta{font-size:12px;color:var(--muted)}
+.light{display:inline-block;width:10px;height:10px;margin-right:6px;background:var(--online)}
+.chat{height:420px;overflow:auto;border:1px solid var(--line);padding:10px;background:#0a1829}.bubble{max-width:72%;padding:8px;border:1px solid var(--line);margin-bottom:8px}
+.user{margin-left:auto;background:#132842}.ai{background:#0f2035}.typing{color:var(--stream)}.bad{color:var(--error)}
+.input{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:8px}.input div,.input button{border:1px solid var(--line);padding:8px;background:var(--panel2);color:var(--text)}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}.chips span{border:1px solid var(--line);padding:4px 8px;background:#133047}

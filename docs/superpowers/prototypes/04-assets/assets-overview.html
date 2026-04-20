@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>资产模块-页面A</title><link rel="stylesheet" href="./style.css"/></head>
+<body>
+  <header class="topbar">
+    <strong>资产工作台首页（页面A）</strong>
+    <nav class="nav"><a href="#" class="active">资产</a><a href="../05-tasks/tasks-workbench.html">任务</a><a href="../06-emergency/emergency-workbench.html">应急</a><a href="../08-virtual-expert/virtual-expert-workbench.html">虚拟专家</a></nav>
+  </header>
+  <main>
+    <section class="jump"><a href="#equipment">跳转设备信息</a><a href="#staff">跳转检修员信息</a></section>
+
+    <section id="equipment" class="section">
+      <header><h2>设备信息区（固定三行卡片）</h2><a class="btn" href="./assets-equipment-table.html">查看全部设备</a></header>
+      <div class="grid">
+        <article class="card"><strong>压缩机 C-102</strong><p class="meta">编号 EQ-001 / 华北一区 / 京津主干线</p><p><span class="tag ok">正常运行</span> 压力 1.26MPa / 最近巡检 08:10</p></article>
+        <article class="card"><strong>阀门 V-204</strong><p class="meta">编号 EQ-024 / 华北二区 / 冀北支线</p><p><span class="tag warn">需关注</span> 温度 62℃ / 最近巡检 07:53</p></article>
+        <article class="card"><strong>流量计 F-332</strong><p class="meta">编号 EQ-066 / 西南区 / 西气联络线</p><p><span class="tag bad">故障</span> 离线 19min / 最近巡检 07:21</p></article>
+        <article class="card"><strong>压力点 P-071</strong><p class="meta">编号 EQ-071 / 华北二区 / 冀北支线</p><p><span class="tag warn">需关注</span> 压力波动 / 最近巡检 08:01</p></article>
+        <article class="card"><strong>温度点 T-118</strong><p class="meta">编号 EQ-118 / 东北区 / 北段联络线</p><p><span class="tag ok">正常运行</span> 44℃ / 最近巡检 07:45</p></article>
+        <article class="card"><strong>震动点 VIB-116</strong><p class="meta">编号 EQ-116 / 西南区 / 西气联络线</p><p><span class="tag warn">需关注</span> 3.9mm/s / 最近巡检 07:41</p></article>
+      </div>
+    </section>
+
+    <section id="staff" class="section">
+      <header><h2>检修员信息区（固定三行卡片）</h2><a class="btn" href="./assets-staff-table.html">查看全部检修员</a></header>
+      <div class="grid">
+        <article class="card"><strong>张晨 / EMP-019</strong><p class="meta">华北A班 / 负责设备 12 台</p><p><span class="tag ok">在岗</span> 当前任务 1 / 近一次处理 07:52</p></article>
+        <article class="card"><strong>李骁 / EMP-044</strong><p class="meta">西南B班 / 负责设备 9 台</p><p><span class="tag warn">任务中</span> 当前任务 3 / 近一次处理 07:38</p></article>
+        <article class="card"><strong>王宁 / EMP-008</strong><p class="meta">华北A班 / 负责设备 15 台</p><p><span class="tag bad">离岗</span> 当前任务 0 / 预计 09:00 上线</p></article>
+        <article class="card"><strong>陈路 / EMP-063</strong><p class="meta">东北值班组 / 负责设备 7 台</p><p><span class="tag ok">在岗</span> 当前任务 1 / 联系方式 138****2172</p></article>
+        <article class="card"><strong>高远 / EMP-032</strong><p class="meta">西南B班 / 负责设备 11 台</p><p><span class="tag warn">任务中</span> 当前任务 2 / 联系方式 139****6621</p></article>
+        <article class="card"><strong>何哲 / EMP-077</strong><p class="meta">东北值班组 / 负责设备 8 台</p><p><span class="tag ok">在岗</span> 当前任务 0 / 近一次处理 07:11</p></article>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

@@ -1,0 +1,36 @@
+:root {
+  --bg: #08101b;
+  --panel: #0e1b2c;
+  --panel-soft: #10233a;
+  --line: #1f3a57;
+  --text: #dce9f8;
+  --muted: #8ea3bb;
+  --ok: #45d7b4;
+  --warn: #f0b86b;
+  --bad: #ef6a6a;
+}
+* { box-sizing: border-box; }
+body { margin: 0; font-family: "Segoe UI", "PingFang SC", sans-serif; background: var(--bg); color: var(--text); }
+.topbar, .breadcrumb { display: flex; justify-content: space-between; align-items: center; padding: 14px 24px; border-bottom: 1px solid var(--line); background: #07101a; }
+.nav { display: flex; gap: 10px; }
+.nav a { color: var(--muted); text-decoration: none; padding: 4px 8px; border: 1px solid transparent; }
+.nav a.active { border-color: var(--line); color: var(--text); }
+main { padding: 16px 20px 28px; }
+.jump { display: flex; gap: 10px; margin-bottom: 14px; }
+.jump a, .btn { border: 1px solid var(--line); background: var(--panel); color: var(--text); padding: 8px 12px; text-decoration: none; }
+.section { background: var(--panel); border: 1px solid var(--line); padding: 14px; margin-bottom: 16px; }
+.section header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.card { background: var(--panel-soft); border: 1px solid var(--line); padding: 10px; min-height: 106px; }
+.card .meta { color: var(--muted); font-size: 12px; margin: 4px 0; }
+.tag { font-size: 12px; padding: 1px 6px; border: 1px solid; }
+.ok { color: var(--ok); border-color: var(--ok); }
+.warn { color: var(--warn); border-color: var(--warn); }
+.bad { color: var(--bad); border-color: var(--bad); }
+.filter, .stats { display: grid; grid-template-columns: repeat(5, minmax(120px, 1fr)); gap: 8px; margin-bottom: 12px; }
+.filter div, .stats div { background: var(--panel-soft); border: 1px solid var(--line); padding: 8px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { border: 1px solid var(--line); padding: 7px; text-align: left; }
+th { background: #0a1623; }
+.right-drawer { position: fixed; right: 12px; top: 80px; width: 280px; border: 1px solid var(--line); background: #0a1522; padding: 12px; }
+.small { color: var(--muted); font-size: 12px; }

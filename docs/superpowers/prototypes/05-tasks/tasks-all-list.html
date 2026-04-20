@@ -1,0 +1,16 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>任务模块-页面B</title><link rel="stylesheet" href="./style.css"/></head>
+<body>
+<header class="top"><strong>所有任务列表页（页面B）</strong><a class="btn" href="./tasks-workbench.html">返回工作台</a></header>
+<main>
+  <section class="panel"><h2>任务统计摘要 + 筛选栏</h2><p class="meta">与页面A共享同一列表接口：POST /data_management/tasks/find_task_params</p></section>
+  <section class="panel">
+    <table class="table"><thead><tr><th>任务ID</th><th>标题</th><th>类型</th><th>区域</th><th>管道</th><th>优先级</th><th>状态</th><th>检修员</th><th>发布时间</th><th>响应</th><th>操作</th></tr></thead>
+    <tbody>
+      <tr><td>TASK-9012</td><td>北段压力异常复核</td><td>巡检</td><td>华北二区</td><td>冀北支线</td><td>紧急</td><td>进行中</td><td>张晨</td><td>16:30</td><td>4m</td><td>详情</td></tr>
+      <tr><td>TASK-9013</td><td>阀门V-204校准</td><td>检修</td><td>华北二区</td><td>冀北支线</td><td>高</td><td>待处理</td><td>李骁</td><td>16:37</td><td>--</td><td>详情</td></tr>
+      <tr><td>TASK-9014</td><td>西南流量计离线排查</td><td>故障</td><td>西南区</td><td>西气联络线</td><td>紧急</td><td>进行中</td><td>高远</td><td>16:40</td><td>3m</td><td>详情</td></tr>
+    </tbody></table>
+  </section>
+  <aside class="modal"><strong>任务详情模态框（行点击后）</strong><p class="meta">不使用常驻抽屉，不新增独立详情页。</p><button class="btn">关闭</button></aside>
+</main>
+</body></html>

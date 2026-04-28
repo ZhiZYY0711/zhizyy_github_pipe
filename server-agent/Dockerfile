@@ -1,14 +1,18 @@
 # syntax=docker/dockerfile:1.7
-FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+FROM python:3.12-slim-bookworm
 
 WORKDIR /app
 ENV PYTHONUNBUFFERED=1 \
     PATH="/app/.venv/bin:$PATH" \
-    AGENT_ENVIRONMENT=prod
+    AGENT_ENVIRONMENT=prod \
+    UV_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple \
+    PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
+
+RUN pip install --no-cache-dir uv
 
 COPY pyproject.toml uv.lock ./
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev --no-install-project
+RUN uv export --frozen --no-dev --no-hashes --format requirements-txt \
+    | pip install --no-cache-dir -r /dev/stdin
 
 COPY app ./app
 COPY scripts ./scripts

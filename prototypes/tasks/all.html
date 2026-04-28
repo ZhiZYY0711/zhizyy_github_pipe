@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>任务模块 / 所有任务</title>
+    <link rel="stylesheet" href="../shared/prototype-common.css" />
+    <link rel="stylesheet" href="../shared/module-pages.css" />
+  </head>
+  <body class="prototype-body">
+    <main class="proto-shell">
+      <header class="proto-topbar"><div class="proto-brand"><span class="eyebrow">Task Data Grid</span><h1>所有任务二维表</h1></div><nav class="proto-nav" aria-label="主导航"><a href="../overview/index.html">总览</a><a href="../monitoring/index.html">监测</a><a href="../assets/index.html">资产</a><a class="active" href="../tasks/index.html">任务</a><a href="../emergency/index.html">应急</a><a href="../logs/index.html">日志</a><a class="expert" href="../virtual-expert/index.html">虚拟专家</a></nav><div class="proto-ops"><span>POST</span><strong>/find_task_params</strong></div></header>
+      <section class="proto-main">
+        <div class="breadcrumb"><div><a class="btn secondary" href="./index.html">任务工作台</a> <span>/ 所有任务</span></div><button class="btn secondary" data-modal>新增任务</button></div>
+        <section class="panel" style="padding:14px;margin-bottom:14px"><div class="form-grid"><div class="field"><label>任务标题</label><input value="异常复核" /></div><div class="field"><label>类型</label><select><option>全部</option></select></div><div class="field"><label>状态</label><select><option>待处理/处理中</option></select></div><div class="field"><label>区域</label><input value="全部区域" /></div></div></section>
+        <div class="dense-table-wrap">
+          <table class="dense-table">
+            <thead><tr><th>ID</th><th>任务编号</th><th>标题</th><th>类型</th><th>优先级</th><th>状态</th><th>区域</th><th>管线</th><th>负责人</th><th>发布时间</th><th>截止时间</th><th>响应耗时</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr><td>801</td><td>T-20260420-013</td><td>阴保站 CP-04 电位异常复核</td><td>异常复核</td><td><span class="chip bad">紧急</span></td><td>处理中</td><td>西南段</td><td>SW-184</td><td>赵磊</td><td>2026-04-20 09:20</td><td>2026-04-20 13:00</td><td>00:34</td><td><button class="btn secondary" data-modal>详情</button></td></tr>
+              <tr><td>802</td><td>T-20260420-011</td><td>阀室 V-09 周期检修确认</td><td>周期检修</td><td><span class="chip warn">高</span></td><td>待处理</td><td>京沪干线</td><td>JH-009</td><td>刘敏</td><td>2026-04-20 08:40</td><td>2026-04-21 12:00</td><td>-</td><td><button class="btn secondary" data-modal>详情</button></td></tr>
+              <tr><td>803</td><td>T-20260420-009</td><td>站控柜 SC-12 通信短报排查</td><td>通信排查</td><td><span class="chip warn">中</span></td><td>处理中</td><td>山东支线</td><td>SD-012</td><td>周宁</td><td>2026-04-20 07:50</td><td>2026-04-20 18:00</td><td>01:12</td><td><button class="btn secondary" data-modal>详情</button></td></tr>
+              <tr><td>804</td><td>T-20260419-044</td><td>流量计 F-33 数据完整率复核</td><td>数据核验</td><td><span class="chip">普通</span></td><td>已完成</td><td>华东二区</td><td>HD-033</td><td>陈雪</td><td>2026-04-19 16:10</td><td>2026-04-20 10:00</td><td>02:20</td><td><button class="btn secondary" data-modal>详情</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="api-note">本页与页面A重点任务卡片使用同一列表接口：<code>POST /data_management/tasks/find_task_params</code>；详情：<code>POST /data_management/tasks/find_task_id</code>。</p>
+      </section>
+    </main>
+    <section class="modal" id="modal"><div class="modal-card"><div class="section-title"><h3>任务详情/编辑模态框</h3><button class="btn secondary" data-close>关闭</button></div><div class="kv"><span>详情</span><strong>POST /data_management/tasks/find_task_id</strong></div><div class="kv"><span>新增</span><strong>POST /data_management/tasks/add_task</strong></div><div class="kv"><span>更新</span><strong>POST /data_management/tasks/update_task</strong></div></div></section>
+    <script>document.querySelectorAll('[data-modal]').forEach(el=>el.onclick=()=>document.getElementById('modal').classList.add('is-open'));document.querySelector('[data-close]').onclick=()=>document.getElementById('modal').classList.remove('is-open');</script>
+  </body>
+</html>

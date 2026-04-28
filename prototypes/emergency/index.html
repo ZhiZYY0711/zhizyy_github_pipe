@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>应急模块 / 演练管理</title>
+    <link rel="stylesheet" href="../shared/prototype-common.css" />
+    <link rel="stylesheet" href="../shared/module-pages.css" />
+  </head>
+  <body class="prototype-body">
+    <main class="proto-shell">
+      <header class="proto-topbar"><div class="proto-brand"><span class="eyebrow">Emergency Drill</span><h1>应急演练管理</h1></div><nav class="proto-nav" aria-label="主导航"><a href="../overview/index.html">总览</a><a href="../monitoring/index.html">监测</a><a href="../assets/index.html">资产</a><a href="../tasks/index.html">任务</a><a class="active" href="../emergency/index.html">应急</a><a href="../logs/index.html">日志</a><a class="expert" href="../virtual-expert/index.html">虚拟专家</a></nav><div class="proto-ops"><span>演练接口</span><strong>/manoeuvre</strong></div></header>
+      <section class="proto-main">
+        <div class="page-head"><div><span class="eyebrow">API Driven</span><h2>演练记录查询、详情与维护</h2></div><button class="btn" data-modal>新增演练</button></div>
+        <section class="panel" style="padding:14px;margin-bottom:14px"><div class="form-grid"><div class="field"><label>演练名称</label><input value="站场泄漏处置" /></div><div class="field"><label>类型</label><select><option>综合演练</option></select></div><div class="field"><label>状态</label><select><option>计划中/进行中</option></select></div><div class="field"><label>区域</label><input value="华北一区" /></div></div></section>
+        <div class="emergency-layout">
+          <section class="panel" style="padding:16px">
+            <div class="section-title"><h3>演练时间线</h3><span class="chip">展示记录，不写入阶段节点</span></div>
+            <div class="timeline">
+              <article class="timeline-item"><div class="exercise-card" data-drawer><h4>华北站场泄漏处置综合演练</h4><div class="meta-row"><span class="chip warn">进行中</span><span>2026-04-22 09:00</span><span>参演 42 人</span></div><p>地点：华北一区 3#站场；组织单位：调度中心。</p></div></article>
+              <article class="timeline-item"><div class="exercise-card" data-drawer><h4>京沪干线阀室火情桌面演练</h4><div class="meta-row"><span class="chip">计划中</span><span>2026-04-28 14:00</span><span>参演 18 人</span></div><p>重点验证上报链路和联络机制。</p></div></article>
+              <article class="timeline-item"><div class="exercise-card" data-drawer><h4>西南段阴保异常应急复盘</h4><div class="meta-row"><span class="chip good">已完成</span><span>2026-04-12</span><span>参演 21 人</span></div><p>结果：通过；问题 2 项待整改。</p></div></article>
+            </div>
+          </section>
+          <aside class="detail-panel panel">
+            <div class="section-title"><h3>当前选中演练</h3><button class="btn secondary" data-drawer>查看详情</button></div>
+            <div class="kv"><span>名称</span><strong>华北站场泄漏处置综合演练</strong></div>
+            <div class="kv"><span>状态</span><strong>进行中</strong></div>
+            <div class="kv"><span>区域</span><strong>华北一区</strong></div>
+            <div class="kv"><span>组织单位</span><strong>调度中心</strong></div>
+            <div class="kv"><span>参演人员</span><strong>42</strong></div>
+            <p class="api-note">列表：<code>POST /manoeuvre/find_manoeuvre_params</code>；详情：<code>GET /manoeuvre/find_manoeuvre_id</code>。</p>
+          </aside>
+        </div>
+      </section>
+    </main>
+    <section class="drawer" id="drawer"><div class="drawer-card"><div class="section-title"><h3>演练详情抽屉</h3><button class="btn secondary" data-close>关闭</button></div><div class="kv"><span>详情接口</span><strong>GET /manoeuvre/find_manoeuvre_id?id=...</strong></div><div class="kv"><span>结果字段</span><strong>result / issues</strong></div><div class="kv"><span>更新</span><strong>POST /manoeuvre/update_manoeuvre</strong></div><p class="api-note">不生成实时指挥、资源调度、人员签到等不存在接口。</p></div></section>
+    <section class="modal" id="modal"><div class="modal-card"><div class="section-title"><h3>新增演练</h3><button class="btn secondary" data-modal-close>关闭</button></div><div class="kv"><span>接口</span><strong>POST /manoeuvre/add_manoeuvre</strong></div><div class="kv"><span>删除</span><strong>GET /manoeuvre/remove_manoeuvre?id=...</strong></div></div></section>
+    <script>document.querySelectorAll('[data-drawer]').forEach(el=>el.onclick=()=>document.getElementById('drawer').classList.add('is-open'));document.querySelector('[data-close]').onclick=()=>document.getElementById('drawer').classList.remove('is-open');document.querySelector('[data-modal]').onclick=()=>document.getElementById('modal').classList.add('is-open');document.querySelector('[data-modal-close]').onclick=()=>document.getElementById('modal').classList.remove('is-open');</script>
+  </body>
+</html>

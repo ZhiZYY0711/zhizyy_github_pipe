@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>任务模块 / 态势工作台</title>
+    <link rel="stylesheet" href="../shared/prototype-common.css" />
+    <link rel="stylesheet" href="../shared/module-pages.css" />
+  </head>
+  <body class="prototype-body">
+    <main class="proto-shell">
+      <header class="proto-topbar"><div class="proto-brand"><span class="eyebrow">Task Analysis</span><h1>任务态势分析工作台</h1></div><nav class="proto-nav" aria-label="主导航"><a href="../overview/index.html">总览</a><a href="../monitoring/index.html">监测</a><a href="../assets/index.html">资产</a><a class="active" href="../tasks/index.html">任务</a><a href="../emergency/index.html">应急</a><a href="../logs/index.html">日志</a><a class="expert" href="../virtual-expert/index.html">虚拟专家</a></nav><div class="proto-ops"><span>重点任务</span><strong>右上筛选</strong></div></header>
+      <section class="proto-main">
+        <div class="page-head"><div><span class="eyebrow">Page A</span><h2>重点任务 + 图表分析</h2></div><a class="btn" href="./all.html">所有任务</a></div>
+        <section class="task-dashboard">
+          <aside class="panel" style="padding:16px">
+            <div class="section-title"><h3>重点任务</h3><span class="chip warn">少量展示</span></div>
+            <div class="task-list">
+              <article class="task-card" data-modal><h4>阴保站 CP-04 电位异常复核</h4><div class="meta-row"><span class="chip bad">紧急</span><span>T-20260420-013</span><span>西南段</span></div><p>响应剩余 00:34，负责人赵磊。</p></article>
+              <article class="task-card" data-modal><h4>阀室 V-09 周期检修确认</h4><div class="meta-row"><span class="chip warn">高</span><span>T-20260420-011</span><span>京沪干线</span></div><p>需补充阀门开度与现场照片。</p></article>
+              <article class="task-card" data-modal><h4>站控柜 SC-12 通信短报排查</h4><div class="meta-row"><span class="chip warn">中</span><span>T-20260420-009</span><span>山东支线</span></div><p>连续三次短报，待通信组确认。</p></article>
+            </div>
+            <p class="api-note">卡片来源与列表页一致：<code>POST /data_management/tasks/find_task_params</code>；详情：<code>POST /data_management/tasks/find_task_id</code>。</p>
+          </aside>
+          <div>
+            <aside class="floating-filter panel"><details open><summary>筛选条件</summary><div class="form-grid" style="grid-template-columns:1fr;margin-top:10px"><div class="field"><label>区域</label><select><option>全部区域</option></select></div><div class="field"><label>优先级</label><select><option>紧急/高</option></select></div><div class="field"><label>时间范围</label><input value="近 7 天" /></div></div></details></aside>
+            <div class="chart-grid">
+              <section class="chart-card panel"><div class="section-title"><h3>任务状态分布</h3><span class="chip">task_status</span></div><div class="pie"></div><div class="meta-row"><span>待处理 22%</span><span>处理中 26%</span><span>完成 30%</span><span>取消 22%</span></div></section>
+              <section class="chart-card panel"><div class="section-title"><h3>任务数量趋势</h3><span class="chip">task_nums</span></div><svg class="line-chart" viewBox="0 0 420 150" role="img"><polyline fill="none" stroke="#65d6df" stroke-width="3" points="8,118 68,92 128,105 188,54 248,70 308,36 382,46"/><polyline fill="none" stroke="#f1c46d" stroke-width="2" points="8,126 68,110 128,98 188,88 248,64 308,74 382,58"/></svg></section>
+              <section class="chart-card panel"><div class="section-title"><h3>区域任务对比</h3><span class="chip">task_contrast</span></div><div class="bars"><div class="bar"><span style="width:82%"></span></div><div class="bar"><span style="width:64%"></span></div><div class="bar"><span style="width:51%"></span></div><div class="bar"><span style="width:38%"></span></div></div><div class="meta-row"><span>华北</span><span>京沪</span><span>西南</span><span>华东</span></div></section>
+              <section class="chart-card panel"><div class="section-title"><h3>KPI 榜单</h3><span class="chip">KPI_list</span></div><div class="rank-list"><div class="rank-item"><strong>1</strong><span>陈雪</span><span>98%</span></div><div class="rank-item"><strong>2</strong><span>王建</span><span>97%</span></div><div class="rank-item"><strong>3</strong><span>郭琳</span><span>96%</span></div><div class="rank-item"><strong>4</strong><span>刘敏</span><span>95%</span></div></div></section>
+            </div>
+            <p class="api-note">图表来自数据可视化模块2：<code>POST /data_visualization/task_details/task_status</code>、<code>/task_nums</code>、<code>/task_contrast</code>、<code>/KPI_list</code>。</p>
+          </div>
+        </section>
+      </section>
+    </main>
+    <section class="modal" id="modal"><div class="modal-card"><div class="section-title"><h3>任务详情模态框</h3><button class="btn secondary" data-close>关闭</button></div><div class="kv"><span>接口</span><strong>POST /data_management/tasks/find_task_id</strong></div><div class="kv"><span>展示</span><strong>点击重点任务卡片后弹出，不跳转详情页</strong></div></div></section>
+    <script>document.querySelectorAll('[data-modal]').forEach(el=>el.onclick=()=>document.getElementById('modal').classList.add('is-open'));document.querySelector('[data-close]').onclick=()=>document.getElementById('modal').classList.remove('is-open');</script>
+  </body>
+</html>

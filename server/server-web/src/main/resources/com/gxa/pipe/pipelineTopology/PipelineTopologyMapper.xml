@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gxa.pipe.pipelineTopology.PipelineTopologyMapper">
+
+    <select id="selectMonitoringFilterSegments" resultType="com.gxa.pipe.pipelineTopology.MonitoringFilterSegmentRow">
+        SELECT
+            p.id AS pipeId,
+            p.name AS pipeName,
+            p.pipe_level AS pipeLevel,
+            p.segment_level AS pipeSegmentLevel,
+            ps.id AS segmentId,
+            ps.name AS segmentName,
+            ps.segment_order AS segmentOrder,
+            ps.start_area_id AS startAreaId,
+            ps.end_area_id AS endAreaId,
+            ps.segment_level AS segmentLevel
+        FROM pipe_segment ps
+        INNER JOIN pipe p ON ps.pipe_id = p.id
+        <where>
+            <choose>
+                <when test="scopeLevel == 'CITY'">
+                    ps.segment_level = 'CITY_TO_CITY'
+                    AND (
+                        ps.start_area_id = #{areaId}
+                        OR ps.end_area_id = #{areaId}
+                        OR EXISTS (
+                            SELECT 1
+                            FROM pipe_route_node prn
+                            WHERE prn.pipe_id = ps.pipe_id
+                              AND prn.area_id = #{areaId}
+                        )
+                    )
+                </when>
+                <when test="scopeLevel == 'DISTRICT'">
+                    ps.segment_level IN ('DISTRICT_TO_DISTRICT', 'IN_DISTRICT')
+                    AND (ps.start_area_id = #{areaId} OR ps.end_area_id = #{areaId})
+                </when>
+                <otherwise>
+                    1 = 0
+                </otherwise>
+            </choose>
+        </where>
+        ORDER BY p.id, ps.segment_order
+    </select>
+</mapper>

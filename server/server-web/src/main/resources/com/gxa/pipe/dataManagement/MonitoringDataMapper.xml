@@ -1,0 +1,341 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gxa.pipe.dataManagement.monitoring.MonitoringDataMapper">
+
+    <resultMap id="MonitoringDataQueryResultMap" type="com.gxa.pipe.dataManagement.monitoring.MonitoringDataQueryResponse">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="pressure" property="pressure" jdbcType="DECIMAL"/>
+        <result column="flow" property="flow" jdbcType="DECIMAL"/>
+        <result column="temperature" property="temperature" jdbcType="DECIMAL"/>
+        <result column="vibration" property="vibration" jdbcType="DECIMAL"/>
+        <result column="data_status" property="dataStatus" jdbcType="INTEGER"/>
+        <result column="status_text" property="statusText" jdbcType="VARCHAR"/>
+        <result column="sensor_id" property="sensorId" jdbcType="BIGINT"/>
+        <result column="sensor_name" property="sensorName" jdbcType="VARCHAR"/>
+        <result column="area_name" property="areaName" jdbcType="VARCHAR"/>
+        <result column="pipeline_name" property="pipelineName" jdbcType="VARCHAR"/>
+        <result column="pipe_segment_id" property="pipeSegmentId" jdbcType="VARCHAR"/>
+        <result column="pipe_segment_name" property="pipeSegmentName" jdbcType="VARCHAR"/>
+        <result column="monitor_time" property="monitorTime" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <sql id="MonitoringDataConditions">
+        <if test="minPressure != null">
+            AND i.pressure &gt;= #{minPressure}
+        </if>
+        <if test="maxPressure != null">
+            AND i.pressure &lt;= #{maxPressure}
+        </if>
+        <if test="minFlow != null">
+            AND i.traffic &gt;= #{minFlow}
+        </if>
+        <if test="maxFlow != null">
+            AND i.traffic &lt;= #{maxFlow}
+        </if>
+        <if test="minTemperature != null">
+            AND i.temperature &gt;= #{minTemperature}
+        </if>
+        <if test="maxTemperature != null">
+            AND i.temperature &lt;= #{maxTemperature}
+        </if>
+        <if test="minVibration != null">
+            AND i.shake &gt;= #{minVibration}
+        </if>
+        <if test="maxVibration != null">
+            AND i.shake &lt;= #{maxVibration}
+        </if>
+        <if test="dataStatus != null">
+            AND i.data_status = #{dataStatus}
+        </if>
+        <if test="sensorId != null">
+            AND i.sensor_id = #{sensorId}
+        </if>
+        <if test="areaId != null and areaId != ''">
+            AND (
+                (MOD(#{areaId}, 10000) = 0 AND s.area_id BETWEEN #{areaId} AND #{areaId} + 9999)
+                OR (MOD(#{areaId}, 10000) != 0 AND MOD(#{areaId}, 100) = 0 AND s.area_id BETWEEN #{areaId} AND #{areaId} + 99)
+                OR (MOD(#{areaId}, 100) != 0 AND s.area_id = #{areaId})
+            )
+        </if>
+        <if test="pipelineId != null and pipelineId != ''">
+            AND s.pipeline_id = #{pipelineId}
+        </if>
+        <if test="pipelineName != null and pipelineName != ''">
+            AND p.name LIKE CONCAT('%', #{pipelineName}, '%')
+        </if>
+        <if test="pipeSegmentId != null and pipeSegmentId != ''">
+            AND s.pipe_segment_id = #{pipeSegmentId}
+        </if>
+        <if test="pipeSegmentIds != null and pipeSegmentIds.size() > 0">
+            AND s.pipe_segment_id IN
+            <foreach collection="pipeSegmentIds" item="segmentId" open="(" separator="," close=")">
+                #{segmentId}
+            </foreach>
+        </if>
+        <if test="monitorStartTime != null">
+            AND i.create_time &gt;= #{monitorStartTime}
+        </if>
+        <if test="monitorEndTime != null">
+            AND i.create_time &lt;= #{monitorEndTime}
+        </if>
+    </sql>
+
+    <sql id="MonitoringDataConditionsByRequest">
+        <if test="request.minPressure != null">
+            AND i.pressure &gt;= #{request.minPressure}
+        </if>
+        <if test="request.maxPressure != null">
+            AND i.pressure &lt;= #{request.maxPressure}
+        </if>
+        <if test="request.minFlow != null">
+            AND i.traffic &gt;= #{request.minFlow}
+        </if>
+        <if test="request.maxFlow != null">
+            AND i.traffic &lt;= #{request.maxFlow}
+        </if>
+        <if test="request.minTemperature != null">
+            AND i.temperature &gt;= #{request.minTemperature}
+        </if>
+        <if test="request.maxTemperature != null">
+            AND i.temperature &lt;= #{request.maxTemperature}
+        </if>
+        <if test="request.minVibration != null">
+            AND i.shake &gt;= #{request.minVibration}
+        </if>
+        <if test="request.maxVibration != null">
+            AND i.shake &lt;= #{request.maxVibration}
+        </if>
+        <if test="request.dataStatus != null">
+            AND i.data_status = #{request.dataStatus}
+        </if>
+        <if test="request.sensorId != null">
+            AND i.sensor_id = #{request.sensorId}
+        </if>
+        <if test="request.areaId != null and request.areaId != ''">
+            AND (
+                (MOD(#{request.areaId}, 10000) = 0 AND s.area_id BETWEEN #{request.areaId} AND #{request.areaId} + 9999)
+                OR (MOD(#{request.areaId}, 10000) != 0 AND MOD(#{request.areaId}, 100) = 0 AND s.area_id BETWEEN #{request.areaId} AND #{request.areaId} + 99)
+                OR (MOD(#{request.areaId}, 100) != 0 AND s.area_id = #{request.areaId})
+            )
+        </if>
+        <if test="request.pipelineId != null and request.pipelineId != ''">
+            AND s.pipeline_id = #{request.pipelineId}
+        </if>
+        <if test="request.pipelineName != null and request.pipelineName != ''">
+            AND p_filter.name LIKE CONCAT('%', #{request.pipelineName}, '%')
+        </if>
+        <if test="request.pipeSegmentId != null and request.pipeSegmentId != ''">
+            AND s.pipe_segment_id = #{request.pipeSegmentId}
+        </if>
+        <if test="request.pipeSegmentIds != null and request.pipeSegmentIds.size() > 0">
+            AND s.pipe_segment_id IN
+            <foreach collection="request.pipeSegmentIds" item="segmentId" open="(" separator="," close=")">
+                #{segmentId}
+            </foreach>
+        </if>
+        <if test="request.monitorStartTime != null">
+            AND i.create_time &gt;= #{request.monitorStartTime}
+        </if>
+        <if test="request.monitorEndTime != null">
+            AND i.create_time &lt;= #{request.monitorEndTime}
+        </if>
+    </sql>
+
+    <select id="getByPage" resultMap="MonitoringDataQueryResultMap">
+        SELECT
+            page_rows.id,
+            page_rows.pressure,
+            page_rows.flow,
+            page_rows.temperature,
+            page_rows.vibration,
+            page_rows.data_status,
+            CASE
+                WHEN page_rows.data_status = 0 THEN '安全'
+                WHEN page_rows.data_status = 1 THEN '良好'
+                WHEN page_rows.data_status = 2 THEN '危险'
+                WHEN page_rows.data_status = 3 THEN '高危'
+                ELSE '未知'
+            END AS status_text,
+            page_rows.sensor_id,
+            CONCAT('传感器 ', page_rows.sensor_id) AS sensor_name,
+            CONCAT(a.province, a.city, a.district) AS area_name,
+            p.name AS pipeline_name,
+            page_rows.pipe_segment_id,
+            ps.name AS pipe_segment_name,
+            page_rows.monitor_time
+        FROM (
+            SELECT
+                i.id,
+                i.pressure,
+                i.traffic AS flow,
+                i.temperature,
+                i.shake AS vibration,
+                i.data_status,
+                i.sensor_id,
+                i.create_time AS monitor_time,
+                s.area_id,
+                s.pipeline_id,
+                s.pipe_segment_id
+            FROM inspection i
+            LEFT JOIN sensor s ON i.sensor_id = s.id
+            <if test="request.pipelineName != null and request.pipelineName != ''">
+                LEFT JOIN pipe p_filter ON s.pipeline_id = p_filter.id
+            </if>
+            <where>
+                <include refid="MonitoringDataConditionsByRequest"/>
+            </where>
+            ORDER BY i.data_status DESC, i.create_time DESC
+            LIMIT #{offset}, #{pageSize}
+        ) page_rows
+        LEFT JOIN area a ON page_rows.area_id = a.id
+        LEFT JOIN pipe p ON page_rows.pipeline_id = p.id
+        LEFT JOIN pipe_segment ps ON page_rows.pipe_segment_id = ps.id
+        ORDER BY page_rows.data_status DESC, page_rows.monitor_time DESC
+    </select>
+
+    <select id="countByConditions" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM inspection i
+        <if test="areaId != null and areaId != '' or pipelineId != null and pipelineId != '' or pipelineName != null and pipelineName != '' or pipeSegmentId != null and pipeSegmentId != '' or pipeSegmentIds != null and pipeSegmentIds.size() > 0">
+            LEFT JOIN sensor s ON i.sensor_id = s.id
+        </if>
+        <if test="pipelineName != null and pipelineName != ''">
+            LEFT JOIN pipe p ON s.pipeline_id = p.id
+        </if>
+        <where>
+            <include refid="MonitoringDataConditions"/>
+        </where>
+    </select>
+
+    <select id="aggregateByConditions" parameterType="com.gxa.pipe.dataManagement.monitoring.MonitoringDataQueryRequest"
+            resultType="java.util.Map">
+        SELECT
+            COUNT(*) AS sample_count,
+            COALESCE(ROUND(AVG(i.temperature), 2), 0) AS avg_temperature,
+            COALESCE(ROUND(MIN(i.temperature), 2), 0) AS min_temperature,
+            COALESCE(ROUND(MAX(i.temperature), 2), 0) AS max_temperature,
+            COALESCE(ROUND(AVG(i.pressure), 2), 0) AS avg_pressure,
+            COALESCE(ROUND(MIN(i.pressure), 2), 0) AS min_pressure,
+            COALESCE(ROUND(MAX(i.pressure), 2), 0) AS max_pressure,
+            COALESCE(ROUND(AVG(i.traffic), 2), 0) AS avg_flow,
+            COALESCE(ROUND(MIN(i.traffic), 2), 0) AS min_flow,
+            COALESCE(ROUND(MAX(i.traffic), 2), 0) AS max_flow,
+            COALESCE(ROUND(AVG(i.shake), 2), 0) AS avg_vibration,
+            COALESCE(ROUND(MIN(i.shake), 2), 0) AS min_vibration,
+            COALESCE(ROUND(MAX(i.shake), 2), 0) AS max_vibration,
+            SUM(CASE WHEN i.data_status = 2 THEN 1 ELSE 0 END) AS danger_count,
+            SUM(CASE WHEN i.data_status = 3 THEN 1 ELSE 0 END) AS critical_count
+        FROM inspection i
+        LEFT JOIN sensor s ON i.sensor_id = s.id
+        <if test="pipelineName != null and pipelineName != ''">
+            LEFT JOIN pipe p ON s.pipeline_id = p.id
+        </if>
+        <where>
+            <include refid="MonitoringDataConditions"/>
+        </where>
+    </select>
+
+    <select id="getById" resultMap="MonitoringDataQueryResultMap">
+        SELECT
+            i.id,
+            i.pressure,
+            i.traffic AS flow,
+            i.temperature,
+            i.shake AS vibration,
+            i.data_status,
+            CASE
+                WHEN i.data_status = 0 THEN '安全'
+                WHEN i.data_status = 1 THEN '良好'
+                WHEN i.data_status = 2 THEN '危险'
+                WHEN i.data_status = 3 THEN '高危'
+                ELSE '未知'
+            END AS status_text,
+            i.sensor_id,
+            CONCAT('传感器 ', i.sensor_id) AS sensor_name,
+            CONCAT(a.province, a.city, a.district) AS area_name,
+            p.name AS pipeline_name,
+            s.pipe_segment_id,
+            ps.name AS pipe_segment_name,
+            i.create_time AS monitor_time
+        FROM inspection i
+        LEFT JOIN sensor s ON i.sensor_id = s.id
+        LEFT JOIN area a ON s.area_id = a.id
+        LEFT JOIN pipe p ON s.pipeline_id = p.id
+        LEFT JOIN pipe_segment ps ON s.pipe_segment_id = ps.id
+        WHERE i.id = #{id}
+        ORDER BY i.create_time DESC
+    </select>
+
+    <insert id="addData">
+        INSERT INTO inspection (
+            pressure,
+            traffic,
+            temperature,
+            shake,
+            data_status,
+            <if test="realtimePicture != null">realtime_picture,</if>
+            sensor_id,
+            create_time,
+            update_time
+        ) VALUES (
+            #{pressure},
+            #{flow},
+            #{temperature},
+            #{vibration},
+            #{dataStatus},
+            <if test="realtimePicture != null">#{realtimePicture},</if>
+            #{sensorId},
+            NOW(),
+            NOW()
+        )
+    </insert>
+
+    <update id="updateData">
+        UPDATE inspection
+        SET
+            pressure = #{pressure},
+            traffic = #{flow},
+            temperature = #{temperature},
+            shake = #{vibration},
+            sensor_id = #{sensorId},
+            update_time = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteData">
+        DELETE FROM inspection
+        WHERE id IN
+        <foreach collection="idList" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <resultMap id="MonitoringDataIndicatorResultMap" type="com.gxa.pipe.dataManagement.monitoring.MonitoringDataIndicatorResponse">
+        <result column="total_records" property="totalRecords" jdbcType="VARCHAR"/>
+        <result column="safe_count" property="safeCount" jdbcType="VARCHAR"/>
+        <result column="good_count" property="goodCount" jdbcType="VARCHAR"/>
+        <result column="danger_count" property="dangerCount" jdbcType="VARCHAR"/>
+        <result column="today" property="today" jdbcType="VARCHAR"/>
+        <result column="critical_count" property="criticalCount" jdbcType="VARCHAR"/>
+    </resultMap>
+
+    <select id="getIndicatorCard" resultMap="MonitoringDataIndicatorResultMap">
+        SELECT
+            CAST(COUNT(*) AS CHAR) AS total_records,
+            CAST(SUM(CASE WHEN i.data_status = 0 THEN 1 ELSE 0 END) AS CHAR) AS safe_count,
+            CAST(SUM(CASE WHEN i.data_status = 1 THEN 1 ELSE 0 END) AS CHAR) AS good_count,
+            CAST(SUM(CASE WHEN i.data_status = 2 THEN 1 ELSE 0 END) AS CHAR) AS danger_count,
+            CAST(SUM(CASE WHEN i.create_time &gt;= CURDATE() AND i.create_time &lt; DATE_ADD(CURDATE(), INTERVAL 1 DAY) THEN 1 ELSE 0 END) AS CHAR) AS today,
+            CAST(SUM(CASE WHEN i.data_status = 3 THEN 1 ELSE 0 END) AS CHAR) AS critical_count
+        FROM inspection i
+        <if test="areaId != null and areaId != ''">
+            LEFT JOIN sensor s ON i.sensor_id = s.id
+            WHERE (
+                (MOD(#{areaId}, 10000) = 0 AND s.area_id BETWEEN #{areaId} AND #{areaId} + 9999)
+                OR (MOD(#{areaId}, 10000) != 0 AND MOD(#{areaId}, 100) = 0 AND s.area_id BETWEEN #{areaId} AND #{areaId} + 99)
+                OR (MOD(#{areaId}, 100) != 0 AND s.area_id = #{areaId})
+            )
+        </if>
+    </select>
+
+</mapper>

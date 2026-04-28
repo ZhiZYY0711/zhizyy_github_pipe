@@ -1,0 +1,112 @@
+# =========================
+# OS / Editor
+# =========================
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# =========================
+# Logs / runtime
+# =========================
+*.log
+logs/
+!frontend/src/modules/logs/
+!frontend/src/modules/logs/**
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# =========================
+# Java / Maven / Spring Boot
+# =========================
+**/target/
+*.class
+*.jar
+*.war
+*.ear
+
+# Maven wrapper downloaded jar
+.mvn/wrapper/maven-wrapper.jar
+
+# JVM crash logs
+hs_err_pid*
+replay_pid*
+
+# =========================
+# Node / Frontend
+# =========================
+**/node_modules/
+**/dist/
+**/build/
+**/.cache/
+**/.vite/
+**/.nuxt/
+**/.next/
+**/coverage/
+**/.eslintcache
+**/*.tsbuildinfo
+
+# Package manager artifacts
+pnpm-lock.yaml.bak
+
+# =========================
+# Environment / local config
+# =========================
+.env
+.env.local
+.env.*.local
+.env.development
+.env.test
+.env.production
+
+# Keep template env files
+!.env.example
+!**/.env.example
+
+# =========================
+# Uploads / temp
+# =========================
+tmp/
+temp/
+runtime/
+*.tmp
+
+# =========================
+# Python
+# =========================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.python-version
+.venv/
+venv/
+env/
+ENV/
+
+.skills/
+.playwright-cli/
+.codex/
+.claude/
+.worktrees/
+.logs/
+
+superpowers/
+database/
+frontend/public/geo/
+server/server-web/src/main/resources/application-dev.yml
+
+
+AGENTS.md
+CLAUDE.md
+
+# MemPalace per-project files (issue #185)
+mempalace.yaml
+entities.json

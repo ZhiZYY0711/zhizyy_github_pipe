@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>监测模块 / 监测数据详情原型</title>
+    <link rel="stylesheet" href="./monitoring.css" />
+    <link rel="stylesheet" href="../shared/prototype-common.css" />
+  </head>
+  <body>
+    <main class="shell shell--data">
+      <header class="topbar">
+        <div class="brand">
+          <span class="eyebrow">Monitoring Data</span>
+          <h1>监测数据详情</h1>
+        </div>
+        <nav class="nav" aria-label="主导航">
+          <a href="../overview/index.html">总览</a>
+          <a class="active" href="../monitoring/index.html">监测</a>
+          <a href="../assets/index.html">资产</a>
+          <a href="../tasks/index.html">任务</a>
+          <a href="../emergency/index.html">应急</a>
+          <a href="../logs/index.html">日志</a>
+          <a class="expert" href="../virtual-expert/index.html">虚拟专家</a>
+        </nav>
+        <div class="ops">
+          <span>已接收筛选参数</span>
+          <strong>华北 / 近 6h</strong>
+        </div>
+      </header>
+
+      <section class="breadcrumb">
+        <a href="./index.html">监测</a>
+        <span>/</span>
+        <strong>监测数据详情</strong>
+      </section>
+
+      <section class="risk-strip">
+        <article class="risk-card critical">
+          <div>
+            <span class="eyebrow">High Risk</span>
+            <h2>传感器 P-071 / 冀北支线</h2>
+          </div>
+          <strong>压力 1.82 MPa</strong>
+          <p>连续 12 分钟高于安全阈值，建议立即查看上下游阀门状态。</p>
+          <div class="risk-actions">
+            <button class="primary">立即查看</button>
+            <button>标记处理</button>
+            <button>忽略</button>
+          </div>
+        </article>
+        <article class="risk-card warning">
+          <div>
+            <span class="eyebrow">Danger</span>
+            <h2>传感器 V-204 / 京津主干线</h2>
+          </div>
+          <strong>震动 4.7 mm/s</strong>
+          <p>震动趋势连续上升，可能与支撑件松动或瞬时流量波动相关。</p>
+          <div class="risk-actions">
+            <button class="primary">立即查看</button>
+            <button>加入关注</button>
+          </div>
+        </article>
+        <article class="risk-card muted">
+          <div>
+            <span class="eyebrow">Handled</span>
+            <h2>传感器 T-118 / 西气联络线</h2>
+          </div>
+          <strong>温度 73.6 C</strong>
+          <p>已由值班人员复核，等待下一轮自动采样确认。</p>
+          <div class="risk-actions">
+            <button>查看记录</button>
+          </div>
+        </article>
+      </section>
+
+      <section class="filter-bar panel">
+        <div class="input-like">状态：危险 / 高危</div>
+        <div class="input-like">时间：2026-04-20 11:00 至 17:00</div>
+        <div class="input-like">压力：1.2 至 2.0 MPa</div>
+        <div class="input-like">管道：京津主干线、冀北支线</div>
+        <div class="search-like">搜索传感器、管道或区域</div>
+        <button class="primary">筛选</button>
+        <button>高级筛选</button>
+      </section>
+
+      <section class="table-zone panel">
+        <div class="table-toolbar">
+          <div>
+            <span class="eyebrow">Data Core</span>
+            <h2>高密度监测数据</h2>
+          </div>
+          <div class="toolstrip">
+            <button class="active">分页模式</button>
+            <button>滚动模式</button>
+            <button>列显示</button>
+            <button>导出 CSV</button>
+            <button>刷新</button>
+          </div>
+        </div>
+
+        <div class="data-table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>传感器ID</th>
+                <th>传感器名称</th>
+                <th>管道名称</th>
+                <th>压力(MPa)</th>
+                <th>流量(m3/h)</th>
+                <th>温度(C)</th>
+                <th>震动(mm/s)</th>
+                <th>状态</th>
+                <th>监测时间</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="selected">
+                <td>P-071</td>
+                <td>北段压力点 071</td>
+                <td>冀北支线</td>
+                <td><span class="value bad">1.82</span></td>
+                <td><span class="value good">4,216</span></td>
+                <td><span class="value ok">42.1</span></td>
+                <td><span class="value warn">3.8</span></td>
+                <td><span class="state bad">高危</span></td>
+                <td>2026-04-20 17:24:32</td>
+                <td><a>详情</a><a>对比</a><a>标记</a></td>
+              </tr>
+              <tr>
+                <td>V-204</td>
+                <td>主干线震动点 204</td>
+                <td>京津主干线</td>
+                <td><span class="value good">1.14</span></td>
+                <td><span class="value ok">4,568</span></td>
+                <td><span class="value ok">39.8</span></td>
+                <td><span class="value warn">4.7</span></td>
+                <td><span class="state warn">危险</span></td>
+                <td>2026-04-20 17:24:30</td>
+                <td><a>详情</a><a>对比</a><a>标记</a></td>
+              </tr>
+              <tr>
+                <td>T-118</td>
+                <td>联络线温度点 118</td>
+                <td>西气联络线</td>
+                <td><span class="value ok">0.96</span></td>
+                <td><span class="value good">3,934</span></td>
+                <td><span class="value warn">73.6</span></td>
+                <td><span class="value ok">1.2</span></td>
+                <td><span class="state warn">危险</span></td>
+                <td>2026-04-20 17:24:28</td>
+                <td><a>详情</a><a>对比</a><a>标记</a></td>
+              </tr>
+              <tr>
+                <td>F-332</td>
+                <td>南环流量点 332</td>
+                <td>京津主干线</td>
+                <td><span class="value ok">1.03</span></td>
+                <td><span class="value bad">6,880</span></td>
+                <td><span class="value good">45.2</span></td>
+                <td><span class="value ok">0.9</span></td>
+                <td><span class="state bad">高危</span></td>
+                <td>2026-04-20 17:24:20</td>
+                <td><a>详情</a><a>对比</a><a>标记</a></td>
+              </tr>
+              <tr>
+                <td>P-088</td>
+                <td>北段压力点 088</td>
+                <td>冀北支线</td>
+                <td><span class="value good">1.21</span></td>
+                <td><span class="value good">3,982</span></td>
+                <td><span class="value ok">38.6</span></td>
+                <td><span class="value ok">1.4</span></td>
+                <td><span class="state good">良好</span></td>
+                <td>2026-04-20 17:24:18</td>
+                <td><a>详情</a><a>对比</a><a>标记</a></td>
+              </tr>
+              <tr>
+                <td>F-097</td>
+                <td>西北流量点 097</td>
+                <td>西气联络线</td>
+                <td><span class="value ok">0.88</span></td>
+                <td><span class="value ok">3,482</span></td>
+                <td><span class="value ok">41.7</span></td>
+                <td><span class="value ok">1.1</span></td>
+                <td><span class="state ok">安全</span></td>
+                <td>2026-04-20 17:24:12</td>
+                <td><a>详情</a><a>对比</a><a>标记</a></td>
+              </tr>
+              <tr>
+                <td>V-166</td>
+                <td>中段震动点 166</td>
+                <td>冀北支线</td>
+                <td><span class="value ok">0.92</span></td>
+                <td><span class="value good">4,102</span></td>
+                <td><span class="value ok">40.2</span></td>
+                <td><span class="value warn">3.9</span></td>
+                <td><span class="state warn">危险</span></td>
+                <td>2026-04-20 17:24:08</td>
+                <td><a>详情</a><a>对比</a><a>标记</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <footer class="pager">
+          <span>已选 1 条 / 当前显示 1-50 / 总计 12,468</span>
+          <div>
+            <button>上一页</button>
+            <button class="active">1</button>
+            <button>2</button>
+            <button>3</button>
+            <button>下一页</button>
+          </div>
+        </footer>
+      </section>
+    </main>
+  </body>
+</html>

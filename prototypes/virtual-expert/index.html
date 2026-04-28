@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>虚拟专家 / 对话原型</title>
+    <link rel="stylesheet" href="../shared/prototype-common.css" />
+    <link rel="stylesheet" href="../shared/module-pages.css" />
+  </head>
+  <body class="prototype-body">
+    <main class="proto-shell">
+      <header class="proto-topbar"><div class="proto-brand"><span class="eyebrow">Virtual Expert</span><h1>虚拟专家实时问答</h1></div><nav class="proto-nav" aria-label="主导航"><a href="../overview/index.html">总览</a><a href="../monitoring/index.html">监测</a><a href="../assets/index.html">资产</a><a href="../tasks/index.html">任务</a><a href="../emergency/index.html">应急</a><a href="../logs/index.html">日志</a><a class="active expert" href="../virtual-expert/index.html">虚拟专家</a></nav><div class="proto-ops"><span>SSE</span><strong>/stream</strong></div></header>
+      <section class="proto-main">
+        <div class="page-head"><div><span class="eyebrow">API Driven</span><h2>消息发送、流式响应与历史记录</h2></div><button class="btn warn" data-close-conv>关闭会话</button></div>
+        <section class="expert-layout">
+          <aside class="detail-panel panel">
+            <div class="section-title"><h3>会话状态</h3><span class="chip good">Connected</span></div>
+            <div class="kv"><span>流接口</span><strong>GET /manager/virtual-expert/stream</strong></div>
+            <div class="kv"><span>消息接口</span><strong>POST /manager/virtual-expert/messages</strong></div>
+            <div class="kv"><span>会话ID</span><strong>conv-20260420-01</strong></div>
+            <p class="api-note">SSE 只表现为流式消息区域，不生成知识库 CRUD 或工单派发等额外功能。</p>
+          </aside>
+          <section class="chat-panel panel">
+            <div class="chat-stream">
+              <div class="message"><span class="eyebrow">Expert</span><p>已连接管网虚拟专家。请描述管线、设备或任务现象。</p></div>
+              <div class="message user"><span class="eyebrow">User</span><p>CP-04 阴保电位波动超过阈值，优先检查什么？</p></div>
+              <div class="message"><span class="eyebrow">Expert / SSE</span><p>建议先核对采集时间窗口、参比电极状态和最近检修记录，再比对同区段相邻测点趋势。</p></div>
+            </div>
+            <div class="composer"><div class="field"><textarea>输入问题，发送后调用消息接口并通过 SSE 接收回复</textarea></div><button class="btn" data-send>发送</button></div>
+          </section>
+          <aside class="detail-panel panel">
+            <div class="section-title"><h3>聊天日志</h3><span class="chip">read only</span></div>
+            <div class="kv"><span>列表</span><strong>GET /manager/chat-logs</strong></div>
+            <div class="kv"><span>详情</span><strong>GET /manager/chat-logs/{fileName}</strong></div>
+            <div class="rank-list">
+              <div class="rank-item"><strong>1</strong><span>chat_20260420_ops.txt</span><button class="btn secondary" data-drawer>查看</button></div>
+              <div class="rank-item"><strong>2</strong><span>chat_20260419_shift.txt</span><button class="btn secondary" data-drawer>查看</button></div>
+              <div class="rank-item"><strong>3</strong><span>chat_20260418_drill.txt</span><button class="btn secondary" data-drawer>查看</button></div>
+            </div>
+          </aside>
+        </section>
+      </section>
+    </main>
+    <section class="drawer" id="drawer"><div class="drawer-card"><div class="section-title"><h3>聊天日志详情</h3><button class="btn secondary" data-close>关闭</button></div><div class="kv"><span>接口</span><strong>GET /manager/chat-logs/{fileName}</strong></div><p>这里展示按文件名读取到的历史对话内容摘要。</p></div></section>
+    <section class="modal" id="modal"><div class="modal-card"><div class="section-title"><h3>会话操作</h3><button class="btn secondary" data-modal-close>关闭</button></div><div class="kv"><span>发送</span><strong>POST /manager/virtual-expert/messages</strong></div><div class="kv"><span>关闭</span><strong>POST /manager/virtual-expert/conversations/{conversationId}/close</strong></div><div class="kv"><span>状态</span><strong>GET /status</strong></div></div></section>
+    <script>document.querySelectorAll('[data-drawer]').forEach(el=>el.onclick=()=>document.getElementById('drawer').classList.add('is-open'));document.querySelector('[data-close]').onclick=()=>document.getElementById('drawer').classList.remove('is-open');document.querySelector('[data-send]').onclick=()=>document.getElementById('modal').classList.add('is-open');document.querySelector('[data-close-conv]').onclick=()=>document.getElementById('modal').classList.add('is-open');document.querySelector('[data-modal-close]').onclick=()=>document.getElementById('modal').classList.remove('is-open');</script>
+  </body>
+</html>

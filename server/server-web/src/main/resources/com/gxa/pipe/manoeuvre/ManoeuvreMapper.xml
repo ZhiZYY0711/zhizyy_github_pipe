@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gxa.pipe.manoeuvre.ManoeuvreMapper">
+
+    <!-- ManoeuvreQueryResponse结果映射 -->
+    <resultMap id="ManoeuvreQueryResponseMap" type="com.gxa.pipe.manoeuvre.ManoeuvreQueryResponse">
+        <id property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="areaId" column="area_id"/>
+        <result property="areaName" column="area_name"/>
+        <result property="location" column="location"/>
+        <result property="startTime" column="start_time"/>
+        <result property="endTime" column="end_time"/>
+        <result property="organizer" column="organizer"/>
+        <result property="status" column="status"/>
+        <result property="type" column="type"/>
+        <result property="details" column="details"/>
+    </resultMap>
+
+    <sql id="ManoeuvreDisplayColumns">
+        m.id,
+        CONCAT(
+            CASE m.type
+                WHEN 0 THEN '状态模拟'
+                WHEN 1 THEN '事故模拟'
+                WHEN 2 THEN '紧急事件'
+                WHEN 3 THEN '日常演练'
+                ELSE '演练'
+            END,
+            ' #',
+            m.id
+        ) as name,
+        m.area_id,
+        COALESCE(NULLIF(CONCAT_WS('', a.province, a.city, a.district), ''), '-') as area_name,
+        COALESCE(NULLIF(CONCAT_WS('', a.province, a.city, a.district), ''), '-') as location,
+        UNIX_TIMESTAMP(m.start_time) * 1000 as start_time,
+        UNIX_TIMESTAMP(m.end_time) * 1000 as end_time,
+        CASE m.type
+            WHEN 0 THEN '调度中心'
+            WHEN 1 THEN '安全管理部'
+            WHEN 2 THEN '应急指挥部'
+            WHEN 3 THEN '运维中心'
+            ELSE '演练调度'
+        END as organizer,
+        m.status,
+        m.type,
+        COALESCE(NULLIF(m.details, ''), '-') as details
+    </sql>
+
+    <!-- ManoeuvreRepairmanInfo结果映射 -->
+    <resultMap id="ManoeuvreRepairmanInfoMap" type="com.gxa.pipe.manoeuvre.ManoeuvreRepairmanInfo">
+        <result property="manoeuvreId" column="manoeuvre_id"/>
+        <result property="repairmanId" column="repairman_id"/>
+        <result property="repairmanName" column="repairman_name"/>
+    </resultMap>
+
+    <!-- 根据条件查询演习基础信息 -->
+    <select id="selectBasicByParams" parameterType="com.gxa.pipe.manoeuvre.ManoeuvreQueryRequest" 
+            resultMap="ManoeuvreQueryResponseMap">
+        SELECT 
+            <include refid="ManoeuvreDisplayColumns"/>
+        FROM manoeuvre m
+        LEFT JOIN area a ON m.area_id = a.id
+        <where>
+            <if test="areaId != null and areaId != 0">
+                AND (
+                    (MOD(#{areaId}, 10000) = 0 AND m.area_id BETWEEN #{areaId} AND #{areaId} + 9999)
+                    OR (MOD(#{areaId}, 10000) != 0 AND MOD(#{areaId}, 100) = 0 AND m.area_id BETWEEN #{areaId} AND #{areaId} + 99)
+                    OR (MOD(#{areaId}, 100) != 0 AND m.area_id = #{areaId})
+                )
+            </if>
+            <if test="startTimeMin != null">
+                AND m.start_time &gt;= FROM_UNIXTIME(#{startTimeMin} / 1000)
+            </if>
+            <if test="startTimeMax != null">
+                AND m.start_time &lt;= FROM_UNIXTIME(#{startTimeMax} / 1000)
+            </if>
+            <if test="endTimeMin != null">
+                AND m.end_time &gt;= FROM_UNIXTIME(#{endTimeMin} / 1000)
+            </if>
+            <if test="endTimeMax != null">
+                AND m.end_time &lt;= FROM_UNIXTIME(#{endTimeMax} / 1000)
+            </if>
+            <if test="status != null and status != ''">
+                AND m.status = #{status}
+            </if>
+            <if test="type != null and type != ''">
+                AND m.type = #{type}
+            </if>
+        </where>
+        ORDER BY m.id DESC
+    </select>
+
+    <!-- 根据演习ID列表查询检修员信息 -->
+    <select id="selectRepairmansByManoeuvreIds" resultMap="ManoeuvreRepairmanInfoMap">
+        SELECT 
+            cmr.manoeuvre_id,
+            r.id as repairman_id,
+            r.name as repairman_name
+        FROM conn_manoeuvre_repairman cmr
+        INNER JOIN repairman r ON cmr.repairman_id = r.id
+        WHERE cmr.manoeuvre_id IN
+        <foreach collection="manoeuvreIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        ORDER BY cmr.manoeuvre_id, r.id
+    </select>
+
+    <!-- 根据ID查询演习基础信息 -->
+    <select id="selectBasicById" parameterType="java.lang.Long" resultMap="ManoeuvreQueryResponseMap">
+        SELECT 
+            <include refid="ManoeuvreDisplayColumns"/>
+        FROM manoeuvre m
+        LEFT JOIN area a ON m.area_id = a.id
+        WHERE m.id = #{id}
+    </select>
+
+    <!-- 插入演习信息 -->
+    <insert id="insertManoeuvre" parameterType="com.gxa.pipe.manoeuvre.ManoeuvreAddRequest">
+        INSERT INTO manoeuvre (
+            area_id,
+            start_time,
+            end_time,
+            status,
+            type,
+            details
+        ) VALUES (
+            #{areaId},
+            FROM_UNIXTIME(#{startTime} / 1000),
+            FROM_UNIXTIME(#{startTime} / 1000),
+            #{status},
+            #{type},
+            #{detail}
+        )
+        <selectKey resultType="java.lang.Long" keyProperty="generatedId" order="AFTER">
+            SELECT LAST_INSERT_ID()
+        </selectKey>
+    </insert>
+
+    <!-- 插入演习与检修员的关联关系 -->
+    <insert id="insertManoeuvreRepairmanRelations">
+        INSERT INTO conn_manoeuvre_repairman (manoeuvre_id, repairman_id) VALUES
+        <foreach collection="repairmanIds" item="repairmanId" separator=",">
+            (#{manoeuvreId}, #{repairmanId})
+        </foreach>
+    </insert>
+
+    <!-- 更新演习信息 -->
+    <update id="updateManoeuvre" parameterType="com.gxa.pipe.manoeuvre.ManoeuvreUpdateRequest">
+        UPDATE manoeuvre
+        <set>
+            <if test="areaId != null">
+                area_id = #{areaId},
+            </if>
+            <if test="startTime != null and startTime != 0">
+                start_time = FROM_UNIXTIME(#{startTime} / 1000),
+            </if>
+            <if test="endTime != null and endTime != 0">
+                end_time = FROM_UNIXTIME(#{endTime} / 1000),
+            </if>
+            <if test="status != null">
+                status = #{status},
+            </if>
+            <if test="type != null">
+                type = #{type},
+            </if>
+            <if test="detail != null and detail != ''">
+                details = #{detail},
+            </if>
+            update_time = NOW()
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <!-- 删除演习与检修员的关联关系 -->
+    <delete id="deleteManoeuvreRepairmanRelations">
+        DELETE FROM conn_manoeuvre_repairman WHERE manoeuvre_id = #{manoeuvreId}
+    </delete>
+
+    <!-- 删除演习信息 -->
+    <delete id="deleteManoeuvre">
+        DELETE FROM manoeuvre WHERE id = #{id}
+    </delete>
+
+</mapper>

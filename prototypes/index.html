@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>原型入口</title>
+    <link rel="stylesheet" href="./shared/prototype-common.css" />
+    <style>
+      .entry-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
+      .entry-card { min-height:132px; padding:16px; border:1px solid var(--line); background:rgba(255,255,255,.035); text-decoration:none; color:var(--ink); }
+      .entry-card strong { display:block; margin-top:8px; font-size:20px; }
+      .entry-card span { color:var(--muted); font-size:12px; }
+      @media (max-width:900px){.entry-grid{grid-template-columns:1fr}}
+    </style>
+  </head>
+  <body class="prototype-body">
+    <main class="proto-shell">
+      <header class="proto-topbar">
+        <div class="proto-brand"><span class="eyebrow">Prototype Index</span><h1>油气管网系统原型入口</h1></div>
+        <nav class="proto-nav" aria-label="主导航">
+          <a href="./overview/index.html">总览</a><a href="./monitoring/index.html">监测</a><a href="./assets/index.html">资产</a><a href="./tasks/index.html">任务</a><a href="./emergency/index.html">应急</a><a href="./logs/index.html">日志</a><a class="expert" href="./virtual-expert/index.html">虚拟专家</a>
+        </nav>
+        <div class="proto-ops"><span>入口页</span><strong>Prototype</strong></div>
+      </header>
+      <section class="proto-main">
+        <div class="page-head"><div><span class="eyebrow">Modules</span><h2>模块原型目录</h2></div><a class="btn secondary" href="./login/index.html">登录页</a></div>
+        <div class="entry-grid">
+          <a class="entry-card" href="./overview/index.html"><span>Dashboard</span><strong>总览</strong><p>态势总览与指挥中枢。</p></a>
+          <a class="entry-card" href="./monitoring/index.html"><span>Monitoring</span><strong>监测</strong><p>监测控制台与数据详情。</p></a>
+          <a class="entry-card" href="./assets/index.html"><span>Assets</span><strong>资产</strong><p>设备和检修员三页组合。</p></a>
+          <a class="entry-card" href="./tasks/index.html"><span>Tasks</span><strong>任务</strong><p>重点任务图表与所有任务表。</p></a>
+          <a class="entry-card" href="./emergency/index.html"><span>Emergency</span><strong>应急</strong><p>演练记录管理。</p></a>
+          <a class="entry-card" href="./logs/index.html"><span>Logs</span><strong>日志</strong><p>系统日志查询与详情。</p></a>
+          <a class="entry-card" href="./virtual-expert/index.html"><span>Virtual Expert</span><strong>虚拟专家</strong><p>SSE 问答与聊天日志。</p></a>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

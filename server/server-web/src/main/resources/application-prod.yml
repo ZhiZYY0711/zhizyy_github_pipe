@@ -1,0 +1,19 @@
+# 生产环境建议关闭调试级别日志
+logging:
+  level:
+    com.gxa.pipe: info
+    root: info
+
+
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${PIPELINE_MYSQL_URL:jdbc:mysql://127.0.0.1:3306/pipeline_management_system?useSSL=false&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai}
+    username: ${PIPELINE_MYSQL_USERNAME:appuser}
+    password: ${PIPELINE_MYSQL_PASSWORD:}
+
+agent:
+  service:
+    base-url: ${PIPELINE_AGENT_BASE_URL:http://127.0.0.1:8000}
+    internal-jwt-secret: ${PIPELINE_AGENT_INTERNAL_JWT_SECRET:change-this-secret}
+    audience: ${PIPELINE_AGENT_INTERNAL_JWT_AUDIENCE:pipeline-agent}

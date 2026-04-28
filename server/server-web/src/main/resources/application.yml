@@ -1,0 +1,48 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /manager
+
+spring:
+  application:
+    name: pipeline-management-web
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  mvc:
+    async:
+      request-timeout: ${PIPELINE_SSE_TIMEOUT:10m}
+
+  # Jackson配置
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+    
+  # 配置上传文件的最大大小
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+# MyBatis配置
+mybatis:
+  mapper-locations: classpath:com/gxa/pipe/**/*.xml
+  type-aliases-package: com.gxa.pipe.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+# PageHelper分页插件配置
+pagehelper:
+  helper-dialect: mysql
+  reasonable: true
+  support-methods-arguments: true
+  params: count=countSql
+
+# 日志配置
+logging:
+  file:
+    name: ${PIPELINE_LOG_DIR:../.logs}/server-web.log
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{50} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{50} - %msg%n"

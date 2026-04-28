@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gxa.pipe.log.LogMapper">
+
+    <!-- LogQueryResponse缁撴灉鏄犲皠 -->
+    <resultMap id="LogQueryResponseMap" type="com.gxa.pipe.log.LogQueryResponse">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="type" column="type"/>
+        <result property="operate" column="operate"/>
+        <result property="status" column="status"/>
+        <result property="ipAddress" column="ip_address"/>
+        <result property="details" column="details"/>
+        <result property="period" column="period"/>
+        <result property="operateTime" column="operate_time"/>
+        <result property="username" column="username"/>
+        <result property="userTypeText" column="user_type_text"/>
+        <result property="statusText" column="status_text"/>
+    </resultMap>
+
+    <resultMap id="LogIndicardResponseMap" type="com.gxa.pipe.log.LogIndicardResponse">
+        <result property="debugging" column="debugging"/>
+        <result property="error" column="error"/>
+        <result property="all" column="all"/>
+        <result property="total" column="total"/>
+        <result property="success" column="success"/>
+        <result property="failed" column="failed"/>
+        <result property="avgDuration" column="avg_duration"/>
+        <result property="today" column="today"/>
+        <result property="warning" column="warning"/>
+    </resultMap>
+
+    <!-- 鏍规嵁鏉′欢鍒嗛〉鏌ヨ鏃ュ織淇℃伅 -->
+    <select id="selectLogsByParams" resultMap="LogQueryResponseMap">
+        SELECT
+            l.id,
+            l.user_id,
+            l.type,
+            l.operate,
+            l.status,
+            l.ip_address,
+            l.details,
+            UNIX_TIMESTAMP(l.period) * 1000 as period,
+            UNIX_TIMESTAMP(l.operation_time) * 1000 as operate_time,
+            CASE
+                WHEN l.type = 0 THEN ar.username
+                WHEN l.type = 1 THEN rr.username
+                ELSE NULL
+            END as username,
+            CASE
+                WHEN l.type = 0 THEN '管理员'
+                WHEN l.type = 1 THEN '检修员'
+                ELSE '-'
+            END as user_type_text,
+            CASE
+                WHEN l.status = 0 THEN '成功'
+                WHEN l.status = 1 THEN '失败'
+                WHEN l.status = 2 THEN '告警'
+                WHEN l.status = 3 THEN '调试'
+                ELSE '-'
+            END as status_text
+        FROM (
+            SELECT
+                l.id,
+                l.user_id,
+                l.type,
+                l.operate,
+                l.status,
+                l.ip_address,
+                l.details,
+                l.period,
+                l.operation_time
+            FROM log l
+            <where>
+                <if test="request.areaId > 0">
+                    AND (
+                        (l.type = 0) OR
+                        (l.type = 1 AND EXISTS (
+                            SELECT 1 FROM repairman r
+                            WHERE r.id = l.user_id
+                            AND (
+                                (MOD(#{request.areaId}, 10000) = 0 AND r.area_id BETWEEN #{request.areaId} AND #{request.areaId} + 9999)
+                                OR (MOD(#{request.areaId}, 10000) != 0 AND MOD(#{request.areaId}, 100) = 0 AND r.area_id BETWEEN #{request.areaId} AND #{request.areaId} + 99)
+                                OR (MOD(#{request.areaId}, 100) != 0 AND r.area_id = #{request.areaId})
+                            )
+                        ))
+                    )
+                </if>
+                <if test="request.type != null">
+                    AND l.type = #{request.type}
+                </if>
+                <if test="request.status != null">
+                    AND l.status = #{request.status}
+                </if>
+                <if test="request.operationTimeMin != null and request.operationTimeMin > 0">
+                    AND l.operation_time &gt;= FROM_UNIXTIME(#{request.operationTimeMin} / 1000)
+                </if>
+                <if test="request.operationTimeMax != null and request.operationTimeMax > 0">
+                    AND l.operation_time &lt;= FROM_UNIXTIME(#{request.operationTimeMax} / 1000)
+                </if>
+            </where>
+            ORDER BY l.operation_time DESC
+            LIMIT #{limit} OFFSET #{offset}
+        ) l
+        LEFT JOIN admin_registration ar ON l.user_id = ar.id AND l.type = 0
+        LEFT JOIN repairman_registration rr ON l.user_id = rr.id AND l.type = 1
+    </select>
+
+    <!-- 鏍规嵁鏉′欢缁熻鏃ュ織鎬绘暟 -->
+    <select id="countLogsByParams" parameterType="com.gxa.pipe.log.LogQueryRequest"
+            resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM log l
+        <where>
+            <if test="areaId > 0">
+                AND (
+                    (l.type = 0) OR
+                    (l.type = 1 AND EXISTS (
+                        SELECT 1 FROM repairman r
+                        WHERE r.id = l.user_id
+                        AND (
+                            (MOD(#{areaId}, 10000) = 0 AND r.area_id BETWEEN #{areaId} AND #{areaId} + 9999)
+                            OR (MOD(#{areaId}, 10000) != 0 AND MOD(#{areaId}, 100) = 0 AND r.area_id BETWEEN #{areaId} AND #{areaId} + 99)
+                            OR (MOD(#{areaId}, 100) != 0 AND r.area_id = #{areaId})
+                        )
+                    ))
+                )
+            </if>
+            <if test="type != null">
+                AND l.type = #{type}
+            </if>
+            <if test="status != null">
+                AND l.status = #{status}
+            </if>
+            <if test="operationTimeMin != null and operationTimeMin > 0">
+                AND l.operation_time &gt;= FROM_UNIXTIME(#{operationTimeMin} / 1000)
+            </if>
+            <if test="operationTimeMax != null and operationTimeMax > 0">
+                AND l.operation_time &lt;= FROM_UNIXTIME(#{operationTimeMax} / 1000)
+            </if>
+        </where>
+    </select>
+
+    <!-- 鏍规嵁鐢ㄦ埛ID鍜岀被鍨嬫煡璇㈢敤鎴峰悕 -->
+    <select id="selectUsernameByUserIdAndType" resultType="java.lang.String">
+        <choose>
+            <when test="type == 0">
+                SELECT username FROM admin_registration WHERE id = #{userId}
+            </when>
+            <when test="type == 1">
+                SELECT username FROM repairman_registration WHERE id = #{userId}
+            </when>
+            <otherwise>
+                SELECT NULL
+            </otherwise>
+        </choose>
+    </select>
+
+    <!-- 鏍规嵁鏃ュ織ID鏌ヨ鏃ュ織璇︾粏淇℃伅 -->
+    <select id="selectLogById" parameterType="java.lang.Long"
+            resultMap="LogQueryResponseMap">
+        SELECT
+            l.id,
+            l.user_id,
+            l.type,
+            l.operate,
+            l.status,
+            l.ip_address,
+            l.details,
+            UNIX_TIMESTAMP(l.period) * 1000 as period,
+            UNIX_TIMESTAMP(l.operation_time) * 1000 as operate_time,
+            CASE
+                WHEN l.type = 0 THEN ar.username
+                WHEN l.type = 1 THEN rr.username
+                ELSE NULL
+            END as username,
+            CASE
+                WHEN l.type = 0 THEN '管理员'
+                WHEN l.type = 1 THEN '检修员'
+                ELSE '-'
+            END as user_type_text,
+            CASE
+                WHEN l.status = 0 THEN '成功'
+                WHEN l.status = 1 THEN '失败'
+                WHEN l.status = 2 THEN '告警'
+                WHEN l.status = 3 THEN '调试'
+                ELSE '-'
+            END as status_text
+        FROM log l
+        LEFT JOIN admin_registration ar ON l.user_id = ar.id AND l.type = 0
+        LEFT JOIN repairman_registration rr ON l.user_id = rr.id AND l.type = 1
+        WHERE l.id = #{id}
+    </select>
+
+    <select id="selectLogIndicators" resultMap="LogIndicardResponseMap">
+        SELECT
+            COUNT(*) AS `all`,
+            COUNT(*) AS total,
+            SUM(CASE WHEN l.status = 0 THEN 1 ELSE 0 END) AS success,
+            SUM(CASE WHEN l.status = 1 THEN 1 ELSE 0 END) AS error,
+            SUM(CASE WHEN l.status = 1 THEN 1 ELSE 0 END) AS failed,
+            SUM(CASE WHEN l.status = 2 THEN 1 ELSE 0 END) AS warning,
+            SUM(CASE WHEN l.status = 3 THEN 1 ELSE 0 END) AS debugging,
+            SUM(CASE WHEN l.operation_time &gt;= CURDATE() AND l.operation_time &lt; DATE_ADD(CURDATE(), INTERVAL 1 DAY) THEN 1 ELSE 0 END) AS today,
+            COALESCE(ROUND(AVG(COALESCE(l.period, 0))), 0) AS avg_duration
+        FROM log l
+        <where>
+            <if test="areaId != null and areaId > 0">
+                AND (
+                    (l.type = 0) OR
+                    (l.type = 1 AND EXISTS (
+                        SELECT 1 FROM repairman r
+                        WHERE r.id = l.user_id
+                        AND (
+                            (MOD(#{areaId}, 10000) = 0 AND r.area_id BETWEEN #{areaId} AND #{areaId} + 9999)
+                            OR (MOD(#{areaId}, 10000) != 0 AND MOD(#{areaId}, 100) = 0 AND r.area_id BETWEEN #{areaId} AND #{areaId} + 99)
+                            OR (MOD(#{areaId}, 100) != 0 AND r.area_id = #{areaId})
+                        )
+                    ))
+                )
+            </if>
+        </where>
+    </select>
+
+    <!-- 缁熻鍏ㄩ儴鏃ュ織鏁伴噺 -->
+
+    <!-- 缁熻璀﹀憡鏃ュ織鏁伴噺锛堢姸鎬佷负2锛?-->
+
+    <!-- 缁熻閿欒鏃ュ織鏁伴噺锛堢姸鎬佷负1锛?-->
+
+    <!-- 统计成功日志数量（状态为0） -->
+
+    <!-- 缁熻璋冭瘯鏃ュ織鏁伴噺锛堢姸鎬佷负3锛?-->
+
+    <!-- 缁熻浠婃棩鏃ュ織鏁伴噺 -->
+
+    <!-- 统计平均耗时 -->
+</mapper>

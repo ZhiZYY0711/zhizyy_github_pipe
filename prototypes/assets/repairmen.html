@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>资产模块 / 检修员详情表</title>
+    <link rel="stylesheet" href="../shared/prototype-common.css" />
+    <link rel="stylesheet" href="../shared/module-pages.css" />
+  </head>
+  <body class="prototype-body">
+    <main class="proto-shell">
+      <header class="proto-topbar"><div class="proto-brand"><span class="eyebrow">Asset Console</span><h1>检修员详情二维表</h1></div><nav class="proto-nav" aria-label="主导航"><a href="../overview/index.html">总览</a><a href="../monitoring/index.html">监测</a><a class="active" href="../assets/index.html">资产</a><a href="../tasks/index.html">任务</a><a href="../emergency/index.html">应急</a><a href="../logs/index.html">日志</a><a class="expert" href="../virtual-expert/index.html">虚拟专家</a></nav><div class="proto-ops"><span>POST</span><strong>/find_repairman_params</strong></div></header>
+      <section class="proto-main">
+        <div class="breadcrumb"><div><a class="btn secondary" href="./index.html">资产首页</a> <span>/ 检修员详情</span></div><a class="btn" href="./equipment.html">设备详情</a></div>
+        <section class="panel" style="padding:14px;margin-bottom:14px"><div class="form-grid"><div class="field"><label>姓名</label><input value="王建" /></div><div class="field"><label>状态</label><select><option>全部</option><option>在岗</option><option>外勤</option></select></div><div class="field"><label>负责区域</label><input value="华北一区" /></div><div class="field"><label>技能</label><input value="仪控/阀室" /></div></div></section>
+        <div class="dense-table-wrap">
+          <table class="dense-table">
+            <thead><tr><th>ID</th><th>姓名</th><th>班组</th><th>状态</th><th>负责区域</th><th>负责设备</th><th>当前任务数</th><th>闭环率</th><th>手机号</th><th>技能标签</th><th>最近记录</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr><td>501</td><td>王建</td><td>一班</td><td><span class="chip good">在岗</span></td><td>华北一区</td><td>压缩机组/阀室</td><td>3</td><td>97%</td><td>138****6172</td><td>机械,阀室</td><td>04-20 11:30 阀室复核</td><td><button class="btn secondary" data-drawer>详情</button></td></tr>
+              <tr><td>502</td><td>刘敏</td><td>二班</td><td><span class="chip good">在岗</span></td><td>京沪干线</td><td>阀室/计量</td><td>2</td><td>95%</td><td>139****2281</td><td>计量,巡检</td><td>04-20 10:05 任务接收</td><td><button class="btn secondary" data-drawer>详情</button></td></tr>
+              <tr><td>503</td><td>赵磊</td><td>应急组</td><td><span class="chip warn">外勤</span></td><td>西南段</td><td>阴保站</td><td>1</td><td>93%</td><td>136****9022</td><td>电气,应急</td><td>04-20 09:18 到场</td><td><button class="btn secondary" data-drawer>详情</button></td></tr>
+              <tr><td>504</td><td>陈雪</td><td>仪控</td><td><span class="chip good">在岗</span></td><td>华东二区</td><td>流量计/站控柜</td><td>4</td><td>98%</td><td>137****7740</td><td>仪控,通信</td><td>04-19 17:20 参数校验</td><td><button class="btn secondary" data-drawer>详情</button></td></tr>
+              <tr><td>505</td><td>郭琳</td><td>调度联络</td><td><span class="chip warn">轮休</span></td><td>华南站</td><td>调压撬</td><td>0</td><td>96%</td><td>135****1819</td><td>协调,记录</td><td>04-18 15:45 工单确认</td><td><button class="btn secondary" data-drawer>详情</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="api-note">列表：<code>POST /data_management/repairman/find_repairman_params</code>；详情：<code>POST /data_management/repairman/find_repairman_id</code>；增改删：<code>POST /data_management/repairman/add_repairman</code>、<code>POST /data_management/repairman/update_repairman</code>、<code>GET /data_management/repairman/delete_repairman/{ids}</code>。</p>
+      </section>
+    </main>
+    <section class="drawer" id="drawer"><div class="drawer-card"><div class="section-title"><h3>检修员详情抽屉</h3><button class="btn secondary" data-close>关闭</button></div><div class="kv"><span>详情接口</span><strong>POST /data_management/repairman/find_repairman_id</strong></div><div class="kv"><span>请求参数</span><strong>id</strong></div><div class="kv"><span>展示策略</span><strong>点击行或详情按钮后显示</strong></div></div></section>
+    <script>document.querySelectorAll('[data-drawer]').forEach(el=>el.onclick=()=>document.getElementById('drawer').classList.add('is-open'));document.querySelector('[data-close]').onclick=()=>document.getElementById('drawer').classList.remove('is-open');</script>
+  </body>
+</html>

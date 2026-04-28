@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>资产模块 / 设备详情表</title>
+    <link rel="stylesheet" href="../shared/prototype-common.css" />
+    <link rel="stylesheet" href="../shared/module-pages.css" />
+  </head>
+  <body class="prototype-body">
+    <main class="proto-shell">
+      <header class="proto-topbar"><div class="proto-brand"><span class="eyebrow">Asset Console</span><h1>设备详情二维表</h1></div><nav class="proto-nav" aria-label="主导航"><a href="../overview/index.html">总览</a><a href="../monitoring/index.html">监测</a><a class="active" href="../assets/index.html">资产</a><a href="../tasks/index.html">任务</a><a href="../emergency/index.html">应急</a><a href="../logs/index.html">日志</a><a class="expert" href="../virtual-expert/index.html">虚拟专家</a></nav><div class="proto-ops"><span>POST</span><strong>/find_equipment_params</strong></div></header>
+      <section class="proto-main">
+        <div class="breadcrumb"><div><a class="btn secondary" href="./index.html">资产首页</a> <span>/ 设备详情</span></div><a class="btn" href="./repairmen.html">检修员详情</a></div>
+        <section class="panel" style="padding:14px;margin-bottom:14px"><div class="form-grid"><div class="field"><label>设备名称</label><input value="压缩机组" /></div><div class="field"><label>设备类型</label><select><option>全部类型</option><option>阀室</option><option>计量</option></select></div><div class="field"><label>运行状态</label><select><option>全部状态</option><option>运行中</option><option>异常</option></select></div><div class="field"><label>区域</label><input value="华北一区" /></div></div></section>
+        <div class="dense-table-wrap">
+          <table class="dense-table">
+            <thead><tr><th>ID</th><th>设备编号</th><th>设备名称</th><th>类型</th><th>区域</th><th>站场</th><th>状态</th><th>压力</th><th>温度</th><th>投运时间</th><th>上次检修</th><th>负责人</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr><td>1001</td><td>CN-2026-017</td><td>压缩机组 A-17</td><td>压缩</td><td>华北一区</td><td>北站</td><td><span class="chip good">运行中</span></td><td>4.2MPa</td><td>62℃</td><td>2021-05-16</td><td>2026-04-08</td><td>王建</td><td><button class="btn secondary" data-drawer>详情</button></td></tr>
+              <tr><td>1002</td><td>VL-009</td><td>阀室 V-09</td><td>阀室</td><td>京沪干线</td><td>9#阀室</td><td><span class="chip warn">待检</span></td><td>3.8MPa</td><td>47℃</td><td>2020-11-03</td><td>2026-03-21</td><td>刘敏</td><td><button class="btn secondary" data-drawer>详情</button></td></tr>
+              <tr><td>1003</td><td>CP-004</td><td>阴保站 CP-04</td><td>阴保</td><td>西南段</td><td>里程 184</td><td><span class="chip bad">异常</span></td><td>-</td><td>39℃</td><td>2019-08-22</td><td>2026-04-01</td><td>赵磊</td><td><button class="btn secondary" data-drawer>详情</button></td></tr>
+              <tr><td>1004</td><td>FM-033</td><td>流量计 F-33</td><td>计量</td><td>华东二区</td><td>东站</td><td><span class="chip good">在线</span></td><td>3.9MPa</td><td>41℃</td><td>2022-02-14</td><td>2026-02-28</td><td>陈雪</td><td><button class="btn secondary" data-drawer>详情</button></td></tr>
+              <tr><td>1005</td><td>HF-002</td><td>加热炉 HF-02</td><td>加热</td><td>东北站</td><td>锅炉区</td><td><span class="chip warn">保养中</span></td><td>2.7MPa</td><td>81℃</td><td>2018-12-01</td><td>2026-04-20</td><td>何睿</td><td><button class="btn secondary" data-drawer>详情</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="api-note">列表：<code>POST /data_management/equipment/find_equipment_params</code>；详情：<code>POST /data_management/equipment/find_equipment_id</code>；增改删：<code>POST /data_management/equipment/add_equipment</code>、<code>POST /data_management/equipment/update_equipment</code>、<code>GET /data_management/equipment/delete_equipment/{ids}</code>。</p>
+      </section>
+    </main>
+    <section class="drawer" id="drawer"><div class="drawer-card"><div class="section-title"><h3>设备详情抽屉</h3><button class="btn secondary" data-close>关闭</button></div><div class="kv"><span>详情接口</span><strong>POST /data_management/equipment/find_equipment_id</strong></div><div class="kv"><span>请求参数</span><strong>id</strong></div><div class="kv"><span>展示策略</span><strong>点击行或详情按钮后显示</strong></div></div></section>
+    <script>document.querySelectorAll('[data-drawer]').forEach(el=>el.onclick=()=>document.getElementById('drawer').classList.add('is-open'));document.querySelector('[data-close]').onclick=()=>document.getElementById('drawer').classList.remove('is-open');</script>
+  </body>
+</html>

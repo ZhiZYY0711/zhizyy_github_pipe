@@ -1,0 +1,121 @@
+{
+  "profiles": {
+    "sample": {
+      "pipe_count": 2000,
+      "sensor_count": 1000,
+      "task_count": 500,
+      "inspection_count": 10000
+    },
+    "full": {
+      "pipe_count": 2000,
+      "sensor_count": 100000,
+      "task_count": 50000,
+      "inspection_count": 1000000
+    }
+  },
+  "pipes": [
+    {
+      "name": "京沪燃气干线-G1",
+      "pipe_level": "TRUNK",
+      "segment_level": "CITY_TO_CITY",
+      "medium": "GAS",
+      "description": "华北至华东的城市级燃气主干管道",
+      "route": [
+        { "area_id": 110000, "name": "北京市" },
+        { "area_id": 120000, "name": "天津市" },
+        { "area_id": 370100, "name": "济南市" },
+        { "area_id": 320100, "name": "南京市" },
+        { "area_id": 320500, "name": "苏州市" },
+        { "area_id": 310000, "name": "上海市" }
+      ]
+    },
+    {
+      "name": "华北供水调度干线-W1",
+      "pipe_level": "TRUNK",
+      "segment_level": "CITY_TO_CITY",
+      "medium": "WATER",
+      "description": "华北重点城市供水调度管道",
+      "route": [
+        { "area_id": 130100, "name": "石家庄市" },
+        { "area_id": 130200, "name": "唐山市" },
+        { "area_id": 120000, "name": "天津市" },
+        { "area_id": 110000, "name": "北京市" }
+      ]
+    },
+    {
+      "name": "长三角成品油干线-O1",
+      "pipe_level": "TRUNK",
+      "segment_level": "CITY_TO_CITY",
+      "medium": "OIL",
+      "description": "长三角城市群成品油输送管道",
+      "route": [
+        { "area_id": 330100, "name": "杭州市" },
+        { "area_id": 330200, "name": "宁波市" },
+        { "area_id": 310000, "name": "上海市" },
+        { "area_id": 320500, "name": "苏州市" },
+        { "area_id": 320100, "name": "南京市" }
+      ]
+    },
+    {
+      "name": "南京城南供水支线-W2",
+      "pipe_level": "BRANCH",
+      "segment_level": "DISTRICT_TO_DISTRICT",
+      "medium": "WATER",
+      "description": "南京南部城区供水支线",
+      "route": [
+        { "area_id": 320115, "name": "江宁区" },
+        { "area_id": 320114, "name": "雨花台区" },
+        { "area_id": 320104, "name": "秦淮区" },
+        { "area_id": 320102, "name": "玄武区" }
+      ]
+    },
+    {
+      "name": "上海浦东燃气支线-G2",
+      "pipe_level": "BRANCH",
+      "segment_level": "DISTRICT_TO_DISTRICT",
+      "medium": "GAS",
+      "description": "上海东部城区燃气支线",
+      "route": [
+        { "area_id": 310115, "name": "浦东新区" },
+        { "area_id": 310112, "name": "闵行区" },
+        { "area_id": 310104, "name": "徐汇区" },
+        { "area_id": 310101, "name": "黄浦区" }
+      ]
+    },
+    {
+      "name": "苏州工业园供水支线-W3",
+      "pipe_level": "BRANCH",
+      "segment_level": "DISTRICT_TO_DISTRICT",
+      "medium": "WATER",
+      "description": "苏州城区与工业片区供水支线",
+      "route": [
+        { "area_id": 320508, "name": "姑苏区" },
+        { "area_id": 320506, "name": "吴中区" },
+        { "area_id": 320507, "name": "相城区" },
+        { "area_id": 320509, "name": "吴江区" }
+      ]
+    },
+    {
+      "name": "朝阳望京燃气本地线-G7",
+      "pipe_level": "LOCAL",
+      "segment_level": "IN_DISTRICT",
+      "medium": "GAS",
+      "description": "北京市朝阳区内部燃气本地管道",
+      "route": [
+        { "area_id": 110105, "name": "朝阳区" },
+        { "area_id": 110105, "name": "朝阳区" }
+      ]
+    },
+    {
+      "name": "浦东新区本地供水线-W7",
+      "pipe_level": "LOCAL",
+      "segment_level": "IN_DISTRICT",
+      "medium": "WATER",
+      "description": "上海市浦东新区内部供水本地管道",
+      "route": [
+        { "area_id": 310115, "name": "浦东新区" },
+        { "area_id": 310115, "name": "浦东新区" }
+      ]
+    }
+  ]
+}

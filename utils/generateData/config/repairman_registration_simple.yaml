@@ -1,0 +1,9 @@
+# 检修员登录表简单配置示例
+repairman_registration:
+  # 简单配置：只修改生成数量和用户名前缀
+  username:
+    prefix: "worker"                    # 用户名前缀改为 "worker"
+    suffix_length: 3                    # 后缀改为3位数字
+  
+  data:
+    default_count: 50                   # 生成50条记录

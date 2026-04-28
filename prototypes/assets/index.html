@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>资产模块 / 工作台原型</title>
+    <link rel="stylesheet" href="../shared/prototype-common.css" />
+    <link rel="stylesheet" href="../shared/module-pages.css" />
+  </head>
+  <body class="prototype-body">
+    <main class="proto-shell">
+      <header class="proto-topbar">
+        <div class="proto-brand"><span class="eyebrow">Asset Console</span><h1>资产信息工作台</h1></div>
+        <nav class="proto-nav" aria-label="主导航">
+          <a href="../overview/index.html">总览</a><a href="../monitoring/index.html">监测</a><a class="active" href="../assets/index.html">资产</a><a href="../tasks/index.html">任务</a><a href="../emergency/index.html">应急</a><a href="../logs/index.html">日志</a><a class="expert" href="../virtual-expert/index.html">虚拟专家</a>
+        </nav>
+        <div class="proto-ops"><span>设备/检修员双区</span><strong>API Driven</strong></div>
+      </header>
+      <section class="proto-main">
+        <div class="page-head">
+          <div><span class="eyebrow">Page A</span><h2>设备信息区 + 检修员信息区</h2></div>
+          <div><a class="btn secondary" href="./equipment.html">设备详情</a> <a class="btn secondary" href="./repairmen.html">检修员详情</a></div>
+        </div>
+        <div class="asset-stack">
+          <section class="asset-section panel">
+            <div class="section-title"><h3>设备信息区</h3><a class="btn" href="./equipment.html">进入设备详情表</a></div>
+            <div class="asset-card-grid">
+              <article class="asset-card" data-drawer><h4>压缩机组 A-17</h4><div class="meta-row"><span class="chip good">运行中</span><span>华北一区</span><span>CN-2026-017</span></div><p>压力 4.2MPa，温度 62℃，上次检修 2026-04-08。</p></article>
+              <article class="asset-card" data-drawer><h4>阀室 V-09</h4><div class="meta-row"><span class="chip warn">待检</span><span>京沪干线</span><span>VL-009</span></div><p>计划本周巡检，关联检修员 2 人。</p></article>
+              <article class="asset-card" data-drawer><h4>流量计 F-33</h4><div class="meta-row"><span class="chip good">在线</span><span>华东二区</span><span>FM-033</span></div><p>近 24 小时数据完整率 99.4%。</p></article>
+              <article class="asset-card" data-drawer><h4>阴保站 CP-04</h4><div class="meta-row"><span class="chip bad">异常</span><span>西南段</span><span>CP-004</span></div><p>电位波动超过阈值，建议复核。</p></article>
+              <article class="asset-card" data-drawer><h4>调压撬 PR-21</h4><div class="meta-row"><span class="chip good">运行中</span><span>华南站</span><span>PR-021</span></div><p>当前负荷 72%，无未闭环工单。</p></article>
+              <article class="asset-card" data-drawer><h4>站控柜 SC-12</h4><div class="meta-row"><span class="chip warn">离线短报</span><span>山东支线</span><span>SC-012</span></div><p>通信链路 3 分钟短时离线。</p></article>
+              <article class="asset-card" data-drawer><h4>压力变送器 PT-88</h4><div class="meta-row"><span class="chip good">正常</span><span>冀中段</span><span>PT-088</span></div><p>校准有效期至 2026-08-19。</p></article>
+              <article class="asset-card" data-drawer><h4>计量撬 MS-06</h4><div class="meta-row"><span class="chip good">正常</span><span>天津站</span><span>MS-006</span></div><p>日累计偏差 0.18%，低于预警线。</p></article>
+              <article class="asset-card" data-drawer><h4>加热炉 HF-02</h4><div class="meta-row"><span class="chip warn">保养中</span><span>东北站</span><span>HF-002</span></div><p>保养预计 18:30 完成。</p></article>
+            </div>
+            <p class="api-note">接口：<code>GET /data_management/equipment/Indicator_card</code>，详情抽屉点击后使用 <code>POST /data_management/equipment/find_equipment_id</code>。</p>
+          </section>
+          <section class="asset-section panel">
+            <div class="section-title"><h3>检修员信息区</h3><a class="btn" href="./repairmen.html">进入检修员详情表</a></div>
+            <div class="asset-card-grid">
+              <article class="asset-card" data-drawer><h4>王建 / 一班</h4><div class="meta-row"><span class="chip good">在岗</span><span>华北一区</span><span>3 个任务</span></div><p>负责压缩机组、阀室巡检。</p></article>
+              <article class="asset-card" data-drawer><h4>刘敏 / 二班</h4><div class="meta-row"><span class="chip good">在岗</span><span>京沪干线</span><span>2 个任务</span></div><p>当前正在处理阀室复核。</p></article>
+              <article class="asset-card" data-drawer><h4>赵磊 / 应急组</h4><div class="meta-row"><span class="chip warn">外勤</span><span>西南段</span><span>1 个任务</span></div><p>预计 40 分钟后回传结果。</p></article>
+              <article class="asset-card" data-drawer><h4>陈雪 / 仪控</h4><div class="meta-row"><span class="chip good">在岗</span><span>华东二区</span><span>4 个任务</span></div><p>擅长流量计与站控系统。</p></article>
+              <article class="asset-card" data-drawer><h4>孙航 / 维护</h4><div class="meta-row"><span class="chip warn">待派</span><span>天津站</span><span>0 个任务</span></div><p>可调度至相邻站场。</p></article>
+              <article class="asset-card" data-drawer><h4>周宁 / 三班</h4><div class="meta-row"><span class="chip good">在岗</span><span>山东支线</span><span>2 个任务</span></div><p>本周闭环率 96%。</p></article>
+              <article class="asset-card" data-drawer><h4>何睿 / 电气</h4><div class="meta-row"><span class="chip good">在岗</span><span>东北站</span><span>1 个任务</span></div><p>负责阴保与供配电设备。</p></article>
+              <article class="asset-card" data-drawer><h4>马腾 / 计量</h4><div class="meta-row"><span class="chip good">在岗</span><span>冀中段</span><span>2 个任务</span></div><p>处理计量偏差复核。</p></article>
+              <article class="asset-card" data-drawer><h4>郭琳 / 调度联络</h4><div class="meta-row"><span class="chip warn">轮休</span><span>华南站</span><span>0 个任务</span></div><p>可查看历史记录，不可直接派工。</p></article>
+            </div>
+            <p class="api-note">接口：<code>GET /data_management/repairman/Indicator_card</code>，详情抽屉点击后使用 <code>POST /data_management/repairman/find_repairman_id</code>。</p>
+          </section>
+        </div>
+      </section>
+    </main>
+    <section class="drawer" id="drawer"><div class="drawer-card"><div class="section-title"><h3>点击后显示的详情抽屉</h3><button class="btn secondary" data-close>关闭</button></div><div class="kv"><span>ID 查询</span><strong>使用单条详情接口</strong></div><div class="kv"><span>状态</span><strong>非默认常驻显示</strong></div><p class="api-note">抽屉只在点击卡片后打开，首页默认不展示抽屉。</p></div></section>
+    <script>document.querySelectorAll('[data-drawer]').forEach(el=>el.onclick=()=>document.getElementById('drawer').classList.add('is-open'));document.querySelector('[data-close]').onclick=()=>document.getElementById('drawer').classList.remove('is-open');</script>
+  </body>
+</html>

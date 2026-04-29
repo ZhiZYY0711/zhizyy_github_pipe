@@ -76,6 +76,8 @@ pnpm-lock.yaml.bak
 tmp/
 temp/
 runtime/
+!server-agent/app/runtime/
+!server-agent/app/runtime/**
 *.tmp
 
 # =========================

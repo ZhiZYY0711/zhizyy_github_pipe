@@ -94,7 +94,7 @@ onBeforeUnmount(() => {
 })
 
 async function renderBaseMap() {
-  if (!chartEl.value) {
+  if (!chartEl.value || !props.region.path) {
     return
   }
 

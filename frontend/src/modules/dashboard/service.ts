@@ -47,7 +47,7 @@ export async function loadGeoIndex() {
 }
 
 export function resolveGeoAssetPath(path: string) {
-  if (!geoCdnBaseUrl || isAbsoluteUrl(path)) {
+  if (!geoCdnBaseUrl || isAbsoluteUrl(path) || isResolvedGeoAssetPath(path)) {
     return path
   }
 
@@ -135,6 +135,10 @@ function normalizeGeoIndexEntry(entry: GeoIndex['china']) {
 
 function isAbsoluteUrl(path: string) {
   return /^(?:[a-z]+:)?\/\//i.test(path) || path.startsWith('data:') || path.startsWith('blob:')
+}
+
+function isResolvedGeoAssetPath(path: string) {
+  return path === geoCdnBaseUrl || path.startsWith(`${geoCdnBaseUrl}/`)
 }
 
 function normalizeKpi(payload: DashboardKpi) {

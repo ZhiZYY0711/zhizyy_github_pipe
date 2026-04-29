@@ -264,7 +264,7 @@ cp .env.example .env
 | `AGENT_INTERNAL_JWT_SECRET` | Java 后端和 Agent 内部调用共享密钥 |
 | `AGENT_LLM_API_KEY` | 大模型 API Key |
 | `FRONTEND_PORT` | 前端对外端口，默认 `80` |
-| `VITE_GEO_CDN_BASE_URL` | 地图 GeoJSON CDN 根地址 |
+| `VITE_GEO_CDN_BASE_URL` | 地图 GeoJSON 访问根地址，生产默认通过前端 nginx 的 `/geo-cdn/v1` 同源代理访问 OSS |
 
 `AGENT_DATABASE_URL`、`AGENT_REDIS_URL`、`AGENT_QDRANT_URL`、`AGENT_TOOL_BASE_URL` 等容器内部地址由 `docker-compose.yml` 自动注入，生产部署不需要手动填写 `127.0.0.1` 版本。
 
@@ -283,7 +283,7 @@ cp .env.example .env
 > frontend/dist/geo-cdn/v1
 > ```
 >
-> 上传这个目录到 CDN 的 `/geo/v1` 根路径即可。脚本会保留全国入口，按省生成城市边界包，按市生成区县边界包，并让 `index.json` 指向这些分包，避免 CDN 上保留几千个区县散文件。
+> 上传这个目录到 CDN 的 `/geo-cdn/v1` 根路径即可。脚本会保留全国入口，按省生成城市边界包，按市生成区县边界包，并让 `index.json` 指向这些分包，避免 CDN 上保留几千个区县散文件。生产前端默认请求 `/geo-cdn/v1`，再由 nginx 代理到 OSS，避免浏览器跨域读取失败。
 
 生产环境不要提交真实 `.env`。如果 `.env` 里还存在 `change-*`、`replace-*` 这类占位值，需要全部替换。
 

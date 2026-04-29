@@ -15,7 +15,6 @@ import {
   loadGeoIndex,
   loadMapTooltipData,
   loadAreaOptions,
-  resolveGeoAssetPath,
 } from './service'
 import type {
   AreaOption,
@@ -40,7 +39,7 @@ const mapRegion = ref<MapRegion>({
   code: '100000',
   name: '全国',
   level: 'country',
-  path: resolveGeoAssetPath('/geo/china/100000_full.json'),
+  path: '',
 })
 const focusRegion = ref<MapRegion | null>(null)
 const kpi = ref<Required<DashboardKpi>>({

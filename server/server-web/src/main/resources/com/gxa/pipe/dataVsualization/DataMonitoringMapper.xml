@@ -12,6 +12,16 @@
         </if>
     </sql>
 
+    <sql id="metricAreaFilter">
+        <if test="areaId != null">
+            AND (
+                (MOD(#{areaId}, 10000) = 0 AND m.area_id BETWEEN #{areaId} AND #{areaId} + 9999)
+                OR (MOD(#{areaId}, 10000) != 0 AND MOD(#{areaId}, 100) = 0 AND m.area_id BETWEEN #{areaId} AND #{areaId} + 99)
+                OR (MOD(#{areaId}, 100) != 0 AND m.area_id = #{areaId})
+            )
+        </if>
+    </sql>
+
     <!-- 查询区域四维度数据 -->
     <select id="selectAreaDetails" resultType="com.gxa.pipe.dataVsualization.dataMonitoring.AreaDetailResponse">
         SELECT 
@@ -21,7 +31,9 @@
             AVG(i.shake) as ave_vibration,
             UNIX_TIMESTAMP(DATE(i.create_time)) * 1000 as time
         FROM inspection i
-        INNER JOIN sensor s ON i.sensor_id = s.id
+        <if test="areaId != null">
+            INNER JOIN sensor s ON i.sensor_id = s.id
+        </if>
         <where>
             <include refid="sensorAreaFilter"/>
             <if test="startTime != null and startTime != 0">
@@ -33,6 +45,27 @@
         </where>
         GROUP BY DATE(i.create_time), time
         ORDER BY DATE(i.create_time)
+    </select>
+
+    <select id="selectAreaDetailsFromDailyAggregate" resultType="com.gxa.pipe.dataVsualization.dataMonitoring.AreaDetailResponse">
+        SELECT
+            SUM(m.traffic_sum) / NULLIF(SUM(m.sample_count), 0) AS ave_flow,
+            SUM(m.pressure_sum) / NULLIF(SUM(m.sample_count), 0) AS ave_pressure,
+            SUM(m.temperature_sum) / NULLIF(SUM(m.sample_count), 0) AS ave_temperature,
+            SUM(m.shake_sum) / NULLIF(SUM(m.sample_count), 0) AS ave_vibration,
+            UNIX_TIMESTAMP(m.stat_date) * 1000 AS time
+        FROM inspection_metric_daily m
+        <where>
+            <include refid="metricAreaFilter"/>
+            <if test="startTime != null and startTime != 0">
+                AND m.stat_date &gt;= DATE(FROM_UNIXTIME(#{startTime}/1000))
+            </if>
+            <if test="endTime != null and endTime != 0">
+                AND m.stat_date &lt;= DATE(FROM_UNIXTIME(#{endTime}/1000))
+            </if>
+        </where>
+        GROUP BY m.stat_date
+        ORDER BY m.stat_date
     </select>
 
     <!-- 查询管道四维度数据 -->
@@ -67,6 +100,38 @@
         </where>
         GROUP BY DATE(i.create_time), time
         ORDER BY DATE(i.create_time)
+    </select>
+
+    <select id="selectPipeDetailsFromDailyAggregate" resultType="com.gxa.pipe.dataVsualization.dataMonitoring.PipeDetailResponse">
+        SELECT
+            SUM(m.traffic_sum) / NULLIF(SUM(m.sample_count), 0) AS ave_flow,
+            SUM(m.pressure_sum) / NULLIF(SUM(m.sample_count), 0) AS ave_pressure,
+            SUM(m.temperature_sum) / NULLIF(SUM(m.sample_count), 0) AS ave_temperature,
+            SUM(m.shake_sum) / NULLIF(SUM(m.sample_count), 0) AS ave_vibration,
+            UNIX_TIMESTAMP(m.stat_date) * 1000 AS time
+        FROM inspection_metric_daily m
+        <where>
+            <if test="id != null">
+                AND m.pipeline_id = #{id}
+            </if>
+            <if test="segmentId != null">
+                AND m.pipe_segment_id = #{segmentId}
+            </if>
+            <if test="segmentIds != null and segmentIds.size() > 0">
+                AND m.pipe_segment_id IN
+                <foreach collection="segmentIds" item="segmentIdItem" open="(" separator="," close=")">
+                    #{segmentIdItem}
+                </foreach>
+            </if>
+            <if test="startTime != null and startTime != 0">
+                AND m.stat_date &gt;= DATE(FROM_UNIXTIME(#{startTime}/1000))
+            </if>
+            <if test="endTime != null and endTime != 0">
+                AND m.stat_date &lt;= DATE(FROM_UNIXTIME(#{endTime}/1000))
+            </if>
+        </where>
+        GROUP BY m.stat_date
+        ORDER BY m.stat_date
     </select>
 
     <select id="selectPipeSegmentSelections" resultType="com.gxa.pipe.dataVsualization.dataMonitoring.PipeSegmentSelection">

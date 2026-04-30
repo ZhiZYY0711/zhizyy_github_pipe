@@ -1,5 +1,6 @@
 package com.gxa.pipe.dataManagement.monitoring;
 
+import com.gxa.pipe.config.MonitoringAggregateProperties;
 import com.gxa.pipe.utils.PageResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +17,7 @@ import java.util.Map;
 public class MonitoringDataServiceImpl implements MonitoringDataService {
 
     private final MonitoringDataMapper monitoringDataMapper;
+    private final MonitoringAggregateProperties monitoringAggregateProperties;
 
     @Override
     public PageResult<MonitoringDataQueryResponse> getByPage(MonitoringDataQueryRequest request) {
@@ -74,6 +76,18 @@ public class MonitoringDataServiceImpl implements MonitoringDataService {
     @Override
     public MonitoringDataIndicatorResponse getIndicatorCard(String areaId) {
         log.info("获取监测数据指标卡，areaId：{}", areaId);
+        if (monitoringAggregateProperties.isEnabled()) {
+            try {
+                MonitoringDataIndicatorResponse aggregate =
+                        monitoringDataMapper.getIndicatorCardFromDailyAggregate(areaId);
+                if (aggregate != null) {
+                    return aggregate;
+                }
+            } catch (RuntimeException exception) {
+                log.warn("监测指标卡聚合查询失败，回退原始明细聚合", exception);
+            }
+        }
+
         return monitoringDataMapper.getIndicatorCard(areaId);
     }
 }

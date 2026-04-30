@@ -321,21 +321,66 @@
 
     <select id="getIndicatorCard" resultMap="MonitoringDataIndicatorResultMap">
         SELECT
-            CAST(COUNT(*) AS CHAR) AS total_records,
-            CAST(SUM(CASE WHEN i.data_status = 0 THEN 1 ELSE 0 END) AS CHAR) AS safe_count,
-            CAST(SUM(CASE WHEN i.data_status = 1 THEN 1 ELSE 0 END) AS CHAR) AS good_count,
-            CAST(SUM(CASE WHEN i.data_status = 2 THEN 1 ELSE 0 END) AS CHAR) AS danger_count,
-            CAST(SUM(CASE WHEN i.create_time &gt;= CURDATE() AND i.create_time &lt; DATE_ADD(CURDATE(), INTERVAL 1 DAY) THEN 1 ELSE 0 END) AS CHAR) AS today,
-            CAST(SUM(CASE WHEN i.data_status = 3 THEN 1 ELSE 0 END) AS CHAR) AS critical_count
-        FROM inspection i
-        <if test="areaId != null and areaId != ''">
-            LEFT JOIN sensor s ON i.sensor_id = s.id
-            WHERE (
-                (MOD(#{areaId}, 10000) = 0 AND s.area_id BETWEEN #{areaId} AND #{areaId} + 9999)
-                OR (MOD(#{areaId}, 10000) != 0 AND MOD(#{areaId}, 100) = 0 AND s.area_id BETWEEN #{areaId} AND #{areaId} + 99)
-                OR (MOD(#{areaId}, 100) != 0 AND s.area_id = #{areaId})
-            )
-        </if>
+            CAST(COALESCE(SUM(status_counts.status_count), 0) AS CHAR) AS total_records,
+            CAST(COALESCE(SUM(CASE WHEN status_counts.data_status = 0 THEN status_counts.status_count ELSE 0 END), 0) AS CHAR) AS safe_count,
+            CAST(COALESCE(SUM(CASE WHEN status_counts.data_status = 1 THEN status_counts.status_count ELSE 0 END), 0) AS CHAR) AS good_count,
+            CAST(COALESCE(SUM(CASE WHEN status_counts.data_status = 2 THEN status_counts.status_count ELSE 0 END), 0) AS CHAR) AS danger_count,
+            CAST((
+                SELECT COUNT(*)
+                FROM inspection today_i
+                <if test="areaId != null and areaId != ''">
+                    INNER JOIN sensor today_s ON today_i.sensor_id = today_s.id
+                </if>
+                WHERE today_i.create_time &gt;= CURDATE()
+                  AND today_i.create_time &lt; DATE_ADD(CURDATE(), INTERVAL 1 DAY)
+                <if test="areaId != null and areaId != ''">
+                  AND (
+                      (MOD(#{areaId}, 10000) = 0 AND today_s.area_id BETWEEN #{areaId} AND #{areaId} + 9999)
+                      OR (MOD(#{areaId}, 10000) != 0 AND MOD(#{areaId}, 100) = 0 AND today_s.area_id BETWEEN #{areaId} AND #{areaId} + 99)
+                      OR (MOD(#{areaId}, 100) != 0 AND today_s.area_id = #{areaId})
+                  )
+                </if>
+            ) AS CHAR) AS today,
+            CAST(COALESCE(SUM(CASE WHEN status_counts.data_status = 3 THEN status_counts.status_count ELSE 0 END), 0) AS CHAR) AS critical_count
+        FROM (
+            SELECT
+                i.data_status,
+                COUNT(*) AS status_count
+            FROM inspection i
+            <if test="areaId != null and areaId != ''">
+                INNER JOIN sensor s ON i.sensor_id = s.id
+            </if>
+            <where>
+                <if test="areaId != null and areaId != ''">
+                    AND (
+                        (MOD(#{areaId}, 10000) = 0 AND s.area_id BETWEEN #{areaId} AND #{areaId} + 9999)
+                        OR (MOD(#{areaId}, 10000) != 0 AND MOD(#{areaId}, 100) = 0 AND s.area_id BETWEEN #{areaId} AND #{areaId} + 99)
+                        OR (MOD(#{areaId}, 100) != 0 AND s.area_id = #{areaId})
+                    )
+                </if>
+            </where>
+            GROUP BY i.data_status
+        ) status_counts
+    </select>
+
+    <select id="getIndicatorCardFromDailyAggregate" resultMap="MonitoringDataIndicatorResultMap">
+        SELECT
+            CAST(COALESCE(SUM(m.sample_count), 0) AS CHAR) AS total_records,
+            CAST(COALESCE(SUM(m.safe_count), 0) AS CHAR) AS safe_count,
+            CAST(COALESCE(SUM(m.good_count), 0) AS CHAR) AS good_count,
+            CAST(COALESCE(SUM(m.danger_count), 0) AS CHAR) AS danger_count,
+            CAST(COALESCE(SUM(CASE WHEN m.stat_date = CURDATE() THEN m.sample_count ELSE 0 END), 0) AS CHAR) AS today,
+            CAST(COALESCE(SUM(m.critical_count), 0) AS CHAR) AS critical_count
+        FROM inspection_metric_daily m
+        <where>
+            <if test="areaId != null and areaId != ''">
+                AND (
+                    (MOD(#{areaId}, 10000) = 0 AND m.area_id BETWEEN #{areaId} AND #{areaId} + 9999)
+                    OR (MOD(#{areaId}, 10000) != 0 AND MOD(#{areaId}, 100) = 0 AND m.area_id BETWEEN #{areaId} AND #{areaId} + 99)
+                    OR (MOD(#{areaId}, 100) != 0 AND m.area_id = #{areaId})
+                )
+            </if>
+        </where>
     </select>
 
 </mapper>

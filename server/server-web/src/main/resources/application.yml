@@ -39,6 +39,14 @@ pagehelper:
   support-methods-arguments: true
   params: count=countSql
 
+performance:
+  monitoring-aggregate:
+    enabled: false
+    refresh-enabled: false
+    today-refresh-interval-ms: 600000
+    repair-cron: "0 20 3 * * *"
+    repair-window-days: 7
+
 # 日志配置
 logging:
   file:

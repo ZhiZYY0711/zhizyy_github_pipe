@@ -1,6 +1,7 @@
 package com.gxa.pipe.dataVsualization.dataMonitoring;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gxa.pipe.config.MonitoringAggregateProperties;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
@@ -16,6 +17,10 @@ import static org.mockito.Mockito.when;
 class DataMonitoringSegmentContractTest {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    private DataMonitoringServiceImpl newService(DataMonitoringMapper mapper) {
+        return new DataMonitoringServiceImpl(mapper, new MonitoringAggregateProperties());
+    }
 
     @Test
     void pipeDetailsRequestAcceptsSegmentIds() throws Exception {
@@ -33,7 +38,7 @@ class DataMonitoringSegmentContractTest {
     @Test
     void pipeDetailsCanQueryBySegmentIdWithoutPipeId() {
         DataMonitoringMapper mapper = mock(DataMonitoringMapper.class);
-        DataMonitoringServiceImpl service = new DataMonitoringServiceImpl(mapper);
+        DataMonitoringServiceImpl service = newService(mapper);
         PipeDetailRequest request = new PipeDetailRequest();
         request.setSegmentId(9L);
         when(mapper.selectPipeDetails(request)).thenReturn(Collections.emptyList());
@@ -46,7 +51,7 @@ class DataMonitoringSegmentContractTest {
     @Test
     void pipeDetailsRequirePipeIdOrSegmentId() {
         DataMonitoringMapper mapper = mock(DataMonitoringMapper.class);
-        DataMonitoringServiceImpl service = new DataMonitoringServiceImpl(mapper);
+        DataMonitoringServiceImpl service = newService(mapper);
 
         assertThatThrownBy(() -> service.getPipeDetails(new PipeDetailRequest()))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -56,7 +61,7 @@ class DataMonitoringSegmentContractTest {
     @Test
     void pipeDetailsRejectsSegmentIdAndSegmentIdsTogether() {
         DataMonitoringMapper mapper = mock(DataMonitoringMapper.class);
-        DataMonitoringServiceImpl service = new DataMonitoringServiceImpl(mapper);
+        DataMonitoringServiceImpl service = newService(mapper);
         PipeDetailRequest request = new PipeDetailRequest();
         request.setId(12L);
         request.setSegmentId(301L);
@@ -70,7 +75,7 @@ class DataMonitoringSegmentContractTest {
     @Test
     void pipeDetailsAcceptsContinuousSegmentIds() {
         DataMonitoringMapper mapper = mock(DataMonitoringMapper.class);
-        DataMonitoringServiceImpl service = new DataMonitoringServiceImpl(mapper);
+        DataMonitoringServiceImpl service = newService(mapper);
         PipeDetailRequest request = new PipeDetailRequest();
         request.setId(12L);
         request.setSegmentIds(List.of(301L, 302L, 303L));
@@ -89,7 +94,7 @@ class DataMonitoringSegmentContractTest {
     @Test
     void pipeDetailsRejectsDiscontinuousSegmentIds() {
         DataMonitoringMapper mapper = mock(DataMonitoringMapper.class);
-        DataMonitoringServiceImpl service = new DataMonitoringServiceImpl(mapper);
+        DataMonitoringServiceImpl service = newService(mapper);
         PipeDetailRequest request = new PipeDetailRequest();
         request.setId(12L);
         request.setSegmentIds(List.of(301L, 303L));
@@ -106,7 +111,7 @@ class DataMonitoringSegmentContractTest {
     @Test
     void keyIndicatorsAcceptsContinuousSegmentIds() {
         DataMonitoringMapper mapper = mock(DataMonitoringMapper.class);
-        DataMonitoringServiceImpl service = new DataMonitoringServiceImpl(mapper);
+        DataMonitoringServiceImpl service = newService(mapper);
         when(mapper.selectPipeSegmentSelections(12L, List.of(301L, 302L))).thenReturn(Arrays.asList(
                 new PipeSegmentSelection(301L, 12L, 2),
                 new PipeSegmentSelection(302L, 12L, 3)

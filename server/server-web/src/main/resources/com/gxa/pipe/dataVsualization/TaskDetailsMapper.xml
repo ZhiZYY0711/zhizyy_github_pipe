@@ -29,10 +29,10 @@
             )
         </if>
         <if test="startTime != null and startTime != 0">
-            AND UNIX_TIMESTAMP(public_time) &gt;= #{startTime}
+            AND public_time &gt;= FROM_UNIXTIME(#{startTime})
         </if>
         <if test="endTime != null and endTime != 0">
-            AND UNIX_TIMESTAMP(public_time) &lt;= #{endTime}
+            AND public_time &lt;= FROM_UNIXTIME(#{endTime})
         </if>
         GROUP BY status
         ORDER BY status
@@ -53,10 +53,10 @@
             )
         </if>
         <if test="startTime != null and startTime != 0">
-            AND UNIX_TIMESTAMP(public_time) &gt;= #{startTime}
+            AND public_time &gt;= FROM_UNIXTIME(#{startTime})
         </if>
         <if test="endTime != null and endTime != 0">
-            AND UNIX_TIMESTAMP(public_time) &lt;= #{endTime}
+            AND public_time &lt;= FROM_UNIXTIME(#{endTime})
         </if>
         GROUP BY time
         ORDER BY time
@@ -80,10 +80,10 @@
         FROM area a
         LEFT JOIN task t ON a.id = t.area_id
         <if test="startTime != null and startTime != 0">
-            AND UNIX_TIMESTAMP(t.public_time) &gt;= #{startTime}
+            AND t.public_time &gt;= FROM_UNIXTIME(#{startTime})
         </if>
         <if test="endTime != null and endTime != 0">
-            AND UNIX_TIMESTAMP(t.public_time) &lt;= #{endTime}
+            AND t.public_time &lt;= FROM_UNIXTIME(#{endTime})
         </if>
         WHERE a.id &gt;= #{startRange} AND a.id &lt;= #{endRange}
         <choose>
@@ -113,85 +113,98 @@
 
     <!-- 查询完成任务数榜单 -->
     <select id="selectTaskCompletionRanking" resultMap="TaskKpiResponseMap">
-        SELECT 
+        SELECT
             r.id as repairman_id,
             r.name,
-            CAST(COUNT(t.id) AS CHAR) as data
+            CAST(COALESCE(rank_data.data, 0) AS CHAR) as data
         FROM repairman r
-        LEFT JOIN task t ON r.id = t.repairman_id 
-            AND t.status = 2
-        <if test="areaId != null and areaId != 0">
-            AND (
-                (MOD(#{areaId}, 10000) = 0 AND t.area_id BETWEEN #{areaId} AND #{areaId} + 9999)
-                OR (MOD(#{areaId}, 10000) != 0 AND MOD(#{areaId}, 100) = 0 AND t.area_id BETWEEN #{areaId} AND #{areaId} + 99)
-                OR (MOD(#{areaId}, 100) != 0 AND t.area_id = #{areaId})
-            )
-        </if>
-        <if test="startTime != null and startTime != 0">
-            AND UNIX_TIMESTAMP(t.public_time) &gt;= #{startTime}
-        </if>
-        <if test="endTime != null and endTime != 0">
-            AND UNIX_TIMESTAMP(t.public_time) &lt;= #{endTime}
-        </if>
-        GROUP BY r.id, r.name
-        ORDER BY COUNT(t.id) DESC, r.id
+        LEFT JOIN (
+            SELECT
+                t.repairman_id,
+                COUNT(*) as data
+            FROM task t
+            WHERE t.status = 2
+            <if test="areaId != null and areaId != 0">
+                AND (
+                    (MOD(#{areaId}, 10000) = 0 AND t.area_id BETWEEN #{areaId} AND #{areaId} + 9999)
+                    OR (MOD(#{areaId}, 10000) != 0 AND MOD(#{areaId}, 100) = 0 AND t.area_id BETWEEN #{areaId} AND #{areaId} + 99)
+                    OR (MOD(#{areaId}, 100) != 0 AND t.area_id = #{areaId})
+                )
+            </if>
+            <if test="startTime != null and startTime != 0">
+                AND t.public_time &gt;= FROM_UNIXTIME(#{startTime})
+            </if>
+            <if test="endTime != null and endTime != 0">
+                AND t.public_time &lt;= FROM_UNIXTIME(#{endTime})
+            </if>
+            GROUP BY t.repairman_id
+        ) rank_data ON rank_data.repairman_id = r.id
+        ORDER BY COALESCE(rank_data.data, 0) DESC, r.id
         LIMIT 10
     </select>
 
     <!-- 查询平均响应时间榜单 -->
     <select id="selectAverageResponseTimeRanking" resultMap="TaskKpiResponseMap">
-        SELECT 
+        SELECT
             r.id as repairman_id,
             r.name,
-            CAST(COALESCE(ROUND(AVG(UNIX_TIMESTAMP(t.response_time) - UNIX_TIMESTAMP(t.public_time)) / 3600, 2), 0) AS CHAR) as data
-        FROM repairman r
-        LEFT JOIN task t ON r.id = t.repairman_id 
-            AND t.response_time IS NOT NULL
-        <if test="areaId != null and areaId != 0">
-            AND (
-                (MOD(#{areaId}, 10000) = 0 AND t.area_id BETWEEN #{areaId} AND #{areaId} + 9999)
-                OR (MOD(#{areaId}, 10000) != 0 AND MOD(#{areaId}, 100) = 0 AND t.area_id BETWEEN #{areaId} AND #{areaId} + 99)
-                OR (MOD(#{areaId}, 100) != 0 AND t.area_id = #{areaId})
-            )
-        </if>
-        <if test="startTime != null and startTime != 0">
-            AND UNIX_TIMESTAMP(t.public_time) &gt;= #{startTime}
-        </if>
-        <if test="endTime != null and endTime != 0">
-            AND UNIX_TIMESTAMP(t.public_time) &lt;= #{endTime}
-        </if>
-        GROUP BY r.id, r.name
-        HAVING COUNT(t.id) &gt; 0
-        ORDER BY AVG(UNIX_TIMESTAMP(t.response_time) - UNIX_TIMESTAMP(t.public_time)) ASC, r.id
+            CAST(COALESCE(ROUND(rank_data.avg_seconds / 3600, 2), 0) AS CHAR) as data
+        FROM (
+            SELECT
+                t.repairman_id,
+                AVG(UNIX_TIMESTAMP(t.response_time) - UNIX_TIMESTAMP(t.public_time)) as avg_seconds
+            FROM task t
+            WHERE t.response_time IS NOT NULL
+            <if test="areaId != null and areaId != 0">
+                AND (
+                    (MOD(#{areaId}, 10000) = 0 AND t.area_id BETWEEN #{areaId} AND #{areaId} + 9999)
+                    OR (MOD(#{areaId}, 10000) != 0 AND MOD(#{areaId}, 100) = 0 AND t.area_id BETWEEN #{areaId} AND #{areaId} + 99)
+                    OR (MOD(#{areaId}, 100) != 0 AND t.area_id = #{areaId})
+                )
+            </if>
+            <if test="startTime != null and startTime != 0">
+                AND t.public_time &gt;= FROM_UNIXTIME(#{startTime})
+            </if>
+            <if test="endTime != null and endTime != 0">
+                AND t.public_time &lt;= FROM_UNIXTIME(#{endTime})
+            </if>
+            GROUP BY t.repairman_id
+        ) rank_data
+        INNER JOIN repairman r ON r.id = rank_data.repairman_id
+        ORDER BY rank_data.avg_seconds ASC, r.id
         LIMIT 10
     </select>
 
     <!-- 查询平均完成时间榜单 -->
     <select id="selectAverageCompletionTimeRanking" resultMap="TaskKpiResponseMap">
-        SELECT 
+        SELECT
             r.id as repairman_id,
             r.name,
-            CAST(COALESCE(ROUND(AVG(UNIX_TIMESTAMP(t.accomplish_time) - UNIX_TIMESTAMP(t.public_time)) / 3600, 2), 0) AS CHAR) as data
-        FROM repairman r
-        LEFT JOIN task t ON r.id = t.repairman_id 
-            AND t.accomplish_time IS NOT NULL
-            AND t.status = 2
-        <if test="areaId != null and areaId != 0">
-            AND (
-                (MOD(#{areaId}, 10000) = 0 AND t.area_id BETWEEN #{areaId} AND #{areaId} + 9999)
-                OR (MOD(#{areaId}, 10000) != 0 AND MOD(#{areaId}, 100) = 0 AND t.area_id BETWEEN #{areaId} AND #{areaId} + 99)
-                OR (MOD(#{areaId}, 100) != 0 AND t.area_id = #{areaId})
-            )
-        </if>
-        <if test="startTime != null and startTime != 0">
-            AND UNIX_TIMESTAMP(t.public_time) &gt;= #{startTime}
-        </if>
-        <if test="endTime != null and endTime != 0">
-            AND UNIX_TIMESTAMP(t.public_time) &lt;= #{endTime}
-        </if>
-        GROUP BY r.id, r.name
-        HAVING COUNT(t.id) &gt; 0
-        ORDER BY AVG(UNIX_TIMESTAMP(t.accomplish_time) - UNIX_TIMESTAMP(t.public_time)) ASC, r.id
+            CAST(COALESCE(ROUND(rank_data.avg_seconds / 3600, 2), 0) AS CHAR) as data
+        FROM (
+            SELECT
+                t.repairman_id,
+                AVG(UNIX_TIMESTAMP(t.accomplish_time) - UNIX_TIMESTAMP(t.public_time)) as avg_seconds
+            FROM task t
+            WHERE t.accomplish_time IS NOT NULL
+              AND t.status = 2
+            <if test="areaId != null and areaId != 0">
+                AND (
+                    (MOD(#{areaId}, 10000) = 0 AND t.area_id BETWEEN #{areaId} AND #{areaId} + 9999)
+                    OR (MOD(#{areaId}, 10000) != 0 AND MOD(#{areaId}, 100) = 0 AND t.area_id BETWEEN #{areaId} AND #{areaId} + 99)
+                    OR (MOD(#{areaId}, 100) != 0 AND t.area_id = #{areaId})
+                )
+            </if>
+            <if test="startTime != null and startTime != 0">
+                AND t.public_time &gt;= FROM_UNIXTIME(#{startTime})
+            </if>
+            <if test="endTime != null and endTime != 0">
+                AND t.public_time &lt;= FROM_UNIXTIME(#{endTime})
+            </if>
+            GROUP BY t.repairman_id
+        ) rank_data
+        INNER JOIN repairman r ON r.id = rank_data.repairman_id
+        ORDER BY rank_data.avg_seconds ASC, r.id
         LIMIT 10
     </select>
 

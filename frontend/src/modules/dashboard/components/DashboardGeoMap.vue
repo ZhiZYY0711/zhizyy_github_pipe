@@ -4,6 +4,7 @@ import { GeoComponent, TooltipComponent } from 'echarts/components'
 import { init, registerMap, use, type ECharts } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { getFeatureBounds, getFeatureCenter, readLayer, rememberLayer, type FeatureBounds } from '../mapLayerCache'
 import { resolveGeoAssetPath } from '../service'
 import type { GeoIndex, GeoIndexEntry, MapRegion, MapTooltipData } from '../types'
 
@@ -37,12 +38,7 @@ type GeoJsonLike = {
   features?: GeoFeature[]
 }
 
-type Bounds = {
-  minLng: number
-  maxLng: number
-  minLat: number
-  maxLat: number
-}
+type Bounds = FeatureBounds
 
 type FeatureLayer = 'province' | 'city' | 'district'
 
@@ -62,6 +58,9 @@ let activeMapName = ''
 let detailTimer: number | undefined
 let renderVersion = 0
 let wheelTarget: HTMLDivElement | null = null
+let wheelFrame: number | undefined
+let pendingZoom = 1
+let detailLayerSignature = ''
 let visibleLabelCodes = new Set<string>()
 let visibleLabelNames = new Set<string>()
 
@@ -88,6 +87,7 @@ watch(
 
 onBeforeUnmount(() => {
   clearDetailTimer()
+  clearWheelFrame()
   detachWheelZoom()
   resizeObserver?.disconnect()
   chart?.dispose()
@@ -113,9 +113,11 @@ async function renderBaseMap() {
 
   const view = resolveView(geoJson)
   currentZoom = view.zoom
+  pendingZoom = currentZoom
+  detailLayerSignature = ''
   syncZoomRatio()
   registerMap(activeMapName, toMapInput(geoJson))
-  chart?.setOption(buildMapOption(activeMapName, markFeatures(geoJson.features ?? [], baseFeatureLayer()), view.center), true)
+  chart?.setOption(buildMapOption(activeMapName, markFeatures(geoJson.features ?? [], baseFeatureLayer()), view.center), true, true)
   scheduleDetailUpdate()
 }
 
@@ -141,6 +143,7 @@ function ensureChart() {
   })
   chart.on('georoam', () => {
     currentZoom = readChartZoom()
+    pendingZoom = currentZoom
     syncZoomRatio()
     scheduleDetailUpdate()
   })
@@ -176,6 +179,7 @@ function buildMapOption(mapName: string, features: GeoFeature[], center?: number
   syncVisibleLabelKeys(seriesData)
 
   return {
+    animation: false,
     backgroundColor: 'transparent',
     tooltip: buildTooltipOption(),
     geo: {
@@ -249,6 +253,8 @@ function buildMapOption(mapName: string, features: GeoFeature[], center?: number
 function buildTooltipOption() {
   return {
     trigger: 'item',
+    confine: true,
+    transitionDuration: 0,
     borderWidth: 1,
     borderColor: 'rgba(110, 202, 212, 0.34)',
     backgroundColor: 'rgba(5, 10, 16, 0.92)',
@@ -362,7 +368,16 @@ function handleWheelZoom(event: WheelEvent) {
 
   event.preventDefault()
   const factor = event.deltaY < 0 ? wheelZoomStep : 1 / wheelZoomStep
-  applyZoom(currentZoom * factor)
+  pendingZoom = clampZoom(pendingZoom * factor)
+
+  if (wheelFrame) {
+    return
+  }
+
+  wheelFrame = window.requestAnimationFrame(() => {
+    wheelFrame = undefined
+    applyZoom(pendingZoom)
+  })
 }
 
 function applyZoom(value: number) {
@@ -370,14 +385,21 @@ function applyZoom(value: number) {
     return
   }
 
-  currentZoom = clampZoom(value)
+  const nextZoom = clampZoom(value)
+
+  if (Math.abs(nextZoom - currentZoom) < 0.001) {
+    return
+  }
+
+  currentZoom = nextZoom
+  pendingZoom = currentZoom
   syncZoomRatio()
   chart.setOption({
     geo: {
       zoom: currentZoom,
       center: readChartCenter(),
     },
-  })
+  }, false, true)
   scheduleDetailUpdate()
 }
 
@@ -414,22 +436,37 @@ async function updateDetailLayer() {
     .map(readFeatureCode)
     .sort()
     .join(',')
+  const nextSignature = `${props.region.code}|${detailKey || 'base'}|${currentZoomStage()}|${currentLabelStage()}`
 
-  if (!detailKey) {
-    activeMapName = props.region.code
-    registerMap(activeMapName, toMapInput(baseGeoJson))
-    chart.setOption(buildMapOption(activeMapName, markFeatures(baseFeatures, baseFeatureLayer()), center))
+  if (nextSignature === detailLayerSignature) {
     return
   }
 
-  activeMapName = `${props.region.code}-detail-${hashText(detailKey)}`
+  detailLayerSignature = nextSignature
+
+  if (!detailKey) {
+    const cachedBaseMapName = readLayer(nextSignature)
+    activeMapName = cachedBaseMapName ?? props.region.code
+    if (!cachedBaseMapName) {
+      registerMap(activeMapName, toMapInput(baseGeoJson))
+      rememberLayer(nextSignature, activeMapName)
+    }
+    chart.setOption(buildMapOption(activeMapName, markFeatures(baseFeatures, baseFeatureLayer()), center), false, true)
+    return
+  }
+
+  const cachedMapName = readLayer(nextSignature)
+  activeMapName = cachedMapName ?? `${props.region.code}-detail-${hashText(nextSignature)}`
 
   const mergedGeoJson = {
     type: 'FeatureCollection',
     features: visibleFeatures,
   }
-  registerMap(activeMapName, toMapInput(mergedGeoJson))
-  chart.setOption(buildMapOption(activeMapName, mergedGeoJson.features, center))
+  if (!cachedMapName) {
+    registerMap(activeMapName, toMapInput(mergedGeoJson))
+    rememberLayer(nextSignature, activeMapName)
+  }
+  chart.setOption(buildMapOption(activeMapName, mergedGeoJson.features, center), false, true)
 }
 
 async function buildVisibleFeatures(baseFeatures: GeoFeature[]) {
@@ -538,6 +575,23 @@ function shouldShowLabel(layer: FeatureLayer) {
   return currentZoom >= districtLabelZoom()
 }
 
+function currentLabelStage() {
+  return [
+    shouldShowLabel('province') ? 'p1' : 'p0',
+    shouldShowLabel('city') ? 'c1' : 'c0',
+    shouldShowLabel('district') ? 'd1' : 'd0',
+  ].join(':')
+}
+
+function currentZoomStage() {
+  if (currentZoom >= districtLabelZoom()) return 'district-label'
+  if (currentZoom >= districtBoundaryZoom()) return 'district-boundary'
+  if (currentZoom >= cityLabelZoom()) return 'city-label'
+  if (currentZoom >= cityBoundaryZoom()) return 'city-boundary'
+  if (currentZoom >= provinceLabelZoom()) return 'province-label'
+  return 'base'
+}
+
 function provinceLabelZoom() {
   return 2.15
 }
@@ -599,16 +653,7 @@ function findFeatureCenter(geoJson: GeoJsonLike, code?: string) {
 }
 
 function readFeatureCenter(feature?: GeoFeature) {
-  const properties = feature?.properties ?? {}
-  const center = properties.center ?? properties.cp
-
-  if (Array.isArray(center)) {
-    return [Number(center[0]), Number(center[1])]
-  }
-
-  const bounds = feature ? readFeatureBounds(feature) : null
-
-  return bounds ? [(bounds.minLng + bounds.maxLng) / 2, (bounds.minLat + bounds.maxLat) / 2] : undefined
+  return feature ? getFeatureCenter(feature) : undefined
 }
 
 function readFeatureCode(feature: GeoFeature) {
@@ -656,33 +701,7 @@ function readViewportBounds() {
 }
 
 function readFeatureBounds(feature: GeoFeature) {
-  const points = flattenCoordinates(feature.geometry?.coordinates)
-
-  if (!points.length) {
-    return null
-  }
-
-  const lngValues = points.map((point) => point[0])
-  const latValues = points.map((point) => point[1])
-
-  return {
-    minLng: Math.min(...lngValues),
-    maxLng: Math.max(...lngValues),
-    minLat: Math.min(...latValues),
-    maxLat: Math.max(...latValues),
-  }
-}
-
-function flattenCoordinates(coordinates: unknown): number[][] {
-  if (!Array.isArray(coordinates)) {
-    return []
-  }
-
-  if (typeof coordinates[0] === 'number' && typeof coordinates[1] === 'number') {
-    return [[Number(coordinates[0]), Number(coordinates[1])]]
-  }
-
-  return coordinates.flatMap((item) => flattenCoordinates(item))
+  return getFeatureBounds(feature)
 }
 
 function boundsIntersect(a: Bounds, b: Bounds) {
@@ -734,6 +753,13 @@ function clearDetailTimer() {
   if (detailTimer) {
     window.clearTimeout(detailTimer)
     detailTimer = undefined
+  }
+}
+
+function clearWheelFrame() {
+  if (wheelFrame) {
+    window.cancelAnimationFrame(wheelFrame)
+    wheelFrame = undefined
   }
 }
 

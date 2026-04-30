@@ -18,6 +18,8 @@ public interface DataMonitoringMapper {
      * @return 区域四维度数据列表
      */
     List<AreaDetailResponse> selectAreaDetails(AreaDetailRequest request);
+
+    List<AreaDetailResponse> selectAreaDetailsFromDailyAggregate(AreaDetailRequest request);
     
     /**
      * 查询管道四维度数据
@@ -26,6 +28,8 @@ public interface DataMonitoringMapper {
      * @return 管道四维度数据列表
      */
     List<PipeDetailResponse> selectPipeDetails(PipeDetailRequest request);
+
+    List<PipeDetailResponse> selectPipeDetailsFromDailyAggregate(PipeDetailRequest request);
 
     List<PipeSegmentSelection> selectPipeSegmentSelections(
             @Param("pipeId") Long pipeId,

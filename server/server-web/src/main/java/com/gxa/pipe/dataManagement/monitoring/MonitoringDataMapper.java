@@ -27,4 +27,6 @@ public interface MonitoringDataMapper {
     void deleteData(@Param("idList") List<String> idList);
 
     MonitoringDataIndicatorResponse getIndicatorCard(@Param("areaId") String areaId);
+
+    MonitoringDataIndicatorResponse getIndicatorCardFromDailyAggregate(@Param("areaId") String areaId);
 }

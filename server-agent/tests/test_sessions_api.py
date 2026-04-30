@@ -258,6 +258,34 @@ def test_post_message_creates_run_and_run_specific_stream_persists_summary(monke
     assert items[0]["run"]["summary"]["finalAnswer"] == "建议先复核上游阀室。"
     assert items[0]["run"]["summary"]["riskLevel"] == "high"
 
+    session = sessions_module._get_session(created["session_id"])
+    run = session["runs"][message_body["run"]["id"]]
+    assert run["status"] == "completed"
+    assert run["event_count"] == 4
+    assert run["last_event_seq"] == 4
+    assert run["failure_reason"] is None
+    assert session["active_run_id"] is None
+
+
+def test_completed_in_memory_run_stream_replays_events(monkeypatch):
+    monkeypatch.setattr(sessions_module, "AgentRuntimeService", FastCompletedService)
+    client = TestClient(app)
+    created = client.post("/api/agent/sessions", json={"title": "回放会话"}).json()
+    message = client.post(
+        f"/api/agent/sessions/{created['session_id']}/messages",
+        json={"content": "压力异常"},
+    ).json()
+    stream_url = f"/api/agent/sessions/{created['session_id']}/runs/{message['run']['id']}/stream"
+    with client.stream("GET", stream_url) as response:
+        response.read()
+
+    with client.stream("GET", stream_url) as replay:
+        body = replay.read().decode("utf-8")
+
+    assert replay.status_code == 200
+    assert '"type":"run_started"' in body
+    assert '"status":"completed"' in body
+
 
 def test_post_message_rejects_second_message_while_run_active():
     client = TestClient(app)

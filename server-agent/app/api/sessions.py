@@ -1,16 +1,15 @@
-import json
 import logging
 import asyncio
 import re
 from asyncio import CancelledError
 from datetime import datetime, timezone
-from typing import Any, Literal
+from typing import Any
 from uuid import uuid4
 
 import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, StreamingResponse
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, field_validator
 
 from app.agent.service import AgentRuntimeService
 from app.agent.state import RunStatus
@@ -19,6 +18,7 @@ from app.llm.client import build_llm_client
 from app.persistence.redis_state import AgentRedisState
 from app.persistence.repository import AgentRepository
 from app.security import require_internal_token
+from app.services import export_intent_service, message_service, run_service, runtime_factory, session_service, stream_service
 from app.tools.business_tools import build_business_registry
 
 router = APIRouter(prefix="/api/agent", tags=["agent"], dependencies=[Depends(require_internal_token)])
@@ -81,187 +81,53 @@ class CreateMessageRequest(BaseModel):
         return stripped
 
 
-class ExportPlanSection(BaseModel):
-    type: str
-    title: str
-    content_policy: str = "standard"
-
-
-class ExportPlanTable(BaseModel):
-    type: str
-    title: str
-
-
-class ExportIntentPlan(BaseModel):
-    should_export: bool = False
-    format: Literal["pdf", "excel"] = "pdf"
-    scope: Literal["agent_selected", "latest_turn", "full_session", "all_conversations"] = "agent_selected"
-    title: str = "虚拟专家研判报告"
-    style: str = "freeform_report"
-    audience: str = "现场处置人员"
-    purpose: str = "研判归档"
-    tone: str = "清晰直接"
-    detail_level: str = "standard"
-    sections: list[ExportPlanSection] = Field(default_factory=list)
-    tables: list[ExportPlanTable] = Field(default_factory=list)
-    evidence_policy: str = "llm_selected"
-    include_evidence: bool = True
-    include_timeline: bool = True
-    requires_confirmation: bool = True
-    reason: str = ""
-
-
-EXPORT_INTENT_SYSTEM_PROMPT = """你是虚拟专家 Agent 的导出意图规划器。
-你的职责不是做关键词匹配，而是理解用户是否在要求平台生成 PDF/Excel 等文件。
-如果用户是在继续业务研判、提问、查询数据或讨论“导出能力本身”，should_export 必须为 false。
-如果用户确实希望生成文件，由你决定 format、scope、版式、受众、章节、表格、证据策略和是否需要确认。
-scope 只能取 agent_selected、latest_turn、full_session、all_conversations。
-不要编造已导出的文件路径；这里只生成导出计划。
-所有面向用户的文字使用中文。返回 JSON。"""
-
-
 @router.post("/sessions")
 async def create_session(request: CreateSessionRequest) -> dict[str, str]:
-    session_id = f"ana_{uuid4().hex}"
-    logger.info(
-        "agent session create requested session_id=%s source_type=%s object_type=%s object_id=%s raw_input=%s",
-        session_id,
-        request.source_type,
-        request.object_type,
-        request.object_id,
-        request.raw_input or request.title,
+    return await session_service.create_session(
+        request,
+        use_in_memory_store=_use_in_memory_store,
+        get_repository=_get_repository,
+        sessions=_sessions,
+        now_iso=_now_iso,
+        logger=logger,
     )
-    if not _use_in_memory_store():
-        return await _get_repository().create_session(session_id, request.model_dump())
-
-    created_at = _now_iso()
-    _sessions[session_id] = {
-        "status": "created",
-        "id": session_id,
-        "request": request.model_dump(),
-        "title": request.title or (request.raw_input or "")[:200],
-        "messages": [],
-        "runs": {},
-        "summaries": {},
-        "events": [],
-        "active_run_id": None,
-        "created_at": created_at,
-        "updated_at": created_at,
-    }
-    return {"session_id": session_id, "status": "created"}
 
 
 @router.get("/sessions")
 async def list_sessions(limit: int = Query(20, ge=1, le=100)) -> dict[str, Any]:
-    if not _use_in_memory_store():
-        return {"sessions": list(await _get_repository().list_sessions(limit))}
-
-    ordered = sorted(
-        _sessions.values(),
-        key=lambda session: session.get("updated_at") or session.get("created_at") or "",
-        reverse=True,
+    return await session_service.list_sessions(
+        limit,
+        use_in_memory_store=_use_in_memory_store,
+        get_repository=_get_repository,
+        sessions=_sessions,
     )
-    return {
-        "sessions": [
-            {
-                "id": session["id"],
-                "title": session.get("title") or "新研判会话",
-                "status": session.get("status") or "created",
-                "summary": session.get("summary"),
-                "source_type": session.get("request", {}).get("source_type") or "manual",
-                "source_id": session.get("request", {}).get("source_id"),
-                "object_type": session.get("request", {}).get("object_type"),
-                "object_id": session.get("request", {}).get("object_id"),
-                "object_name": session.get("request", {}).get("object_name"),
-                "created_at": session.get("created_at"),
-                "updated_at": session.get("updated_at"),
-            }
-            for session in ordered[:limit]
-        ]
-    }
 
 
 @router.delete("/sessions/{session_id}")
 async def delete_session(session_id: str) -> dict[str, str]:
-    if not _use_in_memory_store():
-        repository = _get_repository()
-        session = await repository.get_session(session_id)
-        if session is None:
-            raise HTTPException(status_code=404, detail="Session not found")
-        run_id = session.get("run_id")
-        if run_id:
-            await _get_redis_state().request_cancel(run_id)
-        if not await repository.delete_session(session_id):
-            raise HTTPException(status_code=404, detail="Session not found")
-        return {"session_id": session_id, "status": "deleted"}
-
-    session = _get_session(session_id)
-    run_id = session.get("active_run_id") or session.get("run_id")
-    if run_id:
-        await _get_redis_state().request_cancel(run_id)
-    _sessions.pop(session_id, None)
-    return {"session_id": session_id, "status": "deleted"}
+    return await session_service.delete_session(
+        session_id,
+        use_in_memory_store=_use_in_memory_store,
+        get_repository=_get_repository,
+        get_redis_state=_get_redis_state,
+        sessions=_sessions,
+    )
 
 
 @router.post("/sessions/{session_id}/messages")
 async def create_message(session_id: str, request: CreateMessageRequest) -> dict[str, Any]:
-    if not _use_in_memory_store():
-        return await _create_persistent_message(session_id, request)
-
-    session = _get_session(session_id)
-    active_run_id = session.get("active_run_id")
-    if active_run_id and session["runs"].get(active_run_id, {}).get("status") in {"created", "running"}:
-        return _active_run_response(session_id, active_run_id)
-
-    message_id = f"msg_{uuid4().hex}"
-    run_id = f"run_{uuid4().hex}"
-    created_at = _now_iso()
-    message = {
-        "id": message_id,
-        "session_id": session_id,
-        "role": "user",
-        "content": request.content,
-        "message_type": request.message_type,
-        "created_at": created_at,
-    }
-    session["messages"].append(message)
-
-    export_plan = await _infer_export_plan(request.content)
-    if export_plan is not None:
-        session["messages"].append(
-            {
-                "id": f"msg_{uuid4().hex}",
-                "session_id": session_id,
-                "role": "assistant",
-                "content": json.dumps(export_plan, ensure_ascii=False),
-                "message_type": "export_plan",
-                "created_at": _now_iso(),
-            }
-        )
-        session["updated_at"] = created_at
-        return {
-            "message": _message_response(message),
-            "export_plan": export_plan,
-            "run": None,
-        }
-
-    session["runs"][run_id] = {
-        "id": run_id,
-        "session_id": session_id,
-        "triggering_message_id": message_id,
-        "input_text": request.content,
-        "status": "created",
-        "events": [],
-        "created_at": created_at,
-    }
-    session["active_run_id"] = run_id
-    session["run_id"] = run_id
-    session["status"] = "running"
-    session["updated_at"] = created_at
-    return {
-        "message": _message_response(message),
-        "run": _run_created_response(session_id, run_id),
-    }
+    return await message_service.create_message(
+        session_id,
+        request,
+        use_in_memory_store=_use_in_memory_store,
+        get_repository=_get_repository,
+        get_session=_get_session,
+        infer_export_plan=_infer_export_plan,
+        active_run_response=_active_run_response,
+        message_response=_message_response,
+        run_created_response=_run_created_response,
+        now_iso=_now_iso,
+    )
 
 
 @router.post("/sessions/{session_id}/runs")
@@ -296,10 +162,14 @@ async def run_session(session_id: str) -> dict[str, Any]:
 
 
 @router.get("/sessions/{session_id}/runs/stream")
-async def stream_run_session(session_id: str, request: Request) -> StreamingResponse:
+async def stream_run_session(
+    session_id: str,
+    request: Request,
+    after_seq: int = Query(0, alias="afterSeq"),
+) -> StreamingResponse:
     if not _use_in_memory_store():
         return StreamingResponse(
-            _stream_persistent_session(session_id, request),
+            _stream_persistent_session(session_id, request, after_seq),
             media_type="text/event-stream",
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
@@ -352,10 +222,15 @@ async def stream_run_session(session_id: str, request: Request) -> StreamingResp
 
 
 @router.get("/sessions/{session_id}/runs/{run_id}/stream")
-async def stream_specific_run_session(session_id: str, run_id: str, request: Request) -> StreamingResponse:
+async def stream_specific_run_session(
+    session_id: str,
+    run_id: str,
+    request: Request,
+    after_seq: int = Query(0, alias="afterSeq"),
+) -> StreamingResponse:
     if not _use_in_memory_store():
         return StreamingResponse(
-            _stream_persistent_specific_run(session_id, run_id, request),
+            _stream_persistent_specific_run(session_id, run_id, request, after_seq),
             media_type="text/event-stream",
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
@@ -365,6 +240,18 @@ async def stream_specific_run_session(session_id: str, run_id: str, request: Req
     if run is None:
         raise HTTPException(status_code=404, detail="Run not found")
     if run["status"] != "created":
+        if stream_service.can_replay_status(run.get("status")):
+            return StreamingResponse(
+                stream_service.replay_events(
+                    run.get("events", []),
+                    session_id=session_id,
+                    run_id=run_id,
+                    status=run["status"],
+                    after_seq=after_seq,
+                ),
+                media_type="text/event-stream",
+                headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+            )
         raise HTTPException(status_code=409, detail="Run already started")
     run["status"] = "running"
     session["status"] = "running"
@@ -520,13 +407,11 @@ def _get_redis_state() -> AgentRedisState:
 
 
 def _build_runtime_service(summary_memory: list[str] | None = None) -> AgentRuntimeService:
-    try:
-        return AgentRuntimeService(
-            tool_registry=build_business_registry(),
-            summary_memory=summary_memory or [],
-        )
-    except TypeError:
-        return AgentRuntimeService(tool_registry=build_business_registry())
+    return runtime_factory.build_runtime_service(
+        summary_memory,
+        runtime_cls=AgentRuntimeService,
+        registry_factory=build_business_registry,
+    )
 
 
 async def _list_accepted_memories(repository: Any, query: str | None) -> list[str]:
@@ -534,6 +419,12 @@ async def _list_accepted_memories(repository: Any, query: str | None) -> list[st
     if not callable(list_memories):
         return []
     return await list_memories(query or "")
+
+
+async def _start_run_if_supported(repository: Any, session_id: str, run_id: str) -> None:
+    start_run = getattr(repository, "start_run", None)
+    if callable(start_run):
+        await start_run(session_id, run_id)
 
 
 async def _run_persistent_session(session_id: str) -> dict[str, Any]:
@@ -546,6 +437,7 @@ async def _run_persistent_session(session_id: str) -> dict[str, Any]:
 
     run_id = f"run_{uuid4().hex}"
     await repository.create_run(session_id, run_id)
+    await _start_run_if_supported(repository, session_id, run_id)
     logger.info("agent run started session_id=%s run_id=%s mode=persistent", session_id, run_id)
     service = _build_runtime_service(await _list_accepted_memories(repository, session.get("raw_input") or ""))
     events = []
@@ -567,60 +459,31 @@ async def _run_persistent_session(session_id: str) -> dict[str, Any]:
     return {"session_id": session_id, "run_id": run_id, "events": events}
 
 
-async def _create_persistent_message(session_id: str, request: CreateMessageRequest) -> dict[str, Any]:
-    repository = _get_repository()
-    session = await repository.get_session(session_id)
-    if session is None:
-        raise HTTPException(status_code=404, detail="Session not found")
-    active_run = await repository.find_active_run(session_id)
-    if active_run is not None:
-        return _active_run_response(session_id, active_run["id"])
-
-    message_id = f"msg_{uuid4().hex}"
-    run_id = f"run_{uuid4().hex}"
-    message = await repository.create_message(
-        message_id=message_id,
-        session_id=session_id,
-        role="user",
-        content=request.content,
-        message_type=request.message_type,
-    )
-    export_plan = await _infer_export_plan(request.content)
-    if export_plan is not None:
-        await repository.create_message(
-            message_id=f"msg_{uuid4().hex}",
-            session_id=session_id,
-            role="assistant",
-            content=json.dumps(export_plan, ensure_ascii=False),
-            message_type="export_plan",
-        )
-        return {
-            "message": _message_response(message),
-            "export_plan": export_plan,
-            "run": None,
-        }
-
-    await repository.create_run(
-        session_id=session_id,
-        run_id=run_id,
-        triggering_message_id=message_id,
-        input_text=request.content,
-    )
-    return {
-        "message": _message_response(message),
-        "run": _run_created_response(session_id, run_id),
-    }
-
-
-async def _stream_persistent_specific_run(session_id: str, run_id: str, request: Request | None = None):
+async def _stream_persistent_specific_run(
+    session_id: str,
+    run_id: str,
+    request: Request | None = None,
+    after_seq: int = 0,
+):
     repository = _get_repository()
     run = await repository.get_run(session_id, run_id)
     if run is None:
         raise HTTPException(status_code=404, detail="Run not found")
     if run["status"] != "created":
+        if stream_service.can_replay_status(run.get("status")):
+            async for item in stream_service.replay_persistent_run(
+                repository,
+                session_id=session_id,
+                run_id=run_id,
+                status=run["status"],
+                after_seq=after_seq,
+            ):
+                yield item
+            return
         raise HTTPException(status_code=409, detail="Run already started")
 
     logger.info("agent stream run started session_id=%s run_id=%s mode=persistent-multiturn", session_id, run_id)
+    await _start_run_if_supported(repository, session_id, run_id)
     service = _build_runtime_service(await _list_accepted_memories(repository, run.get("input_text") or ""))
     events: list[dict[str, Any]] = []
     cancelled_by_disconnect = False
@@ -684,16 +547,32 @@ async def _stream_persistent_specific_run(session_id: str, run_id: str, request:
     yield _sse_event("run_status", {"session_id": session_id, "run_id": run_id, "status": final_status})
 
 
-async def _stream_persistent_session(session_id: str, request: Request | None = None):
+async def _stream_persistent_session(
+    session_id: str,
+    request: Request | None = None,
+    after_seq: int = 0,
+):
     repository = _get_repository()
     session = await repository.get_session(session_id)
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
     if session.get("run_id"):
+        run = await repository.get_run(session_id, session["run_id"])
+        if run is not None and stream_service.can_replay_status(run.get("status")):
+            async for item in stream_service.replay_persistent_run(
+                repository,
+                session_id=session_id,
+                run_id=session["run_id"],
+                status=run["status"],
+                after_seq=after_seq,
+            ):
+                yield item
+            return
         raise HTTPException(status_code=409, detail="Session already has a run")
 
     run_id = f"run_{uuid4().hex}"
     await repository.create_run(session_id, run_id)
+    await _start_run_if_supported(repository, session_id, run_id)
     logger.info("agent stream run started session_id=%s run_id=%s mode=persistent", session_id, run_id)
     service = _build_runtime_service(await _list_accepted_memories(repository, session.get("raw_input") or ""))
     events: list[dict[str, Any]] = []
@@ -771,16 +650,7 @@ async def _complete_cancelled_run_with_fresh_connection(session_id: str, run_id:
 
 
 def _derive_run_status(events: list[dict[str, Any]]) -> RunStatus:
-    if not events:
-        return "failed"
-
-    terminal_status_by_event_type: dict[str, RunStatus] = {
-        "run_completed": "completed",
-        "run_failed": "failed",
-        "run_cancelled": "cancelled",
-        "awaiting_user": "awaiting_user",
-    }
-    return terminal_status_by_event_type.get(events[-1]["type"], "failed")
+    return run_service.derive_run_status(events)
 
 
 def _active_run_response(session_id: str, run_id: str) -> JSONResponse:
@@ -819,44 +689,10 @@ def _run_created_response(session_id: str, run_id: str) -> dict[str, Any]:
 
 
 async def _infer_export_plan(content: str) -> dict[str, Any] | None:
-    llm_client = build_llm_client()
-    if llm_client is None:
-        return None
-    try:
-        intent = await llm_client.complete_json(
-            system_prompt=EXPORT_INTENT_SYSTEM_PROMPT,
-            user_prompt=f"用户消息：{content}",
-            schema=ExportIntentPlan,
-        )
-    except Exception:
-        logger.exception("export intent planning failed")
-        return None
-    if not intent.should_export:
-        return None
-    return _export_plan_from_intent(intent)
-
-
-def _export_plan_from_intent(intent: ExportIntentPlan) -> dict[str, Any]:
-    return {
-        "format": intent.format,
-        "scope": intent.scope,
-        "title": intent.title,
-        "style": intent.style,
-        "audience": intent.audience,
-        "purpose": intent.purpose,
-        "tone": intent.tone,
-        "detailLevel": intent.detail_level,
-        "sections": [
-            {"type": section.type, "title": section.title, "contentPolicy": section.content_policy}
-            for section in intent.sections
-        ],
-        "tables": [{"type": table.type, "title": table.title} for table in intent.tables],
-        "evidencePolicy": intent.evidence_policy,
-        "includeEvidence": intent.include_evidence,
-        "includeTimeline": intent.include_timeline,
-        "requiresConfirmation": intent.requires_confirmation,
-        "reason": intent.reason or "LLM 已生成导出计划。",
-    }
+    return await export_intent_service.infer_export_plan(
+        content,
+        llm_client_factory=build_llm_client,
+    )
 
 
 def _accepted_summary_memory(query: str | None, limit: int = 5) -> list[str]:
@@ -878,23 +714,13 @@ def _accepted_summary_memory(query: str | None, limit: int = 5) -> list[str]:
 
 
 def _store_in_memory_candidates(session: dict[str, Any], run: dict[str, Any], summary: dict[str, Any]) -> None:
-    content = str(run.get("input_text") or "")
-    if not any(word in content for word in ("记住", "以后", "默认", "下次")):
-        return
-    memory_type = "export_preference" if any(word in content.lower() for word in ("导出", "pdf", "excel", "报告")) else "preference"
-    memory_id = f"mem_{uuid4().hex}"
-    _memory_candidates[memory_id] = {
-        "id": memory_id,
-        "session_id": session["id"],
-        "run_id": run["id"],
-        "memory_type": memory_type,
-        "title": content[:80],
-        "content": _clean_memory_content(content),
-        "confidence": 0.9,
-        "status": "accepted",
-        "created_at": _now_iso(),
-        "summary": summary,
-    }
+    run_service.store_in_memory_candidates(
+        session,
+        run,
+        summary,
+        memory_candidates=_memory_candidates,
+        now_iso=_now_iso,
+    )
 
 
 async def _store_persistent_memory_candidates(
@@ -921,7 +747,7 @@ async def _store_persistent_memory_candidates(
 
 
 def _clean_memory_content(content: str) -> str:
-    return re.sub(r"^(请)?记住[：:，,\\s]*", "", content).strip() or content
+    return run_service.clean_memory_content(content)
 
 
 def _complete_in_memory_message_run(
@@ -930,75 +756,18 @@ def _complete_in_memory_message_run(
     events: list[dict[str, Any]],
     final_status: RunStatus,
 ) -> None:
-    summary = _build_run_summary(events)
-    now = _now_iso()
-    run["status"] = final_status
-    run["completed_at"] = now
-    run["summary"] = summary
-    _store_in_memory_candidates(session, run, summary)
-    session["summaries"][run["id"]] = summary
-    session["active_run_id"] = None
-    session["status"] = final_status
-    session["summary"] = summary.get("judgment") or summary.get("final_answer")
-    session["messages"].append(
-        {
-            "id": f"msg_{uuid4().hex}",
-            "session_id": run["session_id"],
-            "role": "assistant",
-            "content": summary.get("final_answer") or summary.get("judgment") or f"本轮研判{final_status}",
-            "message_type": "text",
-            "triggered_run_id": run["id"],
-            "created_at": now,
-        }
+    run_service.complete_in_memory_message_run(
+        session,
+        run,
+        events,
+        final_status,
+        memory_candidates=_memory_candidates,
+        now_iso=_now_iso,
     )
 
 
 def _build_run_summary(events: list[dict[str, Any]]) -> dict[str, Any]:
-    final_answer = "".join(
-        str(event.get("payload", {}).get("delta", ""))
-        for event in events
-        if event.get("type") == "final_answer_delta"
-    ).strip()
-    recommendation = next(
-        (event.get("payload", {}) for event in events if event.get("type") == "recommendation_generated"),
-        {},
-    )
-    tool_summary = [
-        {
-            "tool_name": event.get("payload", {}).get("tool_name") or event.get("payload", {}).get("toolName"),
-            "summary": event.get("payload", {}).get("summary") or event.get("title"),
-        }
-        for event in events
-        if event.get("type") == "tool_completed"
-    ]
-    knowledge_summary = [
-        {
-            "source": event.get("payload", {}).get("source") or event.get("type"),
-            "documents": event.get("payload", {}).get("documents", []),
-        }
-        for event in events
-        if event.get("type") in {"knowledge_search_completed", "retrieval_completed"}
-    ]
-    key_evidence = [
-        *[item for item in tool_summary if item.get("summary")],
-        *[
-            {"source": item.get("source"), "summary": str(item.get("documents", []))}
-            for item in knowledge_summary
-        ],
-    ]
-    recommended_actions = recommendation.get("recommended_actions") or recommendation.get("recommendedActions") or recommendation.get("actions") or []
-    open_questions = recommendation.get("missing_information") or recommendation.get("missingInformation") or []
-    judgment = recommendation.get("judgment") or recommendation.get("conclusion") or recommendation.get("summary")
-    return {
-        "final_answer": final_answer or judgment or "",
-        "risk_level": recommendation.get("risk_level") or recommendation.get("riskLevel"),
-        "judgment": judgment or "",
-        "recommended_actions": recommended_actions if isinstance(recommended_actions, list) else [],
-        "key_evidence": key_evidence,
-        "open_questions": open_questions if isinstance(open_questions, list) else [],
-        "tool_summary": tool_summary,
-        "knowledge_summary": knowledge_summary,
-    }
+    return run_service.build_run_summary(events)
 
 
 def _list_in_memory_timeline(session: dict[str, Any], before_cursor: str | None, limit: int) -> dict[str, Any]:
@@ -1101,18 +870,8 @@ def _summary_response(summary: dict[str, Any] | None) -> dict[str, Any] | None:
 
 
 def _sse_event(event_name: str, payload: dict[str, Any]) -> str:
-    data = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
-    return f"event: {event_name}\ndata: {data}\n\n"
+    return stream_service.sse_event(event_name, payload)
 
 
 def _log_agent_event(payload: dict[str, Any]) -> None:
-    event_type = payload.get("type")
-    event_payload = payload.get("payload")
-    logger.info(
-        "agent event session_id=%s run_id=%s seq=%s type=%s payload=%s",
-        payload.get("session_id"),
-        payload.get("run_id"),
-        payload.get("seq"),
-        event_type,
-        json.dumps(event_payload, ensure_ascii=False, default=str),
-    )
+    stream_service.log_agent_event(logger, payload)

@@ -145,6 +145,20 @@ class AgentRepository:
                 session.updated_at = func.now()
             await db.commit()
 
+    async def start_run(self, session_id: str, run_id: str) -> None:
+        async with self._session_factory() as db:
+            run = await db.get(AgentRunModel, run_id)
+            if run is not None and run.session_id == session_id:
+                run.status = "running"
+                run.started_at = func.now()
+                run.updated_at = func.now()
+            session = await db.get(AnalysisSessionModel, session_id)
+            if session is not None:
+                session.status = "running"
+                session.current_run_id = run_id
+                session.updated_at = func.now()
+            await db.commit()
+
     async def get_run(self, session_id: str, run_id: str) -> dict[str, Any] | None:
         async with self._session_factory() as db:
             run = await db.get(AgentRunModel, run_id)
@@ -177,14 +191,27 @@ class AgentRepository:
                 session.status = status
             await db.commit()
 
-    async def complete_run(self, session_id: str, run_id: str, status: RunStatus) -> None:
+    async def complete_run(
+        self,
+        session_id: str,
+        run_id: str,
+        status: RunStatus,
+        failure_reason: str | None = None,
+    ) -> None:
         async with self._session_factory() as db:
             run = await db.get(AgentRunModel, run_id)
             if run is not None:
                 run.status = status
+                run.finished_at = func.now()
+                run.updated_at = func.now()
+                if failure_reason:
+                    run.error_message = failure_reason
             session = await db.get(AnalysisSessionModel, session_id)
             if session is not None:
                 session.status = _session_status_from_run_status(status)
+                session.current_run_id = None
+                if status in {"completed", "failed", "cancelled"}:
+                    session.completed_at = func.now()
                 session.updated_at = func.now()
             await db.commit()
 

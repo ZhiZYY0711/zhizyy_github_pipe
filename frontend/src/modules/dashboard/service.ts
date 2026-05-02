@@ -37,13 +37,18 @@ const emptyDimension: Required<AreaDimensionData> = {
 const geoCdnBaseUrl = String(import.meta.env.VITE_GEO_CDN_BASE_URL ?? '').replace(/\/+$/, '')
 
 export async function loadGeoIndex() {
-  const response = await fetch(resolveGeoAssetPath('/geo/index.json'))
+  try {
+    const response = await fetch(resolveGeoAssetPath('/geo/index.json'))
 
-  if (!response.ok) {
-    throw new Error('地图索引加载失败')
+    if (!response.ok) {
+      return emptyGeoIndex()
+    }
+
+    const rawBody = await response.text()
+    return normalizeGeoIndex(JSON.parse(stripJsonBom(rawBody)) as GeoIndex)
+  } catch {
+    return emptyGeoIndex()
   }
-
-  return normalizeGeoIndex((await response.json()) as GeoIndex)
 }
 
 export function resolveGeoAssetPath(path: string) {
@@ -131,6 +136,23 @@ function normalizeGeoIndexEntry(entry: GeoIndex['china']) {
     ...entry,
     path: resolveGeoAssetPath(entry.path),
   }
+}
+
+function emptyGeoIndex() {
+  return {
+    china: {
+      code: '100000',
+      name: '全国',
+      path: '',
+    },
+    province: {},
+    city: {},
+    district: {},
+  } satisfies GeoIndex
+}
+
+function stripJsonBom(value: string) {
+  return value.replace(/^\uFEFF/, '')
 }
 
 function isAbsoluteUrl(path: string) {

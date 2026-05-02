@@ -19,6 +19,7 @@ class ReactRuntime:
         llm_client: LlmClient,
         retriever: Retriever,
         summary_memory: list[str] | None = None,
+        preference_memory: list[str] | None = None,
         max_steps: int = 8,
         max_tool_calls: int = 5,
         max_knowledge_searches: int = 3,
@@ -27,6 +28,7 @@ class ReactRuntime:
         self._llm_client = llm_client
         self._retriever = retriever
         self._summary_memory = summary_memory or []
+        self._preference_memory = preference_memory or []
         self._max_steps = max_steps
         self._max_tool_calls = max_tool_calls
         self._max_knowledge_searches = max_knowledge_searches
@@ -80,6 +82,7 @@ class ReactRuntime:
             {
                 "available_tools": [tool.name for tool in available_tools],
                 "summary_memory_count": len(self._summary_memory),
+                "preference_memory_count": len(self._preference_memory),
             },
         )
         if self._summary_memory:
@@ -99,6 +102,7 @@ class ReactRuntime:
                 observations=observations,
                 retrieved_knowledge=retrieved_knowledge,
                 summary_memory=self._summary_memory,
+                preference_memory=self._preference_memory,
                 limits=limits,
             )
             if hasattr(self._llm_client, "stream_chat"):

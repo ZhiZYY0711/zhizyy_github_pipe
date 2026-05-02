@@ -21,6 +21,7 @@ def build_action_prompt(
     retrieved_knowledge: list[dict],
     summary_memory: list[str],
     limits: dict,
+    preference_memory: list[str] | None = None,
 ) -> str:
     tools = [
         {
@@ -43,6 +44,7 @@ def build_action_prompt(
         f"已观察结果: {observations}\n"
         f"已检索知识: {retrieved_knowledge}\n"
         f"摘要记忆: {summary_memory}\n"
+        f"用户长期偏好: {preference_memory or []}\n"
         f"运行限制: {limits}\n"
         "请选择下一步动作。优先基于证据推进；"
         "若问题可以用通用知识或案例经验先回答，应先选择 knowledge_search；"

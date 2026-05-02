@@ -17,14 +17,17 @@ class AgentRuntimeService:
         tool_registry: ToolRegistry,
         retriever: Retriever | None = None,
         summary_memory: list[str] | None = None,
+        preference_memory: list[dict] | None = None,
     ) -> None:
         llm_client = build_llm_client()
+        preference_text = _format_preference_memory(preference_memory or [])
         if llm_client is not None:
             self.orchestrator = ReactRuntime(
                 tool_registry=tool_registry,
                 llm_client=llm_client,
                 retriever=retriever or build_qdrant_retriever(),
                 summary_memory=summary_memory or [],
+                preference_memory=preference_text,
             )
             return
 
@@ -47,6 +50,10 @@ class AgentRuntimeService:
             permissions=permissions,
         ):
             yield event
+
+
+def _format_preference_memory(memories: list[dict]) -> list[str]:
+    return [str(memory.get("content") or "") for memory in memories if memory.get("content")]
 
 
 def _with_conversation_context(raw_input: str, conversation_context: dict | None) -> str:

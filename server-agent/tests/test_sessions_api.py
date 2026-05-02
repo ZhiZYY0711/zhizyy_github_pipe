@@ -624,6 +624,111 @@ def test_cross_session_accepted_memory_is_injected_into_new_run(monkeypatch):
     assert "CP-04 是重点管段" in body
 
 
+def test_low_risk_preference_emits_memory_accepted_and_is_recalled(monkeypatch):
+    class MemoryService:
+        def __init__(self, tool_registry, summary_memory=None, preference_memory=None) -> None:
+            self.preference_memory = preference_memory or summary_memory or []
+
+        async def run_analysis(
+            self,
+            session_id: str,
+            run_id: str,
+            raw_input: str,
+            permissions: set[str],
+            conversation_context=None,
+        ):
+            yield AgentEvent(
+                id=f"evt_{run_id}_001",
+                session_id=session_id,
+                run_id=run_id,
+                seq=1,
+                type=AgentEventType.CONTEXT_BUILT,
+                payload={"preference_memory": self.preference_memory},
+            )
+            yield AgentEvent(
+                id=f"evt_{run_id}_002",
+                session_id=session_id,
+                run_id=run_id,
+                seq=2,
+                type=AgentEventType.RUN_COMPLETED,
+            )
+
+    monkeypatch.setattr(sessions_module, "AgentRuntimeService", MemoryService)
+    sessions_module._memory_candidates.clear()
+    getattr(sessions_module, "_user_memories", {}).clear()
+    client = TestClient(app)
+    created = client.post("/api/agent/sessions", json={"title": "偏好测试"}).json()
+    first = client.post(
+        f"/api/agent/sessions/{created['session_id']}/messages",
+        json={"content": "以后回答先给结论"},
+    ).json()
+
+    with client.stream("GET", f"/api/agent/sessions/{created['session_id']}/runs/{first['run']['id']}/stream") as response:
+        body = response.read().decode("utf-8")
+
+    assert '"type":"memory_accepted"' in body
+    assert "回答先给结论" in body
+
+    second = client.post(
+        f"/api/agent/sessions/{created['session_id']}/messages",
+        json={"content": "压力波动怎么处理"},
+    ).json()
+    with client.stream("GET", f"/api/agent/sessions/{created['session_id']}/runs/{second['run']['id']}/stream") as response:
+        recalled = response.read().decode("utf-8")
+
+    assert '"type":"memory_recalled"' in recalled
+    assert "回答先给结论" in recalled
+
+
+def test_high_risk_preference_creates_pending_candidate_and_accepts_it(monkeypatch):
+    monkeypatch.setattr(sessions_module, "AgentRuntimeService", FastCompletedService)
+    sessions_module._memory_candidates.clear()
+    getattr(sessions_module, "_user_memories", {}).clear()
+    client = TestClient(app)
+    created = client.post("/api/agent/sessions", json={"title": "高影响偏好"}).json()
+    message = client.post(
+        f"/api/agent/sessions/{created['session_id']}/messages",
+        json={"content": "以后风险都按高等级处理"},
+    ).json()
+
+    with client.stream("GET", f"/api/agent/sessions/{created['session_id']}/runs/{message['run']['id']}/stream") as response:
+        body = response.read().decode("utf-8")
+
+    assert '"type":"memory_candidate_created"' in body
+    pending = client.get("/api/agent/memories", params={"status": "pending"}).json()["items"]
+    assert len(pending) == 1
+    assert pending[0]["riskLevel"] == "high"
+
+    accepted = client.post(f"/api/agent/memory-candidates/{pending[0]['id']}/accept")
+
+    assert accepted.status_code == 200
+    assert accepted.json()["memory"]["status"] == "active"
+    active = client.get("/api/agent/memories", params={"status": "active"}).json()["items"]
+    assert any(item["content"] == pending[0]["content"] for item in active)
+
+
+def test_memory_list_is_scoped_by_user_header(monkeypatch):
+    monkeypatch.setattr(sessions_module, "AgentRuntimeService", FastCompletedService)
+    sessions_module._memory_candidates.clear()
+    getattr(sessions_module, "_user_memories", {}).clear()
+    client = TestClient(app)
+    first = client.post("/api/agent/sessions", json={"title": "u1"}, headers={"X-Agent-User-Id": "u1"}).json()
+    message = client.post(
+        f"/api/agent/sessions/{first['session_id']}/messages",
+        json={"content": "以后回答短一点"},
+        headers={"X-Agent-User-Id": "u1"},
+    ).json()
+    with client.stream(
+        "GET",
+        f"/api/agent/sessions/{first['session_id']}/runs/{message['run']['id']}/stream",
+        headers={"X-Agent-User-Id": "u1"},
+    ) as response:
+        response.read()
+
+    assert client.get("/api/agent/memories", headers={"X-Agent-User-Id": "u1"}).json()["items"]
+    assert client.get("/api/agent/memories", headers={"X-Agent-User-Id": "u2"}).json()["items"] == []
+
+
 def test_run_session_exposes_all_default_read_tools(monkeypatch):
     captured_permissions = set()
 

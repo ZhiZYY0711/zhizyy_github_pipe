@@ -18,7 +18,15 @@ from app.llm.client import build_llm_client
 from app.persistence.redis_state import AgentRedisState
 from app.persistence.repository import AgentRepository
 from app.security import require_internal_token
-from app.services import export_intent_service, message_service, run_service, runtime_factory, session_service, stream_service
+from app.services import (
+    export_intent_service,
+    message_service,
+    preference_memory_service,
+    run_service,
+    runtime_factory,
+    session_service,
+    stream_service,
+)
 from app.tools.business_tools import build_business_registry
 
 router = APIRouter(prefix="/api/agent", tags=["agent"], dependencies=[Depends(require_internal_token)])
@@ -26,6 +34,7 @@ logger = logging.getLogger(__name__)
 
 _sessions: dict[str, dict[str, Any]] = {}
 _memory_candidates: dict[str, dict[str, Any]] = {}
+_user_memories: dict[str, list[dict[str, Any]]] = {}
 _repositories: dict[str, AgentRepository] = {}
 _redis_states: dict[str, AgentRedisState] = {}
 DEFAULT_RUN_PERMISSIONS = {
@@ -184,12 +193,30 @@ async def stream_run_session(
     logger.info("agent stream run started session_id=%s run_id=%s mode=in_memory", session_id, run_id)
 
     async def generator():
-        service = _build_runtime_service(_accepted_summary_memory(session["request"]["raw_input"]))
+        user_id = _user_id_from_request(request)
+        input_text = session["request"]["raw_input"]
+        recalled_memories = await _recall_preference_memories(user_id, input_text)
+        if recalled_memories:
+            yield _sse_event(
+                "agent_event",
+                {
+                    "id": f"evt_mem_recalled_{uuid4().hex}",
+                    "session_id": session_id,
+                    "run_id": run_id,
+                    "seq": 0,
+                    "type": "memory_recalled",
+                    "level": "info",
+                    "title": "召回偏好记忆",
+                    "payload": preference_memory_service.recalled_event_payload(recalled_memories),
+                    "created_at": _now_iso(),
+                },
+            )
+        service = _build_runtime_service(_accepted_summary_memory(input_text), recalled_memories)
         events = []
         async for event in service.run_analysis(
             session_id=session_id,
             run_id=run_id,
-            raw_input=session["request"]["raw_input"],
+            raw_input=input_text,
             permissions=DEFAULT_RUN_PERMISSIONS,
         ):
             if await _get_redis_state().is_cancelled(run_id):
@@ -208,6 +235,37 @@ async def stream_run_session(
             await _get_redis_state().remember_last_seq(session_id, event.seq)
             yield _sse_event("agent_event", payload)
         session["status"] = _derive_run_status(events)
+        memory_result = await _store_preference_memories(user_id, session_id, run_id, input_text)
+        for memory in memory_result["accepted"]:
+            yield _sse_event(
+                "agent_event",
+                {
+                    "id": f"evt_mem_accepted_{uuid4().hex}",
+                    "session_id": session_id,
+                    "run_id": run_id,
+                    "seq": len(events) + 1,
+                    "type": "memory_accepted",
+                    "level": "info",
+                    "title": "已保存偏好记忆",
+                    "payload": preference_memory_service.memory_event_payload(memory, auto_accepted=True),
+                    "created_at": _now_iso(),
+                },
+            )
+        for candidate in memory_result["pending"]:
+            yield _sse_event(
+                "agent_event",
+                {
+                    "id": f"evt_mem_candidate_{uuid4().hex}",
+                    "session_id": session_id,
+                    "run_id": run_id,
+                    "seq": len(events) + 1,
+                    "type": "memory_candidate_created",
+                    "level": "warn",
+                    "title": "偏好需要确认",
+                    "payload": preference_memory_service.candidate_event_payload(candidate),
+                    "created_at": _now_iso(),
+                },
+            )
         logger.info("agent stream run finished session_id=%s run_id=%s status=%s events=%s", session_id, run_id, session["status"], len(events))
         yield _sse_event(
             "run_status",
@@ -257,7 +315,24 @@ async def stream_specific_run_session(
     session["status"] = "running"
 
     async def generator():
-        service = _build_runtime_service(_accepted_summary_memory(run["input_text"]))
+        user_id = _user_id_from_request(request)
+        recalled_memories = await _recall_preference_memories(user_id, run["input_text"])
+        if recalled_memories:
+            yield _sse_event(
+                "agent_event",
+                {
+                    "id": f"evt_mem_recalled_{uuid4().hex}",
+                    "session_id": session_id,
+                    "run_id": run_id,
+                    "seq": 0,
+                    "type": "memory_recalled",
+                    "level": "info",
+                    "title": "召回偏好记忆",
+                    "payload": preference_memory_service.recalled_event_payload(recalled_memories),
+                    "created_at": _now_iso(),
+                },
+            )
+        service = _build_runtime_service(_accepted_summary_memory(run["input_text"]), recalled_memories)
         events = []
         async for event in service.run_analysis(
             session_id=session_id,
@@ -287,6 +362,37 @@ async def stream_specific_run_session(
 
         final_status = _derive_run_status(events)
         _complete_in_memory_message_run(session, run, events, final_status)
+        memory_result = await _store_preference_memories(user_id, session_id, run_id, run["input_text"])
+        for memory in memory_result["accepted"]:
+            yield _sse_event(
+                "agent_event",
+                {
+                    "id": f"evt_mem_accepted_{uuid4().hex}",
+                    "session_id": session_id,
+                    "run_id": run_id,
+                    "seq": len(events) + 1,
+                    "type": "memory_accepted",
+                    "level": "info",
+                    "title": "已保存偏好记忆",
+                    "payload": preference_memory_service.memory_event_payload(memory, auto_accepted=True),
+                    "created_at": _now_iso(),
+                },
+            )
+        for candidate in memory_result["pending"]:
+            yield _sse_event(
+                "agent_event",
+                {
+                    "id": f"evt_mem_candidate_{uuid4().hex}",
+                    "session_id": session_id,
+                    "run_id": run_id,
+                    "seq": len(events) + 1,
+                    "type": "memory_candidate_created",
+                    "level": "warn",
+                    "title": "偏好需要确认",
+                    "payload": preference_memory_service.candidate_event_payload(candidate),
+                    "created_at": _now_iso(),
+                },
+            )
         session["updated_at"] = _now_iso()
         yield _sse_event("run_status", {"session_id": session_id, "run_id": run_id, "status": final_status})
 
@@ -360,6 +466,87 @@ async def list_timeline(
     return _timeline_response(_list_in_memory_timeline(session, before_cursor, limit))
 
 
+@router.get("/memories")
+async def list_memories(request: Request, status: str = Query("active")) -> dict[str, Any]:
+    user_id = _user_id_from_request(request)
+    if status not in {"active", "pending"}:
+        raise HTTPException(status_code=400, detail="status must be active or pending")
+    return {"items": await _list_preference_memories(user_id, status)}
+
+
+@router.post("/memory-candidates/{candidate_id}/accept")
+async def accept_memory_candidate(candidate_id: str, request: Request) -> dict[str, Any]:
+    user_id = _user_id_from_request(request)
+    if not _use_in_memory_store():
+        memory = await preference_memory_service.accept_candidate(
+            _get_repository(),
+            user_id=user_id,
+            candidate_id=candidate_id,
+        )
+        if memory is None:
+            raise HTTPException(status_code=404, detail="Memory candidate not found")
+        return {"memory": _memory_response(memory)}
+
+    candidate = _memory_candidates.get(candidate_id)
+    if candidate is None or candidate.get("user_id") != user_id or candidate.get("status") != "pending":
+        raise HTTPException(status_code=404, detail="Memory candidate not found")
+    candidate["status"] = "accepted"
+    memory = {
+        "id": f"mem_{uuid4().hex}",
+        "user_id": user_id,
+        "memory_type": candidate["memory_type"],
+        "preference_key": candidate["preference_key"],
+        "content": candidate["content"],
+        "status": "active",
+        "risk_level": candidate["risk_level"],
+        "created_at": _now_iso(),
+        "updated_at": _now_iso(),
+    }
+    _user_memories.setdefault(user_id, []).append(memory)
+    return {"memory": _memory_response(memory)}
+
+
+@router.post("/memory-candidates/{candidate_id}/reject")
+async def reject_memory_candidate(candidate_id: str, request: Request) -> dict[str, Any]:
+    user_id = _user_id_from_request(request)
+    if not _use_in_memory_store():
+        candidate = await preference_memory_service.reject_candidate(
+            _get_repository(),
+            user_id=user_id,
+            candidate_id=candidate_id,
+        )
+        if candidate is None:
+            raise HTTPException(status_code=404, detail="Memory candidate not found")
+        return {"candidate": _memory_candidate_response(candidate)}
+
+    candidate = _memory_candidates.get(candidate_id)
+    if candidate is None or candidate.get("user_id") != user_id:
+        raise HTTPException(status_code=404, detail="Memory candidate not found")
+    candidate["status"] = "rejected"
+    return {"candidate": _memory_candidate_response(candidate)}
+
+
+@router.delete("/memories/{memory_id}")
+async def delete_memory(memory_id: str, request: Request) -> dict[str, Any]:
+    user_id = _user_id_from_request(request)
+    if not _use_in_memory_store():
+        memory = await preference_memory_service.delete_memory(
+            _get_repository(),
+            user_id=user_id,
+            memory_id=memory_id,
+        )
+        if memory is None:
+            raise HTTPException(status_code=404, detail="Memory not found")
+        return {"memory": _memory_response(memory)}
+
+    for memory in _user_memories.get(user_id, []):
+        if memory.get("id") == memory_id:
+            memory["status"] = "deleted"
+            memory["updated_at"] = _now_iso()
+            return {"memory": _memory_response(memory)}
+    raise HTTPException(status_code=404, detail="Memory not found")
+
+
 @router.post("/sessions/{session_id}/runs/{run_id}/cancel")
 async def cancel_run(session_id: str, run_id: str) -> dict[str, str]:
     if not _use_in_memory_store():
@@ -406,9 +593,142 @@ def _get_redis_state() -> AgentRedisState:
     return _redis_states.setdefault(settings.redis_url, AgentRedisState.from_url(settings.redis_url))
 
 
-def _build_runtime_service(summary_memory: list[str] | None = None) -> AgentRuntimeService:
+def _user_id_from_request(request: Request | None) -> str:
+    if request is None:
+        return "system"
+    value = request.headers.get("X-Agent-User-Id")
+    return value.strip() if value and value.strip() else "system"
+
+
+async def _list_preference_memories(user_id: str, status: str) -> list[dict[str, Any]]:
+    if not _use_in_memory_store():
+        return [
+            _memory_candidate_response(item) if status == "pending" else _memory_response(item)
+            for item in await preference_memory_service.list_memories(
+                _get_repository(),
+                user_id=user_id,
+                status=status,
+            )
+        ]
+    if status == "pending":
+        return [
+            _memory_candidate_response(candidate)
+            for candidate in _memory_candidates.values()
+            if candidate.get("user_id") == user_id and candidate.get("status") == "pending"
+        ]
+    return [
+        _memory_response(memory)
+        for memory in _user_memories.get(user_id, [])
+        if memory.get("status") == "active"
+    ]
+
+
+async def _recall_preference_memories(user_id: str, query: str) -> list[dict[str, Any]]:
+    if not _use_in_memory_store():
+        return await preference_memory_service.recall_memories(
+            _get_repository(),
+            user_id=user_id,
+            query=query,
+        )
+    memories = [
+        _memory_response(memory)
+        for memory in _user_memories.get(user_id, [])
+        if memory.get("status") == "active"
+    ]
+    return preference_memory_service.rank_recalled_memories(memories, query)
+
+
+async def _store_preference_memories(
+    user_id: str,
+    session_id: str,
+    run_id: str,
+    content: str,
+) -> dict[str, list[dict[str, Any]]]:
+    if not _use_in_memory_store():
+        return await preference_memory_service.extract_and_store_preferences(
+            repository=_get_repository(),
+            user_id=user_id,
+            session_id=session_id,
+            run_id=run_id,
+            content=content,
+        )
+
+    accepted: list[dict[str, Any]] = []
+    pending: list[dict[str, Any]] = []
+    candidates = preference_memory_service.extract_preference_candidates(
+        user_id=user_id,
+        session_id=session_id,
+        run_id=run_id,
+        content=content,
+    )
+    for candidate in candidates:
+        status = "accepted" if candidate.proposed_action == "auto_accept" else "pending"
+        candidate_record = {
+            "id": candidate.id,
+            "user_id": candidate.user_id,
+            "session_id": candidate.session_id,
+            "run_id": candidate.run_id,
+            "memory_type": candidate.memory_type,
+            "preference_key": candidate.preference_key,
+            "content": candidate.content,
+            "risk_level": candidate.risk_level,
+            "reason": candidate.reason,
+            "status": status,
+            "created_at": _now_iso(),
+        }
+        _memory_candidates[candidate.id] = candidate_record
+        if status == "accepted":
+            memory = {
+                "id": f"mem_{uuid4().hex}",
+                "user_id": user_id,
+                "memory_type": candidate.memory_type,
+                "preference_key": candidate.preference_key,
+                "content": candidate.content,
+                "status": "active",
+                "risk_level": candidate.risk_level,
+                "created_at": _now_iso(),
+                "updated_at": _now_iso(),
+            }
+            _user_memories.setdefault(user_id, []).append(memory)
+            accepted.append(memory)
+        else:
+            pending.append(candidate_record)
+    return {"accepted": accepted, "pending": pending}
+
+
+def _memory_response(memory: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "id": memory.get("id"),
+        "memoryType": memory.get("memoryType") or memory.get("memory_type"),
+        "preferenceKey": memory.get("preferenceKey") or memory.get("preference_key"),
+        "content": memory.get("content"),
+        "status": memory.get("status", "active"),
+        "riskLevel": memory.get("riskLevel") or memory.get("risk_level"),
+        "createdAt": memory.get("createdAt") or memory.get("created_at"),
+        "updatedAt": memory.get("updatedAt") or memory.get("updated_at"),
+    }
+
+
+def _memory_candidate_response(candidate: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "id": candidate.get("id"),
+        "memoryType": candidate.get("memoryType") or candidate.get("memory_type"),
+        "preferenceKey": candidate.get("preferenceKey") or candidate.get("preference_key"),
+        "content": candidate.get("content"),
+        "status": candidate.get("status", "pending"),
+        "riskLevel": candidate.get("riskLevel") or candidate.get("risk_level"),
+        "reason": candidate.get("reason"),
+        "createdAt": candidate.get("createdAt") or candidate.get("created_at"),
+    }
+
+
+def _build_runtime_service(
+    summary_memory: list[str] | None = None,
+    preference_memory: list[dict[str, Any]] | None = None,
+) -> AgentRuntimeService:
     return runtime_factory.build_runtime_service(
         summary_memory,
+        preference_memory,
         runtime_cls=AgentRuntimeService,
         registry_factory=build_business_registry,
     )
@@ -484,7 +804,28 @@ async def _stream_persistent_specific_run(
 
     logger.info("agent stream run started session_id=%s run_id=%s mode=persistent-multiturn", session_id, run_id)
     await _start_run_if_supported(repository, session_id, run_id)
-    service = _build_runtime_service(await _list_accepted_memories(repository, run.get("input_text") or ""))
+    user_id = _user_id_from_request(request)
+    input_text = run.get("input_text") or ""
+    recalled_memories = await _recall_preference_memories(user_id, input_text)
+    if recalled_memories:
+        yield _sse_event(
+            "agent_event",
+            {
+                "id": f"evt_mem_recalled_{uuid4().hex}",
+                "session_id": session_id,
+                "run_id": run_id,
+                "seq": 0,
+                "type": "memory_recalled",
+                "level": "info",
+                "title": "召回偏好记忆",
+                "payload": preference_memory_service.recalled_event_payload(recalled_memories),
+                "created_at": _now_iso(),
+            },
+        )
+    service = _build_runtime_service(
+        await _list_accepted_memories(repository, input_text),
+        recalled_memories,
+    )
     events: list[dict[str, Any]] = []
     cancelled_by_disconnect = False
     cancelled_by_request = False
@@ -494,7 +835,7 @@ async def _stream_persistent_specific_run(
         async for event in service.run_analysis(
             session_id=session_id,
             run_id=run_id,
-            raw_input=run["input_text"] or "",
+            raw_input=input_text,
             permissions=DEFAULT_RUN_PERMISSIONS,
             conversation_context=context,
         ):
@@ -542,7 +883,38 @@ async def _stream_persistent_specific_run(
         content=summary.get("final_answer") or summary.get("judgment") or f"本轮研判{final_status}",
         triggered_run_id=run_id,
     )
-    await _store_persistent_memory_candidates(repository, session_id, run_id, run.get("input_text") or "", summary)
+    memory_result = await _store_preference_memories(user_id, session_id, run_id, input_text)
+    for memory in memory_result["accepted"]:
+        yield _sse_event(
+            "agent_event",
+            {
+                "id": f"evt_mem_accepted_{uuid4().hex}",
+                "session_id": session_id,
+                "run_id": run_id,
+                "seq": len(events) + 1,
+                "type": "memory_accepted",
+                "level": "info",
+                "title": "已保存偏好记忆",
+                "payload": preference_memory_service.memory_event_payload(memory, auto_accepted=True),
+                "created_at": _now_iso(),
+            },
+        )
+    for candidate in memory_result["pending"]:
+        yield _sse_event(
+            "agent_event",
+            {
+                "id": f"evt_mem_candidate_{uuid4().hex}",
+                "session_id": session_id,
+                "run_id": run_id,
+                "seq": len(events) + 1,
+                "type": "memory_candidate_created",
+                "level": "warn",
+                "title": "偏好需要确认",
+                "payload": preference_memory_service.candidate_event_payload(candidate),
+                "created_at": _now_iso(),
+            },
+        )
+    await _store_persistent_memory_candidates(repository, session_id, run_id, input_text, summary)
     logger.info("agent stream run finished session_id=%s run_id=%s status=%s events=%s", session_id, run_id, final_status, len(events))
     yield _sse_event("run_status", {"session_id": session_id, "run_id": run_id, "status": final_status})
 
@@ -574,7 +946,28 @@ async def _stream_persistent_session(
     await repository.create_run(session_id, run_id)
     await _start_run_if_supported(repository, session_id, run_id)
     logger.info("agent stream run started session_id=%s run_id=%s mode=persistent", session_id, run_id)
-    service = _build_runtime_service(await _list_accepted_memories(repository, session.get("raw_input") or ""))
+    user_id = _user_id_from_request(request)
+    input_text = session.get("raw_input") or ""
+    recalled_memories = await _recall_preference_memories(user_id, input_text)
+    if recalled_memories:
+        yield _sse_event(
+            "agent_event",
+            {
+                "id": f"evt_mem_recalled_{uuid4().hex}",
+                "session_id": session_id,
+                "run_id": run_id,
+                "seq": 0,
+                "type": "memory_recalled",
+                "level": "info",
+                "title": "召回偏好记忆",
+                "payload": preference_memory_service.recalled_event_payload(recalled_memories),
+                "created_at": _now_iso(),
+            },
+        )
+    service = _build_runtime_service(
+        await _list_accepted_memories(repository, input_text),
+        recalled_memories,
+    )
     events: list[dict[str, Any]] = []
     cancelled_by_disconnect = False
     cancelled_by_request = False
@@ -583,7 +976,7 @@ async def _stream_persistent_session(
         async for event in service.run_analysis(
             session_id=session_id,
             run_id=run_id,
-            raw_input=session["raw_input"],
+            raw_input=input_text,
             permissions=DEFAULT_RUN_PERMISSIONS,
         ):
             if await _get_redis_state().is_cancelled(run_id):
@@ -615,6 +1008,37 @@ async def _stream_persistent_session(
         return
     final_status = _derive_run_status(events)
     await repository.complete_run(session_id, run_id, final_status)
+    memory_result = await _store_preference_memories(user_id, session_id, run_id, input_text)
+    for memory in memory_result["accepted"]:
+        yield _sse_event(
+            "agent_event",
+            {
+                "id": f"evt_mem_accepted_{uuid4().hex}",
+                "session_id": session_id,
+                "run_id": run_id,
+                "seq": len(events) + 1,
+                "type": "memory_accepted",
+                "level": "info",
+                "title": "已保存偏好记忆",
+                "payload": preference_memory_service.memory_event_payload(memory, auto_accepted=True),
+                "created_at": _now_iso(),
+            },
+        )
+    for candidate in memory_result["pending"]:
+        yield _sse_event(
+            "agent_event",
+            {
+                "id": f"evt_mem_candidate_{uuid4().hex}",
+                "session_id": session_id,
+                "run_id": run_id,
+                "seq": len(events) + 1,
+                "type": "memory_candidate_created",
+                "level": "warn",
+                "title": "偏好需要确认",
+                "payload": preference_memory_service.candidate_event_payload(candidate),
+                "created_at": _now_iso(),
+            },
+        )
     logger.info("agent stream run finished session_id=%s run_id=%s status=%s events=%s", session_id, run_id, final_status, len(events))
     yield _sse_event("run_status", {"session_id": session_id, "run_id": run_id, "status": final_status})
 
@@ -700,6 +1124,8 @@ def _accepted_summary_memory(query: str | None, limit: int = 5) -> list[str]:
     scored: list[tuple[int, str]] = []
     for memory in _memory_candidates.values():
         if memory.get("status") != "accepted":
+            continue
+        if memory.get("preference_key"):
             continue
         content = str(memory.get("content") or "")
         memory_type = str(memory.get("memory_type") or "")

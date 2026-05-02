@@ -148,6 +148,29 @@ async def test_react_runtime_injects_summary_memory_into_prompt() -> None:
     assert "用户偏好" in llm.calls[0]["user"]
 
 
+async def test_react_runtime_injects_preference_memory_into_prompt() -> None:
+    llm = ScriptedLlm([ReactAction(thought_summary="直接回答。", action="final_answer")])
+    runtime = ReactRuntime(
+        tool_registry=ToolRegistry([]),
+        llm_client=llm,
+        retriever=lambda query: [],
+        preference_memory=["回答先给结论。"],
+    )
+
+    _ = [
+        event
+        async for event in runtime.run(
+            session_id="ana_pref",
+            run_id="run_pref",
+            raw_input="给出压力波动建议",
+            permissions=set(),
+        )
+    ]
+
+    assert "用户长期偏好" in llm.calls[0]["user"]
+    assert "回答先给结论" in llm.calls[0]["user"]
+
+
 def test_action_prompt_includes_tool_catalog_metadata_for_llm_choice() -> None:
     prompt = build_action_prompt(
         raw_input="获取山东省过去一年平均温度",

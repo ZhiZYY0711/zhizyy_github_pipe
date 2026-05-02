@@ -928,6 +928,78 @@ async def test_persistent_cancel_run_releases_active_run(monkeypatch):
     assert repository.session["status"] == "cancelled"
 
 
+@pytest.mark.asyncio
+async def test_persistent_stream_session_starts_existing_created_run(monkeypatch):
+    class FakeRedisState:
+        async def is_cancelled(self, run_id: str) -> bool:
+            return False
+
+        async def remember_last_seq(self, session_id: str, seq: int) -> None:
+            return None
+
+    class FakeRepository:
+        def __init__(self) -> None:
+            self.session = {
+                "session_id": "ana_001",
+                "run_id": "run_001",
+                "status": "running",
+                "raw_input": "压力波动",
+            }
+            self.run = {
+                "id": "run_001",
+                "session_id": "ana_001",
+                "status": "created",
+                "input_text": "压力波动",
+            }
+            self.created_runs: list[str] = []
+            self.started_runs: list[str] = []
+            self.completed_status: str | None = None
+
+        async def get_session(self, session_id: str):
+            return self.session if session_id == self.session["session_id"] else None
+
+        async def get_run(self, session_id: str, run_id: str):
+            if session_id == self.session["session_id"] and run_id == self.run["id"]:
+                return self.run
+            return None
+
+        async def create_run(self, session_id: str, run_id: str) -> None:
+            self.created_runs.append(run_id)
+
+        async def start_run(self, session_id: str, run_id: str) -> None:
+            self.started_runs.append(run_id)
+            self.run["status"] = "running"
+
+        async def append_event(self, event) -> None:
+            return None
+
+        async def complete_run(self, session_id: str, run_id: str, status: str) -> None:
+            self.completed_status = status
+            self.run["status"] = status
+
+    repository = FakeRepository()
+    async def recall_memories(user_id: str, query: str):
+        return []
+
+    async def store_memories(user_id: str, session_id: str, run_id: str, content: str):
+        return {"accepted": [], "pending": []}
+
+    monkeypatch.setattr(sessions_module, "_get_repository", lambda: repository)
+    monkeypatch.setattr(sessions_module, "_get_redis_state", lambda: FakeRedisState())
+    monkeypatch.setattr(sessions_module, "AgentRuntimeService", FastCompletedService)
+    monkeypatch.setattr(sessions_module, "_recall_preference_memories", recall_memories)
+    monkeypatch.setattr(sessions_module, "_store_preference_memories", store_memories)
+
+    chunks = [
+        chunk async for chunk in sessions_module._stream_persistent_session("ana_001")
+    ]
+
+    assert repository.created_runs == []
+    assert repository.started_runs == ["run_001"]
+    assert repository.completed_status == "completed"
+    assert any("event: run_status" in chunk for chunk in chunks)
+
+
 def test_in_memory_run_session_preserves_terminal_status(monkeypatch):
     class FakeService:
         def __init__(self, tool_registry) -> None:

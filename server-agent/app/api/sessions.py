@@ -962,10 +962,13 @@ async def _stream_persistent_session(
             ):
                 yield item
             return
-        raise HTTPException(status_code=409, detail="Session already has a run")
+        if run is None or run.get("status") != "created":
+            raise HTTPException(status_code=409, detail="Session already has a run")
+        run_id = session["run_id"]
+    else:
+        run_id = f"run_{uuid4().hex}"
+        await repository.create_run(session_id, run_id)
 
-    run_id = f"run_{uuid4().hex}"
-    await repository.create_run(session_id, run_id)
     await _start_run_if_supported(repository, session_id, run_id)
     logger.info("agent stream run started session_id=%s run_id=%s mode=persistent", session_id, run_id)
     user_id = _user_id_from_request(request)

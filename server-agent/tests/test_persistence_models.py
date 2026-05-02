@@ -1,3 +1,5 @@
+import re
+
 import pytest
 
 from app.core.config import Settings
@@ -54,6 +56,8 @@ def test_persistence_models_match_core_table_names_columns_and_status_checks():
 
     session_status_sql = str(session_status_constraint.sqltext)
     run_status_sql = str(run_status_constraint.sqltext)
+    session_statuses = set(re.findall(r"'([^']+)'", session_status_sql))
+    run_statuses = set(re.findall(r"'([^']+)'", run_status_sql))
 
     for expected_status in [
         "created",
@@ -64,10 +68,11 @@ def test_persistence_models_match_core_table_names_columns_and_status_checks():
         "cancelled",
         "archived",
     ]:
-        assert expected_status in session_status_sql
+        assert expected_status in session_statuses
 
     for expected_status in [
         "created",
+        "running",
         "understanding",
         "context_building",
         "planning",
@@ -79,7 +84,7 @@ def test_persistence_models_match_core_table_names_columns_and_status_checks():
         "failed",
         "cancelled",
     ]:
-        assert expected_status in run_status_sql
+        assert expected_status in run_statuses
 
     assert AnalysisSessionModel.__table__.c.status.nullable is False
     assert AgentRunModel.__table__.c.status.nullable is False

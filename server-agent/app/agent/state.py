@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, model_validator
 
 RunStatus = Literal[
     "created",
+    "running",
     "understanding",
     "context_building",
     "planning",

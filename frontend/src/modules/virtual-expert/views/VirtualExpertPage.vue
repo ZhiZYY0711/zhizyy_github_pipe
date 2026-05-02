@@ -9,6 +9,7 @@ import type {
   AgentEvidenceDisplayItem,
   AgentExportFormat,
   AgentExportPlan,
+  AgentMemoryItem,
   AgentReactRound,
   AgentRecommendation,
   AgentRunSummary,
@@ -23,12 +24,18 @@ import {
   groupEventsIntoReactRounds,
   isNearConversationBottom,
   isSubmitComposerKey,
+  loadAgentMemories,
   loadAgentSessions,
   loadAgentRunEvents,
   loadAgentTimeline,
+  memoryNoticeFromEvent,
+  memoryTypeLabel,
   normalizeEvidenceDisplayItems,
   normalizeRecommendation,
   readableAgentError,
+  requestAgentMemoryAccept,
+  requestAgentMemoryDelete,
+  requestAgentMemoryReject,
   requestAgentCancel,
   requestAgentExport,
   requestAgentSessionDelete,
@@ -130,6 +137,11 @@ const programmaticScroll = ref(false)
 const isListening = ref(false)
 const speechRecognition = ref<BrowserSpeechRecognition | null>(null)
 const roundExpansionOverrides = ref<Record<string, Record<string, boolean>>>({})
+const memoryPanelOpen = ref(false)
+const activeMemories = ref<AgentMemoryItem[]>([])
+const pendingMemories = ref<AgentMemoryItem[]>([])
+const memoryNotices = ref<AgentMemoryItem[]>([])
+const recalledMemorySummary = ref('')
 
 const selectedSession = computed(() =>
   sessions.value.find((session) => session.id === selectedSessionId.value),
@@ -149,6 +161,7 @@ const quickExportFormats: Array<{ format: AgentExportFormat; label: string }> = 
 
 onMounted(() => {
   void loadInitialSessions()
+  void refreshMemories()
 })
 
 onBeforeUnmount(() => {
@@ -166,6 +179,82 @@ async function loadInitialSessions() {
     await selectSession(loadedSessions[0])
   } catch {
     // Keep the demo fallback available when the agent service is offline.
+  }
+}
+
+async function refreshMemories() {
+  try {
+    const [active, pending] = await Promise.all([
+      loadAgentMemories('active'),
+      loadAgentMemories('pending'),
+    ])
+    activeMemories.value = active
+    pendingMemories.value = pending
+  } catch {
+    activeMemories.value = []
+    pendingMemories.value = []
+  }
+}
+
+async function acceptMemory(item: AgentMemoryItem) {
+  try {
+    const accepted = await requestAgentMemoryAccept(item.id)
+    pendingMemories.value = pendingMemories.value.filter((memory) => memory.id !== item.id)
+    memoryNotices.value = memoryNotices.value.filter((memory) => memory.id !== item.id)
+    if (accepted) {
+      activeMemories.value = [accepted, ...activeMemories.value.filter((memory) => memory.id !== accepted.id)]
+    }
+  } catch (error) {
+    errorMessage.value = readableAgentError(error)
+  }
+}
+
+async function rejectMemory(item: AgentMemoryItem) {
+  try {
+    await requestAgentMemoryReject(item.id)
+    pendingMemories.value = pendingMemories.value.filter((memory) => memory.id !== item.id)
+    memoryNotices.value = memoryNotices.value.filter((memory) => memory.id !== item.id)
+  } catch (error) {
+    errorMessage.value = readableAgentError(error)
+  }
+}
+
+async function removeMemory(item: AgentMemoryItem) {
+  try {
+    await requestAgentMemoryDelete(item.id)
+    activeMemories.value = activeMemories.value.filter((memory) => memory.id !== item.id)
+    if (recalledMemorySummary.value.includes(item.content)) {
+      recalledMemorySummary.value = ''
+    }
+  } catch (error) {
+    errorMessage.value = readableAgentError(error)
+  }
+}
+
+function rememberNoticeFromEvent(event: AgentEvent) {
+  if (event.type === 'memory_recalled') {
+    const items = Array.isArray(event.payload?.items) ? event.payload.items : []
+    recalledMemorySummary.value = items
+      .map((item) => String((item as Record<string, unknown>).content ?? ''))
+      .filter(Boolean)
+      .slice(0, 2)
+      .join('、')
+    return
+  }
+  const notice = memoryNoticeFromEvent(event)
+  if (!notice || !notice.id) {
+    return
+  }
+  const nextNotice = {
+    ...notice,
+    status: event.type === 'memory_candidate_created' ? 'pending' as const : 'active' as const,
+  }
+  memoryNotices.value = [nextNotice, ...memoryNotices.value.filter((item) => item.id !== nextNotice.id)].slice(0, 6)
+  if (event.type === 'memory_candidate_created') {
+    pendingMemories.value = [nextNotice, ...pendingMemories.value.filter((item) => item.id !== nextNotice.id)]
+  }
+  if (event.type === 'memory_accepted') {
+    activeMemories.value = [nextNotice, ...activeMemories.value.filter((item) => item.id !== nextNotice.id)]
   }
 }
 
@@ -265,6 +354,9 @@ function eventLabel(type: string) {
     knowledge_search_started: '开始检索',
     knowledge_search_completed: '知识命中',
     memory_search_completed: '记忆召回',
+    memory_accepted: '已记住偏好',
+    memory_candidate_created: '偏好待确认',
+    memory_recalled: '偏好召回',
     final_answer_started: '输出开始',
     final_answer_delta: '输出中',
     final_answer_completed: '输出完成',
@@ -299,6 +391,16 @@ function eventCaption(event: AgentEvent) {
   if (event.type === 'memory_search_completed') {
     const items = Array.isArray(payload.items) ? payload.items.length : 0
     return items ? `召回 ${items} 条记忆` : '没有召回摘要记忆'
+  }
+  if (event.type === 'memory_accepted') {
+    return String(payload.content ?? '已保存为你的偏好')
+  }
+  if (event.type === 'memory_candidate_created') {
+    return String(payload.content ?? '这个偏好需要确认')
+  }
+  if (event.type === 'memory_recalled') {
+    const items = Array.isArray(payload.items) ? payload.items.length : 0
+    return items ? `本轮参考 ${items} 条偏好` : '本轮没有召回偏好'
   }
   if (event.type === 'recommendation_generated') {
     const recommendation = normalizeRecommendation(payload)
@@ -652,6 +754,9 @@ function isHiddenEvent(type: string) {
     'final_answer_started',
     'final_answer_delta',
     'final_answer_completed',
+    'memory_accepted',
+    'memory_candidate_created',
+    'memory_recalled',
   ].includes(type)
 }
 
@@ -714,6 +819,7 @@ function updateCurrentRun(event: AgentEvent) {
     return
   }
   currentRun.runId = event.runId || currentRun.runId
+  rememberNoticeFromEvent(event)
   applyStreamEvent(currentRun, event)
 }
 
@@ -797,6 +903,8 @@ async function selectSession(session: AgentSession) {
   errorMessage.value = ''
   exportMessage.value = null
   pendingExportPlan.value = null
+  memoryNotices.value = []
+  recalledMemorySummary.value = ''
   const response = await loadAgentTimeline(session.id, { limit: 1 })
   turns.value = response.items.flatMap(timelineItemToTurns)
   beforeCursor.value = response.beforeCursor
@@ -815,6 +923,8 @@ function startNewConversation() {
   errorMessage.value = ''
   exportMessage.value = null
   pendingExportPlan.value = null
+  memoryNotices.value = []
+  recalledMemorySummary.value = ''
 }
 
 function getSpeechRecognitionConstructor() {
@@ -1193,6 +1303,12 @@ function scrollConversationToBottom() {
           开启新对话
         </button>
 
+        <button class="memory-entry" type="button" @click="memoryPanelOpen = true">
+          <span>我的偏好</span>
+          <strong>{{ activeMemories.length }}</strong>
+          <small v-if="pendingMemories.length">{{ pendingMemories.length }} 条待确认</small>
+        </button>
+
         <div class="session-list">
           <article
             v-for="session in sessions"
@@ -1233,6 +1349,32 @@ function scrollConversationToBottom() {
           >
             {{ isLoadingHistory ? '加载中' : '加载更早对话' }}
           </button>
+
+          <section v-if="recalledMemorySummary" class="memory-banner">
+            <span class="chip">记忆召回</span>
+            <p>本轮已参考你的偏好：{{ recalledMemorySummary }}</p>
+          </section>
+
+          <section v-if="memoryNotices.length" class="memory-notices">
+            <article
+              v-for="notice in memoryNotices"
+              :key="notice.id"
+              class="memory-notice"
+              :class="{ 'is-pending': notice.status === 'pending' || notice.riskLevel === 'high' }"
+            >
+              <div>
+                <span class="chip">{{ memoryTypeLabel(notice.memoryType) }}</span>
+                <strong>{{ notice.riskLevel === 'high' ? '这个偏好需要确认' : '已记住偏好' }}</strong>
+                <p>{{ notice.content }}</p>
+                <small v-if="notice.reason">{{ notice.reason }}</small>
+              </div>
+              <div v-if="notice.status === 'pending' || notice.riskLevel === 'high'" class="memory-actions">
+                <button class="ghost-action" type="button" @click="acceptMemory(notice)">记住</button>
+                <button class="ghost-action" type="button" @click="rejectMemory(notice)">忽略</button>
+              </div>
+            </article>
+          </section>
+
           <template v-for="turn in turns" :key="turn.id">
             <article v-if="turn.kind === 'user_message'" class="user-message">
               <div class="message-meta">
@@ -1575,6 +1717,39 @@ function scrollConversationToBottom() {
           </div>
         </div>
       </section>
+
+      <aside v-if="memoryPanelOpen" class="memory-panel">
+        <div class="memory-panel__head">
+          <div>
+            <span class="eyebrow">MEMORY</span>
+            <h3>我的偏好</h3>
+          </div>
+          <button class="ghost-action" type="button" @click="memoryPanelOpen = false">关闭</button>
+        </div>
+
+        <section v-if="pendingMemories.length" class="memory-section">
+          <h4>待确认</h4>
+          <article v-for="item in pendingMemories" :key="item.id" class="memory-card is-pending">
+            <span class="chip">{{ memoryTypeLabel(item.memoryType) }}</span>
+            <p>{{ item.content }}</p>
+            <small>{{ item.reason || '该偏好会影响后续行为，请确认是否记住。' }}</small>
+            <div class="memory-actions">
+              <button class="ghost-action" type="button" @click="acceptMemory(item)">记住</button>
+              <button class="ghost-action" type="button" @click="rejectMemory(item)">忽略</button>
+            </div>
+          </article>
+        </section>
+
+        <section class="memory-section">
+          <h4>已生效</h4>
+          <article v-for="item in activeMemories" :key="item.id" class="memory-card">
+            <span class="chip">{{ memoryTypeLabel(item.memoryType) }}</span>
+            <p>{{ item.content }}</p>
+            <button class="ghost-action" type="button" @click="removeMemory(item)">删除</button>
+          </article>
+          <p v-if="!activeMemories.length" class="memory-empty">还没有保存偏好。</p>
+        </section>
+      </aside>
     </section>
   </ModuleShell>
 </template>
@@ -1638,6 +1813,32 @@ function scrollConversationToBottom() {
     linear-gradient(180deg, rgba(231, 104, 45, 0.14), rgba(255, 255, 255, 0.018)),
     rgba(5, 10, 15, 0.86);
   font-weight: 700;
+}
+
+.memory-entry {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 10px;
+  align-items: center;
+  inline-size: 100%;
+  min-height: 52px;
+  margin-bottom: var(--space-2);
+  padding: 10px 12px;
+  border: 1px solid rgba(110, 202, 212, 0.24);
+  color: var(--color-text);
+  background: rgba(5, 12, 18, 0.74);
+  text-align: left;
+}
+
+.memory-entry strong {
+  color: var(--color-accent-cyan);
+  font-family: var(--font-mono);
+}
+
+.memory-entry small {
+  grid-column: 1 / -1;
+  color: var(--color-warning);
+  font-size: var(--text-micro);
 }
 
 .session-item {
@@ -1751,6 +1952,71 @@ function scrollConversationToBottom() {
   color: var(--color-text-muted);
   background: rgba(255, 255, 255, 0.018);
   font-size: var(--text-micro);
+}
+
+.memory-banner,
+.memory-notice,
+.memory-card {
+  border: 1px solid rgba(110, 202, 212, 0.24);
+  background: rgba(8, 38, 46, 0.32);
+  padding: 12px;
+}
+
+.memory-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.memory-banner p,
+.memory-notice p,
+.memory-card p,
+.memory-empty {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  line-height: var(--leading-body);
+}
+
+.memory-notices {
+  display: grid;
+  gap: 10px;
+}
+
+.memory-notice {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+}
+
+.memory-notice > div:first-child {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.memory-notice strong {
+  color: var(--color-text);
+}
+
+.memory-notice small,
+.memory-card small {
+  color: var(--color-text-muted);
+}
+
+.memory-notice.is-pending,
+.memory-card.is-pending {
+  border-color: rgba(213, 171, 76, 0.36);
+  background: rgba(63, 45, 15, 0.42);
+}
+
+.memory-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
 }
 
 .user-message,
@@ -2283,6 +2549,57 @@ function scrollConversationToBottom() {
   height: 0;
 }
 
+.memory-panel {
+  position: fixed;
+  inset-block: 72px 24px;
+  inset-inline-end: 24px;
+  z-index: 40;
+  display: grid;
+  align-content: start;
+  gap: 18px;
+  inline-size: min(420px, calc(100vw - 32px));
+  padding: 16px;
+  overflow: auto;
+  border: 1px solid rgba(110, 202, 212, 0.28);
+  background: rgba(5, 10, 15, 0.96);
+  box-shadow: 0 24px 80px rgba(2, 6, 10, 0.52);
+}
+
+.memory-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.memory-panel__head h3,
+.memory-section h4 {
+  margin: 0;
+  color: var(--color-text);
+}
+
+.memory-panel__head h3 {
+  font-family: var(--font-serif);
+  font-size: var(--text-section);
+}
+
+.memory-section {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.memory-card {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.memory-card .ghost-action {
+  justify-self: start;
+}
+
 @media (max-width: 1180px) {
   .agent-layout {
     grid-template-columns: 1fr;
@@ -2306,6 +2623,18 @@ function scrollConversationToBottom() {
   .timeline-card {
     grid-template-columns: 36px minmax(0, 1fr);
     gap: var(--space-2);
+  }
+
+  .memory-banner,
+  .memory-notice,
+  .memory-panel__head {
+    align-items: stretch;
+  }
+
+  .memory-banner,
+  .memory-notice {
+    display: grid;
+    grid-template-columns: 1fr;
   }
 }
 </style>

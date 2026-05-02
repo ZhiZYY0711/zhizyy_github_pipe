@@ -7,7 +7,7 @@ DEFAULT_LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s - %(message)s"
 
 
 def default_log_file() -> Path:
-    return Path(__file__).resolve().parents[2].parent / ".logs" / "server-agent.log"
+    return Path(__file__).resolve().parents[2] / ".logs" / "server-agent.log"
 
 
 def configure_file_logging(log_file: str | Path | None = None) -> Path:

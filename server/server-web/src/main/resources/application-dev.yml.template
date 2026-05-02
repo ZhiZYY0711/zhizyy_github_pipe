@@ -1,5 +1,7 @@
 # 开发环境日志
 logging:
+  file:
+    name: ${PIPELINE_LOG_DIR:../../.logs}/server-web.log
   level:
     com.gxa.pipe: debug
     root: info

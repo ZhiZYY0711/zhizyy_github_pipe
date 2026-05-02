@@ -173,7 +173,32 @@ http://localhost:5173
 
 Vite 开发代理会把 `/api` 转发到 `http://localhost:8080`，并去掉 `/api` 前缀，因此前端请求 `/api/manager/...` 会到达后端 `/manager/...`。
 
-### 6. 常用验证命令
+### 6. 查看开发日志
+
+开发环境日志统一写到当前工作树根目录的 `.logs/`，不同 worktree 会使用各自的 `.logs/`：
+
+```text
+.logs/frontend-client.log
+.logs/server-web.log
+.logs/server-agent.log
+```
+
+可以用脚本交互切换查看三类服务日志：
+
+```bash
+scripts/dev-logs.sh
+```
+
+也可以直接跟随某个服务：
+
+```bash
+scripts/dev-logs.sh frontend
+scripts/dev-logs.sh server-web
+scripts/dev-logs.sh agent
+scripts/dev-logs.sh all
+```
+
+### 7. 常用验证命令
 
 ```bash
 # 前端类型检查和构建

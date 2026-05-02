@@ -115,6 +115,26 @@ public class VirtualExpertAgentController {
         return agentClient.listTimeline(sessionId, beforeCursor, limit);
     }
 
+    @GetMapping("/memories")
+    public Map<String, Object> listMemories(@RequestParam(value = "status", required = false) String status) {
+        return agentClient.listMemories(status);
+    }
+
+    @PostMapping("/memory-candidates/{candidateId}/accept")
+    public Map<String, Object> acceptMemoryCandidate(@PathVariable String candidateId) {
+        return agentClient.acceptMemoryCandidate(candidateId);
+    }
+
+    @PostMapping("/memory-candidates/{candidateId}/reject")
+    public Map<String, Object> rejectMemoryCandidate(@PathVariable String candidateId) {
+        return agentClient.rejectMemoryCandidate(candidateId);
+    }
+
+    @DeleteMapping("/memories/{memoryId}")
+    public Map<String, Object> deleteMemory(@PathVariable String memoryId) {
+        return agentClient.deleteMemory(memoryId);
+    }
+
     @PostMapping("/exports")
     public Map<String, Object> createExport(@RequestBody Map<String, Object> request) {
         ExportFile file = exportService.createExport(request);

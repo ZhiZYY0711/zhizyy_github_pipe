@@ -114,6 +114,31 @@ export type AgentEvent = {
   createdAt?: string
 }
 
+export type AgentMemoryType = 'preference' | 'export_preference' | 'analysis_preference' | 'interaction_preference'
+
+export type AgentMemoryStatus = 'active' | 'pending' | 'deleted' | 'expired' | 'accepted' | 'rejected'
+
+export type AgentMemoryItem = {
+  id: string
+  memoryType: AgentMemoryType
+  preferenceKey?: string
+  content: string
+  status: AgentMemoryStatus
+  riskLevel?: 'low' | 'high'
+  reason?: string
+  createdAt?: string
+  updatedAt?: string
+}
+
+export type AgentMemoriesResponse = {
+  items: AgentMemoryItem[]
+}
+
+export type AgentMemoryMutationResponse = {
+  memory?: AgentMemoryItem
+  candidate?: AgentMemoryItem
+}
+
 export type AgentRunStatus = 'running' | 'completed' | 'failed' | 'cancelled' | 'awaiting_user'
 
 export type AgentRunSummary = {

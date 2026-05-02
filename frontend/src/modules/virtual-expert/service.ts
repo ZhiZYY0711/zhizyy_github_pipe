@@ -2,11 +2,14 @@ import { fallbackAgentEvents, fallbackAgentSessions } from '../../data/businessF
 import { logClientEvent } from '../shared/clientLog'
 import {
   cancelAgentRun,
+  acceptAgentMemoryCandidate,
   createAgentExport,
   createAgentMessage,
   createAgentSession,
+  deleteAgentMemory,
   deleteAgentSession,
   fetchAgentEvents,
+  fetchAgentMemories,
   fetchAgentRunEvents,
   fetchAgentSessions,
   fetchAgentTimeline,
@@ -14,6 +17,7 @@ import {
   getAgentRunStreamUrl,
   getSpecificAgentRunStreamUrl,
   normalizeAgentEvent,
+  rejectAgentMemoryCandidate,
   runAgentSession,
 } from './api'
 import type {
@@ -24,6 +28,9 @@ import type {
   AgentExportFormat,
   AgentExportPlan,
   AgentExportResponse,
+  AgentMemoryItem,
+  AgentMemoryStatus,
+  AgentMemoryType,
   AgentReactRound,
   AgentRecommendation,
   AgentRunStatus,
@@ -67,6 +74,69 @@ export async function loadAgentSessions(limit = 20): Promise<AgentSession[]> {
 
 export async function requestAgentSessionDelete(sessionId: string) {
   return await deleteAgentSession(sessionId)
+}
+
+export function memoryTypeLabel(type?: string) {
+  const labels: Record<string, string> = {
+    preference: '输出偏好',
+    export_preference: '导出偏好',
+    analysis_preference: '分析偏好',
+    interaction_preference: '交互偏好',
+  }
+  return labels[type || ''] || '偏好'
+}
+
+export function normalizeAgentMemoryItem(raw: Record<string, unknown>): AgentMemoryItem {
+  return {
+    id: String(raw.id ?? raw.candidateId ?? raw.memoryId ?? ''),
+    memoryType: String(raw.memoryType ?? raw.memory_type ?? 'preference') as AgentMemoryType,
+    preferenceKey: typeof raw.preferenceKey === 'string'
+      ? raw.preferenceKey
+      : typeof raw.preference_key === 'string'
+        ? raw.preference_key
+        : undefined,
+    content: String(raw.content ?? ''),
+    status: String(raw.status ?? 'active') as AgentMemoryStatus,
+    riskLevel: raw.riskLevel === 'high' || raw.risk_level === 'high' ? 'high' : 'low',
+    reason: typeof raw.reason === 'string' ? raw.reason : undefined,
+    createdAt: typeof raw.createdAt === 'string'
+      ? raw.createdAt
+      : typeof raw.created_at === 'string'
+        ? raw.created_at
+        : undefined,
+    updatedAt: typeof raw.updatedAt === 'string'
+      ? raw.updatedAt
+      : typeof raw.updated_at === 'string'
+        ? raw.updated_at
+        : undefined,
+  }
+}
+
+export function memoryNoticeFromEvent(event: AgentEvent): AgentMemoryItem | undefined {
+  if (!['memory_accepted', 'memory_candidate_created', 'memory_recalled'].includes(event.type)) {
+    return undefined
+  }
+  return normalizeAgentMemoryItem(event.payload || {})
+}
+
+export async function loadAgentMemories(status: 'active' | 'pending' = 'active') {
+  const response = await fetchAgentMemories(status)
+  return response.items.map((item) => normalizeAgentMemoryItem(item as unknown as Record<string, unknown>))
+}
+
+export async function requestAgentMemoryAccept(candidateId: string) {
+  const response = await acceptAgentMemoryCandidate(candidateId)
+  return response.memory ? normalizeAgentMemoryItem(response.memory as unknown as Record<string, unknown>) : undefined
+}
+
+export async function requestAgentMemoryReject(candidateId: string) {
+  const response = await rejectAgentMemoryCandidate(candidateId)
+  return response.candidate ? normalizeAgentMemoryItem(response.candidate as unknown as Record<string, unknown>) : undefined
+}
+
+export async function requestAgentMemoryDelete(memoryId: string) {
+  const response = await deleteAgentMemory(memoryId)
+  return response.memory ? normalizeAgentMemoryItem(response.memory as unknown as Record<string, unknown>) : undefined
 }
 
 export function isSubmitComposerKey(event: ComposerKeyState) {

@@ -7,6 +7,8 @@ import type {
   AgentExportFormat,
   AgentExportPlan,
   AgentExportResponse,
+  AgentMemoriesResponse,
+  AgentMemoryMutationResponse,
   AgentMessageRunResponse,
   AgentRunResponse,
   AgentSessionResponse,
@@ -112,6 +114,33 @@ export function cancelAgentRun(sessionId: string, runId: string) {
 export function deleteAgentSession(sessionId: string) {
   return apiRequest<AgentDeleteSessionResponse>(
     `/manager/virtual-expert/agent/sessions/${encodeURIComponent(sessionId)}`,
+    { method: 'DELETE' },
+  )
+}
+
+export function fetchAgentMemories(status: 'active' | 'pending' = 'active') {
+  return apiRequest<AgentMemoriesResponse>('/manager/virtual-expert/agent/memories', {
+    query: { status },
+  })
+}
+
+export function acceptAgentMemoryCandidate(candidateId: string) {
+  return apiRequest<AgentMemoryMutationResponse>(
+    `/manager/virtual-expert/agent/memory-candidates/${encodeURIComponent(candidateId)}/accept`,
+    { method: 'POST' },
+  )
+}
+
+export function rejectAgentMemoryCandidate(candidateId: string) {
+  return apiRequest<AgentMemoryMutationResponse>(
+    `/manager/virtual-expert/agent/memory-candidates/${encodeURIComponent(candidateId)}/reject`,
+    { method: 'POST' },
+  )
+}
+
+export function deleteAgentMemory(memoryId: string) {
+  return apiRequest<AgentMemoryMutationResponse>(
+    `/manager/virtual-expert/agent/memories/${encodeURIComponent(memoryId)}`,
     { method: 'DELETE' },
   )
 }

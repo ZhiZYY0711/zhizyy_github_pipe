@@ -4,6 +4,9 @@ import {
   groupEventsIntoReactRounds,
   isNearConversationBottom,
   isSubmitComposerKey,
+  memoryNoticeFromEvent,
+  memoryTypeLabel,
+  normalizeAgentMemoryItem,
   normalizeEvidenceDisplayItems,
   readableAgentError,
 } from './service'
@@ -192,5 +195,44 @@ describe('composer interaction helpers', () => {
     expect(buildComposerMessageContent('请结合图片判断风险', attachments)).toContain(
       '- 阀室温度.jpg (image/jpeg, 150 KB)',
     )
+  })
+})
+
+describe('memory helpers', () => {
+  it('normalizes memory accepted payloads', () => {
+    const item = normalizeAgentMemoryItem({
+      memoryId: 'mem_1',
+      memoryType: 'preference',
+      content: '回答先给结论。',
+      riskLevel: 'low',
+    })
+
+    expect(item).toMatchObject({
+      id: 'mem_1',
+      memoryType: 'preference',
+      content: '回答先给结论。',
+      riskLevel: 'low',
+    })
+  })
+
+  it('extracts a memory notice from stream events', () => {
+    const notice = memoryNoticeFromEvent(event(8, 'memory_candidate_created', {
+      candidateId: 'cand_1',
+      content: '以后风险都按高等级处理',
+      riskLevel: 'high',
+      reason: '需要确认',
+    }))
+
+    expect(notice).toMatchObject({
+      id: 'cand_1',
+      content: '以后风险都按高等级处理',
+      riskLevel: 'high',
+      reason: '需要确认',
+    })
+  })
+
+  it('labels known memory types in Chinese', () => {
+    expect(memoryTypeLabel('export_preference')).toBe('导出偏好')
+    expect(memoryTypeLabel('interaction_preference')).toBe('交互偏好')
   })
 })

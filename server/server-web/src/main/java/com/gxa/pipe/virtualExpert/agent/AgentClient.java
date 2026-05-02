@@ -119,6 +119,7 @@ public class AgentClient {
                     .header(HttpHeaders.ACCEPT, MediaType.TEXT_EVENT_STREAM_VALUE)
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + generateInternalToken())
                     .header("X-Agent-Audience", properties.getAudience())
+                    .header("X-Agent-User-Id", "system")
                     .GET()
                     .build();
             try {
@@ -158,6 +159,7 @@ public class AgentClient {
                     .header(HttpHeaders.ACCEPT, MediaType.TEXT_EVENT_STREAM_VALUE)
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + generateInternalToken())
                     .header("X-Agent-Audience", properties.getAudience())
+                    .header("X-Agent-User-Id", "system")
                     .GET()
                     .build();
             try {
@@ -248,6 +250,51 @@ public class AgentClient {
         ).getBody();
     }
 
+    public Map<String, Object> listMemories(String status) {
+        Map<String, Object> response = restTemplate.exchange(
+                url("/api/agent/memories?status={status}"),
+                HttpMethod.GET,
+                new HttpEntity<>(headers()),
+                new ParameterizedTypeReference<Map<String, Object>>() {
+                },
+                status == null ? "active" : status
+        ).getBody();
+        return response == null ? Map.of("items", java.util.List.of()) : response;
+    }
+
+    public Map<String, Object> acceptMemoryCandidate(String candidateId) {
+        return restTemplate.exchange(
+                url("/api/agent/memory-candidates/{candidateId}/accept"),
+                HttpMethod.POST,
+                new HttpEntity<>(headers()),
+                new ParameterizedTypeReference<Map<String, Object>>() {
+                },
+                candidateId
+        ).getBody();
+    }
+
+    public Map<String, Object> rejectMemoryCandidate(String candidateId) {
+        return restTemplate.exchange(
+                url("/api/agent/memory-candidates/{candidateId}/reject"),
+                HttpMethod.POST,
+                new HttpEntity<>(headers()),
+                new ParameterizedTypeReference<Map<String, Object>>() {
+                },
+                candidateId
+        ).getBody();
+    }
+
+    public Map<String, Object> deleteMemory(String memoryId) {
+        return restTemplate.exchange(
+                url("/api/agent/memories/{memoryId}"),
+                HttpMethod.DELETE,
+                new HttpEntity<>(headers()),
+                new ParameterizedTypeReference<Map<String, Object>>() {
+                },
+                memoryId
+        ).getBody();
+    }
+
     private Map<String, Object> toAgentPayload(Map<String, Object> request) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("raw_input", firstValue(request, "rawInput", "raw_input"));
@@ -279,6 +326,7 @@ public class AgentClient {
                 .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + generateInternalToken())
                 .header("X-Agent-Audience", properties.getAudience())
+                .header("X-Agent-User-Id", "system")
                 .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
                 .build();
         try {
@@ -403,6 +451,7 @@ public class AgentClient {
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setBearerAuth(generateInternalToken());
         headers.set("X-Agent-Audience", properties.getAudience());
+        headers.set("X-Agent-User-Id", "system");
         return headers;
     }
 

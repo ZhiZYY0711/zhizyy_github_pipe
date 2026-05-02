@@ -561,7 +561,7 @@ def test_timeline_pages_backwards_from_latest_turn(monkeypatch):
     assert older.json()["hasMoreBefore"] is False
 
 
-def test_cross_session_accepted_memory_is_injected_into_new_run(monkeypatch):
+def test_legacy_accepted_summary_memory_is_still_injected_into_new_run(monkeypatch):
     class MemoryAwareService:
         def __init__(self, tool_registry, summary_memory=None) -> None:
             self.summary_memory = summary_memory or []
@@ -596,27 +596,24 @@ def test_cross_session_accepted_memory_is_injected_into_new_run(monkeypatch):
 
     monkeypatch.setattr(sessions_module, "AgentRuntimeService", MemoryAwareService)
     sessions_module._memory_candidates.clear()
+    sessions_module._memory_candidates["mem_legacy"] = {
+        "id": "mem_legacy",
+        "session_id": "ana_legacy",
+        "run_id": "run_legacy",
+        "memory_type": "preference",
+        "content": "CP-04 是重点管段",
+        "status": "accepted",
+    }
 
     client = TestClient(app)
-    first = client.post("/api/agent/sessions", json={"title": "记忆来源"}).json()
-    first_message = client.post(
-        f"/api/agent/sessions/{first['session_id']}/messages",
-        json={"content": "记住 CP-04 是重点管段，以后分析要优先提醒"},
-    ).json()
-    with client.stream(
-        "GET",
-        f"/api/agent/sessions/{first['session_id']}/runs/{first_message['run']['id']}/stream",
-    ) as response:
-        response.read()
-
-    second = client.post("/api/agent/sessions", json={"title": "新会话"}).json()
-    second_message = client.post(
-        f"/api/agent/sessions/{second['session_id']}/messages",
+    created = client.post("/api/agent/sessions", json={"title": "新会话"}).json()
+    message = client.post(
+        f"/api/agent/sessions/{created['session_id']}/messages",
         json={"content": "CP-04 压力波动怎么处理"},
     ).json()
     with client.stream(
         "GET",
-        f"/api/agent/sessions/{second['session_id']}/runs/{second_message['run']['id']}/stream",
+        f"/api/agent/sessions/{created['session_id']}/runs/{message['run']['id']}/stream",
     ) as response:
         body = response.read().decode("utf-8")
 
@@ -725,6 +722,7 @@ def test_memory_list_is_scoped_by_user_header(monkeypatch):
     ) as response:
         response.read()
 
+    assert all(item.get("user_id") for item in sessions_module._memory_candidates.values())
     assert client.get("/api/agent/memories", headers={"X-Agent-User-Id": "u1"}).json()["items"]
     assert client.get("/api/agent/memories", headers={"X-Agent-User-Id": "u2"}).json()["items"] == []
 

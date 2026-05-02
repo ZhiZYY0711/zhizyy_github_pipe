@@ -363,6 +363,8 @@ async def stream_specific_run_session(
         final_status = _derive_run_status(events)
         _complete_in_memory_message_run(session, run, events, final_status)
         memory_result = await _store_preference_memories(user_id, session_id, run_id, run["input_text"])
+        if _has_preference_memory_result(memory_result):
+            _remove_legacy_memory_candidates_for_run(run_id)
         for memory in memory_result["accepted"]:
             yield _sse_event(
                 "agent_event",
@@ -502,7 +504,7 @@ async def accept_memory_candidate(candidate_id: str, request: Request) -> dict[s
         "created_at": _now_iso(),
         "updated_at": _now_iso(),
     }
-    _user_memories.setdefault(user_id, []).append(memory)
+    _append_active_user_memory(user_id, memory)
     return {"memory": _memory_response(memory)}
 
 
@@ -689,11 +691,32 @@ async def _store_preference_memories(
                 "created_at": _now_iso(),
                 "updated_at": _now_iso(),
             }
-            _user_memories.setdefault(user_id, []).append(memory)
+            _append_active_user_memory(user_id, memory)
             accepted.append(memory)
         else:
             pending.append(candidate_record)
     return {"accepted": accepted, "pending": pending}
+
+
+def _append_active_user_memory(user_id: str, memory: dict[str, Any]) -> None:
+    memories = _user_memories.setdefault(user_id, [])
+    preference_key = memory.get("preference_key") or memory.get("preferenceKey")
+    if preference_key:
+        for existing in memories:
+            if existing.get("preference_key") == preference_key and existing.get("status") == "active":
+                existing["status"] = "expired"
+                existing["updated_at"] = _now_iso()
+    memories.append(memory)
+
+
+def _has_preference_memory_result(memory_result: dict[str, list[dict[str, Any]]]) -> bool:
+    return bool(memory_result["accepted"] or memory_result["pending"])
+
+
+def _remove_legacy_memory_candidates_for_run(run_id: str) -> None:
+    for memory_id, memory in list(_memory_candidates.items()):
+        if memory.get("run_id") == run_id and not memory.get("user_id"):
+            del _memory_candidates[memory_id]
 
 
 def _memory_response(memory: dict[str, Any]) -> dict[str, Any]:
@@ -914,7 +937,6 @@ async def _stream_persistent_specific_run(
                 "created_at": _now_iso(),
             },
         )
-    await _store_persistent_memory_candidates(repository, session_id, run_id, input_text, summary)
     logger.info("agent stream run finished session_id=%s run_id=%s status=%s events=%s", session_id, run_id, final_status, len(events))
     yield _sse_event("run_status", {"session_id": session_id, "run_id": run_id, "status": final_status})
 

@@ -8,6 +8,7 @@ from app.persistence.models import (
     AgentRunModel,
     AgentRunSummaryModel,
     AnalysisSessionModel,
+    UserMemoryModel,
 )
 from app.persistence.repository import AgentRepository
 
@@ -84,6 +85,35 @@ def test_persistence_models_match_core_table_names_columns_and_status_checks():
     assert AgentRunModel.__table__.c.status.nullable is False
     assert AnalysisSessionModel.__table__.c.status.default.arg == "created"
     assert AgentRunModel.__table__.c.status.default.arg == "created"
+
+
+def test_memory_candidate_has_preference_metadata_columns() -> None:
+    columns = MemoryCandidateModel.__table__.columns
+
+    assert "user_id" in columns
+    assert "candidate_type" in columns
+    assert "preference_key" in columns
+    assert "risk_level" in columns
+    assert "proposed_action" in columns
+    assert "source_text" in columns
+    assert "reason" in columns
+
+
+def test_user_memory_model_declares_active_memory_columns() -> None:
+    assert UserMemoryModel.__tablename__ == "user_memory"
+    columns = UserMemoryModel.__table__.columns
+
+    assert "id" in columns
+    assert "user_id" in columns
+    assert "memory_type" in columns
+    assert "preference_key" in columns
+    assert "content" in columns
+    assert "status" in columns
+    assert "risk_level" in columns
+    assert "source_candidate_id" in columns
+    assert "source_session_id" in columns
+    assert "source_run_id" in columns
+    assert "expires_at" in columns
 
 
 @pytest.mark.asyncio

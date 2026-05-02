@@ -15,6 +15,7 @@ from app.persistence.models import (
     AgentRunSummaryModel,
     AnalysisSessionModel,
     MemoryCandidateModel,
+    UserMemoryModel,
 )
 
 
@@ -339,6 +340,137 @@ class AgentRepository:
             )
             await db.commit()
 
+    async def create_memory_candidate_v2(
+        self,
+        *,
+        memory_id: str,
+        user_id: str,
+        session_id: str,
+        run_id: str,
+        memory_type: str,
+        preference_key: str,
+        title: str,
+        content: str,
+        risk_level: str,
+        proposed_action: str,
+        source_text: str,
+        reason: str,
+        status: str,
+        confidence: float | None = None,
+    ) -> dict[str, Any]:
+        async with self._session_factory() as db:
+            model = MemoryCandidateModel(
+                id=memory_id,
+                user_id=user_id,
+                session_id=session_id,
+                run_id=run_id,
+                memory_type=memory_type,
+                candidate_type=memory_type,
+                preference_key=preference_key,
+                title=title[:200],
+                content=content,
+                risk_level=risk_level,
+                proposed_action=proposed_action,
+                source_text=source_text,
+                reason=reason,
+                status=status,
+                confidence=confidence,
+            )
+            db.add(model)
+            await db.commit()
+            return _memory_candidate_to_dict(model)
+
+    async def create_user_memory(
+        self,
+        *,
+        memory_id: str,
+        user_id: str,
+        memory_type: str,
+        preference_key: str,
+        content: str,
+        risk_level: str,
+        source_candidate_id: str | None,
+        source_session_id: str | None,
+        source_run_id: str | None,
+    ) -> dict[str, Any]:
+        async with self._session_factory() as db:
+            result = await db.execute(
+                select(UserMemoryModel).where(
+                    UserMemoryModel.user_id == user_id,
+                    UserMemoryModel.preference_key == preference_key,
+                    UserMemoryModel.status == "active",
+                )
+            )
+            for existing in result.scalars():
+                existing.status = "expired"
+                existing.updated_at = func.now()
+            model = UserMemoryModel(
+                id=memory_id,
+                user_id=user_id,
+                memory_type=memory_type,
+                preference_key=preference_key,
+                content=content,
+                risk_level=risk_level,
+                source_candidate_id=source_candidate_id,
+                source_session_id=source_session_id,
+                source_run_id=source_run_id,
+            )
+            db.add(model)
+            await db.commit()
+            return _user_memory_to_dict(model)
+
+    async def list_user_memories(self, user_id: str, status: str = "active") -> list[dict[str, Any]]:
+        async with self._session_factory() as db:
+            result = await db.execute(
+                select(UserMemoryModel)
+                .where(UserMemoryModel.user_id == user_id, UserMemoryModel.status == status)
+                .order_by(UserMemoryModel.updated_at.desc(), UserMemoryModel.created_at.desc())
+            )
+            return [_user_memory_to_dict(memory) for memory in result.scalars()]
+
+    async def list_memory_candidates(self, user_id: str, status: str = "pending") -> list[dict[str, Any]]:
+        async with self._session_factory() as db:
+            result = await db.execute(
+                select(MemoryCandidateModel)
+                .where(MemoryCandidateModel.user_id == user_id, MemoryCandidateModel.status == status)
+                .order_by(MemoryCandidateModel.created_at.desc())
+            )
+            return [_memory_candidate_to_dict(memory) for memory in result.scalars()]
+
+    async def get_memory_candidate(self, user_id: str, candidate_id: str) -> dict[str, Any] | None:
+        async with self._session_factory() as db:
+            candidate = await db.get(MemoryCandidateModel, candidate_id)
+            if candidate is None or candidate.user_id != user_id:
+                return None
+            return _memory_candidate_to_dict(candidate)
+
+    async def set_memory_candidate_status(
+        self,
+        user_id: str,
+        candidate_id: str,
+        status: str,
+        reviewed_by: str,
+    ) -> dict[str, Any] | None:
+        async with self._session_factory() as db:
+            candidate = await db.get(MemoryCandidateModel, candidate_id)
+            if candidate is None or candidate.user_id != user_id:
+                return None
+            candidate.status = status
+            candidate.reviewed_by = reviewed_by
+            candidate.reviewed_at = func.now()
+            await db.commit()
+            return _memory_candidate_to_dict(candidate)
+
+    async def delete_user_memory(self, user_id: str, memory_id: str) -> dict[str, Any] | None:
+        async with self._session_factory() as db:
+            memory = await db.get(UserMemoryModel, memory_id)
+            if memory is None or memory.user_id != user_id:
+                return None
+            memory.status = "deleted"
+            memory.updated_at = func.now()
+            await db.commit()
+            return _user_memory_to_dict(memory)
+
     async def list_timeline(self, session_id: str, before_cursor: str | None = None, limit: int = 1) -> dict[str, Any]:
         limit = max(1, min(limit, 20))
         async with self._session_factory() as db:
@@ -369,6 +501,47 @@ def _session_status_from_run_status(status: RunStatus) -> SessionStatus:
 
 def _memory_tokens(content: str) -> list[str]:
     return re.findall(r"[a-z0-9][a-z0-9_-]{1,}", (content or "").lower())
+
+
+def _memory_candidate_to_dict(memory: MemoryCandidateModel) -> dict[str, Any]:
+    return {
+        "id": memory.id,
+        "user_id": memory.user_id,
+        "session_id": memory.session_id,
+        "run_id": memory.run_id,
+        "memory_type": memory.memory_type,
+        "candidate_type": memory.candidate_type or memory.memory_type,
+        "preference_key": memory.preference_key,
+        "title": memory.title,
+        "content": memory.content,
+        "risk_level": memory.risk_level,
+        "proposed_action": memory.proposed_action,
+        "source_text": memory.source_text,
+        "reason": memory.reason,
+        "status": memory.status,
+        "confidence": None if memory.confidence is None else float(memory.confidence),
+        "created_at": memory.created_at.isoformat() if memory.created_at is not None else None,
+        "reviewed_at": memory.reviewed_at.isoformat() if memory.reviewed_at is not None else None,
+        "reviewed_by": memory.reviewed_by,
+    }
+
+
+def _user_memory_to_dict(memory: UserMemoryModel) -> dict[str, Any]:
+    return {
+        "id": memory.id,
+        "user_id": memory.user_id,
+        "memory_type": memory.memory_type,
+        "preference_key": memory.preference_key,
+        "content": memory.content,
+        "status": memory.status,
+        "risk_level": memory.risk_level,
+        "source_candidate_id": memory.source_candidate_id,
+        "source_session_id": memory.source_session_id,
+        "source_run_id": memory.source_run_id,
+        "created_at": memory.created_at.isoformat() if memory.created_at is not None else None,
+        "updated_at": memory.updated_at.isoformat() if memory.updated_at is not None else None,
+        "expires_at": memory.expires_at.isoformat() if memory.expires_at is not None else None,
+    }
 
 
 def _message_to_dict(message: AgentMessageModel) -> dict[str, Any]:

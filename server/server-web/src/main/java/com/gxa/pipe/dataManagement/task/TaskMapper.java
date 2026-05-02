@@ -88,6 +88,8 @@ public interface TaskMapper {
      */
     int countCompletedTasks(@Param("areaId") Long areaId);
 
+    TaskIndicatorResponse selectTaskIndicators(@Param("areaId") Long areaId);
+
     /**
      * 统计任务总数
      * 

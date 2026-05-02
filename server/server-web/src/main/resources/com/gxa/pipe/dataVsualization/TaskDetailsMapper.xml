@@ -152,7 +152,7 @@
         FROM (
             SELECT
                 t.repairman_id,
-                AVG(UNIX_TIMESTAMP(t.response_time) - UNIX_TIMESTAMP(t.public_time)) as avg_seconds
+                AVG(TIMESTAMPDIFF(SECOND, t.public_time, t.response_time)) as avg_seconds
             FROM task t
             WHERE t.response_time IS NOT NULL
             <if test="areaId != null and areaId != 0">
@@ -184,7 +184,7 @@
         FROM (
             SELECT
                 t.repairman_id,
-                AVG(UNIX_TIMESTAMP(t.accomplish_time) - UNIX_TIMESTAMP(t.public_time)) as avg_seconds
+                AVG(TIMESTAMPDIFF(SECOND, t.public_time, t.accomplish_time)) as avg_seconds
             FROM task t
             WHERE t.accomplish_time IS NOT NULL
               AND t.status = 2

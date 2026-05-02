@@ -19,5 +19,7 @@ public interface LogMapper {
 
     LogQueryResponse selectLogById(@Param("id") Long id);
 
+    LogIndicardResponse selectLogIndicatorsFromSummary();
+
     LogIndicardResponse selectLogIndicators(@Param("areaId") Long areaId);
 }

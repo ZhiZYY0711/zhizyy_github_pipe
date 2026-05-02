@@ -62,33 +62,34 @@
         FROM manoeuvre m
         LEFT JOIN area a ON m.area_id = a.id
         <where>
-            <if test="areaId != null and areaId != 0">
+            <if test="request.areaId != null and request.areaId != 0">
                 AND (
-                    (MOD(#{areaId}, 10000) = 0 AND m.area_id BETWEEN #{areaId} AND #{areaId} + 9999)
-                    OR (MOD(#{areaId}, 10000) != 0 AND MOD(#{areaId}, 100) = 0 AND m.area_id BETWEEN #{areaId} AND #{areaId} + 99)
-                    OR (MOD(#{areaId}, 100) != 0 AND m.area_id = #{areaId})
+                    (MOD(#{request.areaId}, 10000) = 0 AND m.area_id BETWEEN #{request.areaId} AND #{request.areaId} + 9999)
+                    OR (MOD(#{request.areaId}, 10000) != 0 AND MOD(#{request.areaId}, 100) = 0 AND m.area_id BETWEEN #{request.areaId} AND #{request.areaId} + 99)
+                    OR (MOD(#{request.areaId}, 100) != 0 AND m.area_id = #{request.areaId})
                 )
             </if>
-            <if test="startTimeMin != null">
-                AND m.start_time &gt;= FROM_UNIXTIME(#{startTimeMin} / 1000)
+            <if test="request.startTimeMin != null">
+                AND m.start_time &gt;= FROM_UNIXTIME(#{request.startTimeMin} / 1000)
             </if>
-            <if test="startTimeMax != null">
-                AND m.start_time &lt;= FROM_UNIXTIME(#{startTimeMax} / 1000)
+            <if test="request.startTimeMax != null">
+                AND m.start_time &lt;= FROM_UNIXTIME(#{request.startTimeMax} / 1000)
             </if>
-            <if test="endTimeMin != null">
-                AND m.end_time &gt;= FROM_UNIXTIME(#{endTimeMin} / 1000)
+            <if test="request.endTimeMin != null">
+                AND m.end_time &gt;= FROM_UNIXTIME(#{request.endTimeMin} / 1000)
             </if>
-            <if test="endTimeMax != null">
-                AND m.end_time &lt;= FROM_UNIXTIME(#{endTimeMax} / 1000)
+            <if test="request.endTimeMax != null">
+                AND m.end_time &lt;= FROM_UNIXTIME(#{request.endTimeMax} / 1000)
             </if>
-            <if test="status != null and status != ''">
-                AND m.status = #{status}
+            <if test="request.status != null and request.status != ''">
+                AND m.status = #{request.status}
             </if>
-            <if test="type != null and type != ''">
-                AND m.type = #{type}
+            <if test="request.type != null and request.type != ''">
+                AND m.type = #{request.type}
             </if>
         </where>
         ORDER BY m.id DESC
+        LIMIT #{limit} OFFSET #{offset}
     </select>
 
     <!-- 根据演习ID列表查询检修员信息 -->

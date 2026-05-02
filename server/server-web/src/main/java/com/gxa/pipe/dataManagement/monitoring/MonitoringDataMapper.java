@@ -16,6 +16,10 @@ public interface MonitoringDataMapper {
 
     Long countByConditions(MonitoringDataQueryRequest request);
 
+    Long countByDailyAggregate(MonitoringDataQueryRequest request);
+
+    Long countByDailySummary(@Param("dataStatus") String dataStatus);
+
     Map<String, Object> aggregateByConditions(MonitoringDataQueryRequest request);
 
     List<MonitoringDataQueryResponse> getById(MonitoringDataByIdRequest request);
@@ -29,4 +33,6 @@ public interface MonitoringDataMapper {
     MonitoringDataIndicatorResponse getIndicatorCard(@Param("areaId") String areaId);
 
     MonitoringDataIndicatorResponse getIndicatorCardFromDailyAggregate(@Param("areaId") String areaId);
+
+    MonitoringDataIndicatorResponse getIndicatorCardFromDailySummary();
 }

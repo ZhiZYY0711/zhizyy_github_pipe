@@ -1,6 +1,5 @@
 package com.gxa.pipe.dataManagement.equipment;
 
-import com.github.pagehelper.PageHelper;
 import com.gxa.pipe.entity.Sensor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,9 +28,11 @@ public class EquipmentServiceImpl implements EquipmentService {
 
         int page = StringUtils.hasText(request.getPage()) ? Integer.parseInt(request.getPage()) : 1;
         int pageSize = StringUtils.hasText(request.getPageSize()) ? Integer.parseInt(request.getPageSize()) : 50;
+        int safePage = Math.max(page, 1);
+        int safePageSize = Math.max(pageSize, 1);
+        int offset = (safePage - 1) * safePageSize;
 
-        PageHelper.startPage(Math.max(page, 1), Math.max(pageSize, 1));
-        return equipmentMapper.selectEquipmentByConditions(request);
+        return equipmentMapper.selectEquipmentByConditions(request, offset, safePageSize);
     }
 
     @Override
@@ -129,11 +130,34 @@ public class EquipmentServiceImpl implements EquipmentService {
         log.info("获取设备指标卡数据");
 
         EquipmentIndicatorResponse response = new EquipmentIndicatorResponse();
-        response.setTotal(String.valueOf(equipmentMapper.countTotal()));
-        response.setNormal(String.valueOf(equipmentMapper.countNormal()));
-        response.setFault(String.valueOf(equipmentMapper.countFault()));
-        response.setMaintenance(String.valueOf(equipmentMapper.countMaintenance()));
-        response.setOffline(String.valueOf(equipmentMapper.countOffline()));
+        int total = 0;
+        int normal = 0;
+        int fault = 0;
+        int maintenance = 0;
+        int offline = 0;
+
+        for (EquipmentStatusCount statusCount : equipmentMapper.countByStatus()) {
+            int count = statusCount.getCount() != null ? statusCount.getCount() : 0;
+            total += count;
+            if (statusCount.getStatus() == null) {
+                continue;
+            }
+
+            switch (statusCount.getStatus()) {
+                case 0 -> normal = count;
+                case 1 -> fault = count;
+                case 2 -> offline = count;
+                case 3 -> maintenance = count;
+                default -> {
+                }
+            }
+        }
+
+        response.setTotal(String.valueOf(total));
+        response.setNormal(String.valueOf(normal));
+        response.setFault(String.valueOf(fault));
+        response.setMaintenance(String.valueOf(maintenance));
+        response.setOffline(String.valueOf(offline));
         return response;
     }
 

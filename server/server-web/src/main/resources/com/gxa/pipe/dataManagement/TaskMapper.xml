@@ -224,6 +224,71 @@
         DELETE FROM task WHERE id = #{id}
     </delete>
 
+    <select id="selectTaskIndicators" resultType="com.gxa.pipe.dataManagement.task.TaskIndicatorResponse">
+        SELECT
+            CAST((
+                SELECT COUNT(*)
+                FROM task t
+                <where>
+                    <if test="areaId != null">
+                        AND (
+                            (MOD(#{areaId}, 10000) = 0 AND t.area_id BETWEEN #{areaId} AND #{areaId} + 9999)
+                            OR (MOD(#{areaId}, 10000) != 0 AND MOD(#{areaId}, 100) = 0 AND t.area_id BETWEEN #{areaId} AND #{areaId} + 99)
+                            OR (MOD(#{areaId}, 100) != 0 AND t.area_id = #{areaId})
+                        )
+                    </if>
+                </where>
+            ) AS CHAR) AS total,
+            CAST((
+                SELECT COUNT(*)
+                FROM task t
+                WHERE t.status = 0
+                <if test="areaId != null">
+                    AND (
+                        (MOD(#{areaId}, 10000) = 0 AND t.area_id BETWEEN #{areaId} AND #{areaId} + 9999)
+                        OR (MOD(#{areaId}, 10000) != 0 AND MOD(#{areaId}, 100) = 0 AND t.area_id BETWEEN #{areaId} AND #{areaId} + 99)
+                        OR (MOD(#{areaId}, 100) != 0 AND t.area_id = #{areaId})
+                    )
+                </if>
+            ) AS CHAR) AS pending,
+            CAST((
+                SELECT COUNT(*)
+                FROM task t
+                WHERE t.status = 1
+                <if test="areaId != null">
+                    AND (
+                        (MOD(#{areaId}, 10000) = 0 AND t.area_id BETWEEN #{areaId} AND #{areaId} + 9999)
+                        OR (MOD(#{areaId}, 10000) != 0 AND MOD(#{areaId}, 100) = 0 AND t.area_id BETWEEN #{areaId} AND #{areaId} + 99)
+                        OR (MOD(#{areaId}, 100) != 0 AND t.area_id = #{areaId})
+                    )
+                </if>
+            ) AS CHAR) AS in_progress,
+            CAST((
+                SELECT COUNT(*)
+                FROM task t
+                WHERE t.status = 2
+                <if test="areaId != null">
+                    AND (
+                        (MOD(#{areaId}, 10000) = 0 AND t.area_id BETWEEN #{areaId} AND #{areaId} + 9999)
+                        OR (MOD(#{areaId}, 10000) != 0 AND MOD(#{areaId}, 100) = 0 AND t.area_id BETWEEN #{areaId} AND #{areaId} + 99)
+                        OR (MOD(#{areaId}, 100) != 0 AND t.area_id = #{areaId})
+                    )
+                </if>
+            ) AS CHAR) AS completed,
+            CAST((
+                SELECT COUNT(*)
+                FROM task t
+                WHERE t.priority = 1
+                <if test="areaId != null">
+                    AND (
+                        (MOD(#{areaId}, 10000) = 0 AND t.area_id BETWEEN #{areaId} AND #{areaId} + 9999)
+                        OR (MOD(#{areaId}, 10000) != 0 AND MOD(#{areaId}, 100) = 0 AND t.area_id BETWEEN #{areaId} AND #{areaId} + 99)
+                        OR (MOD(#{areaId}, 100) != 0 AND t.area_id = #{areaId})
+                    )
+                </if>
+            ) AS CHAR) AS urgent
+    </select>
+
     <!-- 统计进行中的任务数量 -->
     <select id="countUnderwayTasks" resultType="int">
         SELECT COUNT(*)

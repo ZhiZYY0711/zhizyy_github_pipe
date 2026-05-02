@@ -10,6 +10,10 @@ import org.apache.ibatis.annotations.Param;
  */
 @Mapper
 public interface TotalMapper {
+
+    WholeKpiResponse selectWholeKpi(@Param("areaId") Long areaId);
+
+    RepairmanKpiResponse selectRepairmanKpi(@Param("areaId") Long areaId);
     
     /**
      * 统计传感器总数

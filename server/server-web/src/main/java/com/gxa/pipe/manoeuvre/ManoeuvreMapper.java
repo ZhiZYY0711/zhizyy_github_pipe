@@ -17,7 +17,10 @@ public interface ManoeuvreMapper {
      * @param request 查询请求
      * @return 演习基础信息列表
      */
-    List<ManoeuvreQueryResponse> selectBasicByParams(ManoeuvreQueryRequest request);
+    List<ManoeuvreQueryResponse> selectBasicByParams(
+            @Param("request") ManoeuvreQueryRequest request,
+            @Param("offset") int offset,
+            @Param("limit") int limit);
 
     /**
      * 根据演习ID列表查询检修员信息

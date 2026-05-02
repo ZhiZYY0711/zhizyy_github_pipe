@@ -19,7 +19,10 @@ public interface EquipmentMapper {
      * @param request 查询条件
      * @return 设备信息列表
      */
-    List<EquipmentResponse> selectEquipmentByConditions(EquipmentQueryRequest request);
+    List<EquipmentResponse> selectEquipmentByConditions(
+            @Param("request") EquipmentQueryRequest request,
+            @Param("offset") int offset,
+            @Param("limit") int limit);
 
     /**
      * 根据ID查询设备信息（关联查询）
@@ -103,6 +106,13 @@ public interface EquipmentMapper {
      * @return 离线设备数
      */
     int countOffline();
+
+    /**
+     * 按设备状态一次性统计数量
+     *
+     * @return 各状态数量
+     */
+    List<EquipmentStatusCount> countByStatus();
 
     /**
      * 验证区域是否存在

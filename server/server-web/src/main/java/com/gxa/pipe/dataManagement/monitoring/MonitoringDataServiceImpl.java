@@ -5,6 +5,7 @@ import com.gxa.pipe.utils.PageResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -27,7 +28,7 @@ public class MonitoringDataServiceImpl implements MonitoringDataService {
         int pageSize = request.getPageSize() != null && request.getPageSize() > 0 ? request.getPageSize() : 50;
         int offset = (pageNum - 1) * pageSize;
 
-        Long total = monitoringDataMapper.countByConditions(request);
+        Long total = countByFastPath(request);
         List<MonitoringDataQueryResponse> records =
                 total != null && total > 0
                         ? monitoringDataMapper.getByPage(request, offset, pageSize)
@@ -39,6 +40,66 @@ public class MonitoringDataServiceImpl implements MonitoringDataService {
         result.setPageNum(pageNum);
         result.setPageSize(pageSize);
         return result;
+    }
+
+    private Long countByFastPath(MonitoringDataQueryRequest request) {
+        if (!canUseAggregateCount(request)) {
+            return monitoringDataMapper.countByConditions(request);
+        }
+
+        try {
+            if (isGlobalAggregateCount(request)) {
+                return monitoringDataMapper.countByDailySummary(normalizeDataStatus(request.getDataStatus()));
+            }
+
+            return monitoringDataMapper.countByDailyAggregate(request);
+        } catch (RuntimeException exception) {
+            log.warn("监测数据聚合计数失败，回退明细计数", exception);
+            return monitoringDataMapper.countByConditions(request);
+        }
+    }
+
+    private boolean canUseAggregateCount(MonitoringDataQueryRequest request) {
+        if (!monitoringAggregateProperties.isEnabled()) {
+            return false;
+        }
+
+        return request.getMinPressure() == null
+                && request.getMaxPressure() == null
+                && request.getMinFlow() == null
+                && request.getMaxFlow() == null
+                && request.getMinTemperature() == null
+                && request.getMaxTemperature() == null
+                && request.getMinVibration() == null
+                && request.getMaxVibration() == null
+                && request.getSensorId() == null
+                && isNullOrEmpty(request.getPipelineName())
+                && request.getMonitorStartTime() == null
+                && request.getMonitorEndTime() == null
+                && isSupportedDataStatus(request.getDataStatus());
+    }
+
+    private boolean isGlobalAggregateCount(MonitoringDataQueryRequest request) {
+        return isNullOrEmpty(request.getAreaId())
+                && isNullOrEmpty(request.getPipelineId())
+                && isNullOrEmpty(request.getPipeSegmentId())
+                && (request.getPipeSegmentIds() == null || request.getPipeSegmentIds().isEmpty());
+    }
+
+    private boolean isSupportedDataStatus(String dataStatus) {
+        return dataStatus == null
+                || "0".equals(dataStatus)
+                || "1".equals(dataStatus)
+                || "2".equals(dataStatus)
+                || "3".equals(dataStatus);
+    }
+
+    private String normalizeDataStatus(String dataStatus) {
+        return dataStatus;
+    }
+
+    private boolean isNullOrEmpty(String value) {
+        return value == null || value.isEmpty();
     }
 
     @Override
@@ -79,7 +140,9 @@ public class MonitoringDataServiceImpl implements MonitoringDataService {
         if (monitoringAggregateProperties.isEnabled()) {
             try {
                 MonitoringDataIndicatorResponse aggregate =
-                        monitoringDataMapper.getIndicatorCardFromDailyAggregate(areaId);
+                        StringUtils.hasText(areaId)
+                                ? monitoringDataMapper.getIndicatorCardFromDailyAggregate(areaId)
+                                : monitoringDataMapper.getIndicatorCardFromDailySummary();
                 if (aggregate != null) {
                     return aggregate;
                 }

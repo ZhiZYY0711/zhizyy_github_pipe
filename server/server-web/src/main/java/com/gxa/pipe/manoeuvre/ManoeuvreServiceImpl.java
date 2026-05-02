@@ -1,6 +1,5 @@
 package com.gxa.pipe.manoeuvre;
 
-import com.github.pagehelper.PageHelper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -23,13 +22,14 @@ public class ManoeuvreServiceImpl implements ManoeuvreService {
     public List<ManoeuvreQueryResponse> findManoeuvreByParams(ManoeuvreQueryRequest request) {
         log.info("根据条件查询演习信息，请求参数：{}", request);
 
-        // 设置分页参数
         Integer page = request.getPage();
         Integer pageSize = request.getPageSize();
-        PageHelper.startPage(page != null && page > 0 ? page : 1, pageSize != null && pageSize > 0 ? pageSize : 50);
+        int pageNum = page != null && page > 0 ? page : 1;
+        int size = pageSize != null && pageSize > 0 ? pageSize : 50;
+        int offset = (pageNum - 1) * size;
 
         // 查询基础演习信息
-        List<ManoeuvreQueryResponse> basicList = manoeuvreMapper.selectBasicByParams(request);
+        List<ManoeuvreQueryResponse> basicList = manoeuvreMapper.selectBasicByParams(request, offset, size);
 
         if (basicList.isEmpty()) {
             return basicList;

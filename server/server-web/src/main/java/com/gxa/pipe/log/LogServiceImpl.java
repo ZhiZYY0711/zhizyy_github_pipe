@@ -62,7 +62,7 @@ public class LogServiceImpl implements LogService {
     public LogIndicardResponse getLogIndicatorCard(Long areaId) {
         log.info("Query log indicator card, areaId={}", areaId);
 
-        LogIndicardResponse response = logMapper.selectLogIndicators(areaId);
+        LogIndicardResponse response = selectLogIndicators(areaId);
         if (response == null) {
             response = new LogIndicardResponse();
         }
@@ -79,5 +79,19 @@ public class LogServiceImpl implements LogService {
                 response.getAvgDuration());
 
         return response;
+    }
+
+    private LogIndicardResponse selectLogIndicators(Long areaId) {
+        if (areaId == null || areaId <= 0) {
+            try {
+                LogIndicardResponse summary = logMapper.selectLogIndicatorsFromSummary();
+                if (summary != null) {
+                    return summary;
+                }
+            } catch (RuntimeException exception) {
+                log.warn("Query log indicator summary failed, fallback to raw aggregate", exception);
+            }
+        }
+        return logMapper.selectLogIndicators(areaId);
     }
 }

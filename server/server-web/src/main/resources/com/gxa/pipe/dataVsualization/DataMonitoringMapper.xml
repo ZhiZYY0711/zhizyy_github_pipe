@@ -47,6 +47,25 @@
         ORDER BY DATE(i.create_time)
     </select>
 
+    <select id="selectAreaDetailsFromDailySummary" resultType="com.gxa.pipe.dataVsualization.dataMonitoring.AreaDetailResponse">
+        SELECT
+            s.traffic_sum / NULLIF(s.sample_count, 0) AS ave_flow,
+            s.pressure_sum / NULLIF(s.sample_count, 0) AS ave_pressure,
+            s.temperature_sum / NULLIF(s.sample_count, 0) AS ave_temperature,
+            s.shake_sum / NULLIF(s.sample_count, 0) AS ave_vibration,
+            UNIX_TIMESTAMP(s.stat_date) * 1000 AS time
+        FROM inspection_metric_daily_summary s
+        <where>
+            <if test="startTime != null and startTime != 0">
+                AND s.stat_date &gt;= DATE(FROM_UNIXTIME(#{startTime}/1000))
+            </if>
+            <if test="endTime != null and endTime != 0">
+                AND s.stat_date &lt;= DATE(FROM_UNIXTIME(#{endTime}/1000))
+            </if>
+        </where>
+        ORDER BY s.stat_date
+    </select>
+
     <select id="selectAreaDetailsFromDailyAggregate" resultType="com.gxa.pipe.dataVsualization.dataMonitoring.AreaDetailResponse">
         SELECT
             SUM(m.traffic_sum) / NULLIF(SUM(m.sample_count), 0) AS ave_flow,

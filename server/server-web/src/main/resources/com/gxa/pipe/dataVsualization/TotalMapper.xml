@@ -32,6 +32,100 @@
         </if>
     </sql>
 
+    <select id="selectWholeKpi" resultType="com.gxa.pipe.dataVsualization.total.WholeKpiResponse">
+        SELECT
+            COALESCE((
+                SELECT COUNT(*)
+                FROM sensor s
+                <where>
+                    <include refid="sensorAreaFilter"/>
+                </where>
+            ), 0) AS sensor_numbers,
+            COALESCE((
+                SELECT COUNT(*)
+                FROM sensor s
+                WHERE s.status IN (1, 2)
+                <include refid="sensorAreaFilter"/>
+            ), 0) AS abnormal_sensor_numbers,
+            COALESCE((
+                SELECT COUNT(*)
+                FROM inspection i
+                INNER JOIN sensor s ON i.sensor_id = s.id
+                WHERE i.data_status IN (2, 3)
+                  AND i.create_time &gt;= CURDATE()
+                  AND i.create_time &lt; DATE_ADD(CURDATE(), INTERVAL 1 DAY)
+                <include refid="sensorAreaFilter"/>
+            ), 0) AS warnings,
+            COALESCE((
+                SELECT COUNT(*)
+                FROM task t
+                WHERE t.status IN (0, 1)
+                <include refid="taskAreaFilter"/>
+            ), 0) AS underway_task,
+            COALESCE((
+                SELECT SUM(cnt)
+                FROM (
+                    SELECT COUNT(*) AS cnt
+                    FROM task t
+                    WHERE t.status = 0
+                      AND t.public_time &lt; DATE_SUB(NOW(), INTERVAL 24 HOUR)
+                    <include refid="taskAreaFilter"/>
+                    UNION ALL
+                    SELECT COUNT(*) AS cnt
+                    FROM task t
+                    WHERE t.status = 1
+                      AND t.response_time &lt; DATE_SUB(NOW(), INTERVAL 48 HOUR)
+                    <include refid="taskAreaFilter"/>
+                    UNION ALL
+                    SELECT COUNT(*) AS cnt
+                    FROM task t
+                    WHERE t.status = 3
+                    <include refid="taskAreaFilter"/>
+                ) overtime_counts
+            ), 0) AS overtime_task
+    </select>
+
+    <select id="selectRepairmanKpi" resultType="com.gxa.pipe.dataVsualization.total.RepairmanKpiResponse">
+        SELECT
+            COALESCE((
+                SELECT COUNT(*)
+                FROM repairman r
+                <where>
+                    <include refid="repairmanAreaFilter"/>
+                </where>
+            ), 0) AS repairman_number,
+            COALESCE((
+                SELECT COUNT(*)
+                FROM task t
+                WHERE t.status = 2
+                  AND t.accomplish_time &gt;= CURDATE()
+                  AND t.accomplish_time &lt; DATE_ADD(CURDATE(), INTERVAL 1 DAY)
+                <include refid="taskAreaFilter"/>
+            ), 0) AS today_task_number,
+            CAST(COALESCE(ROUND(
+                100 * (
+                    SELECT COUNT(*)
+                    FROM task t
+                    WHERE t.status = 2
+                    <include refid="taskAreaFilter"/>
+                ) / NULLIF((
+                    SELECT COUNT(*)
+                    FROM task t
+                    <where>
+                        <include refid="taskAreaFilter"/>
+                    </where>
+                ), 0)
+            ), 0) AS SIGNED) AS task_rate,
+            CAST(COALESCE(ROUND((
+                SELECT AVG(TIMESTAMPDIFF(HOUR, t.response_time, t.accomplish_time))
+                FROM task t
+                WHERE t.status = 2
+                  AND t.response_time IS NOT NULL
+                  AND t.accomplish_time IS NOT NULL
+                <include refid="taskAreaFilter"/>
+            )), 0) AS SIGNED) AS average_time
+    </select>
+
     <!-- 统计传感器总数 -->
     <select id="countTotalSensors" resultType="java.lang.Long">
         SELECT COUNT(*)

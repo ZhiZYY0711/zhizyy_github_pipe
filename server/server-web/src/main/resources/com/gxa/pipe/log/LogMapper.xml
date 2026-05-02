@@ -192,6 +192,22 @@
         WHERE l.id = #{id}
     </select>
 
+    <select id="selectLogIndicatorsFromSummary" resultMap="LogIndicardResponseMap">
+        SELECT
+            s.debugging_count AS debugging,
+            s.error_count AS error,
+            s.total_count AS `all`,
+            s.total_count AS total,
+            s.success_count AS success,
+            s.error_count AS failed,
+            COALESCE(ROUND(s.period_sum / NULLIF(s.total_count, 0)), 0) AS avg_duration,
+            COALESCE(d.total_count, 0) AS today,
+            s.warning_count AS warning
+        FROM log_indicator_summary s
+        LEFT JOIN log_daily_summary d ON d.stat_date = CURDATE()
+        WHERE s.id = 1
+    </select>
+
     <select id="selectLogIndicators" resultMap="LogIndicardResponseMap">
         SELECT
             COUNT(*) AS `all`,

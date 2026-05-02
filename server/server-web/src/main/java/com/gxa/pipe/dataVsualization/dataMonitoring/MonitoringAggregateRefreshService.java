@@ -64,6 +64,7 @@ public class MonitoringAggregateRefreshService {
 
         if (sourceFingerprint.sourceCount() == 0L) {
             deleteAggregateRows(statDate);
+            deleteSummaryRow(statDate);
             upsertState(statDate, sourceFingerprint, 0, SUCCESS, null);
             return;
         }
@@ -78,6 +79,7 @@ public class MonitoringAggregateRefreshService {
 
         deleteAggregateRows(statDate);
         int aggregateRows = insertAggregateRows(statDate);
+        upsertSummaryRow(statDate);
         upsertState(statDate, sourceFingerprint, aggregateRows, SUCCESS, null);
     }
 
@@ -136,6 +138,12 @@ public class MonitoringAggregateRefreshService {
                 Date.valueOf(statDate));
     }
 
+    private void deleteSummaryRow(LocalDate statDate) {
+        jdbcTemplate.update(
+                "DELETE FROM inspection_metric_daily_summary WHERE stat_date = ?",
+                Date.valueOf(statDate));
+    }
+
     private int insertAggregateRows(LocalDate statDate) {
         LocalDate nextDate = statDate.plusDays(1);
         return jdbcTemplate.update(
@@ -178,6 +186,52 @@ public class MonitoringAggregateRefreshService {
                 Date.valueOf(statDate),
                 Timestamp.valueOf(statDate.atStartOfDay()),
                 Timestamp.valueOf(nextDate.atStartOfDay()));
+    }
+
+    private void upsertSummaryRow(LocalDate statDate) {
+        jdbcTemplate.update(
+                """
+                INSERT INTO inspection_metric_daily_summary (
+                  stat_date,
+                  sample_count,
+                  pressure_sum,
+                  traffic_sum,
+                  temperature_sum,
+                  shake_sum,
+                  safe_count,
+                  good_count,
+                  danger_count,
+                  critical_count,
+                  refreshed_at
+                )
+                SELECT
+                  stat_date,
+                  COALESCE(SUM(sample_count), 0) AS sample_count,
+                  COALESCE(SUM(pressure_sum), 0) AS pressure_sum,
+                  COALESCE(SUM(traffic_sum), 0) AS traffic_sum,
+                  COALESCE(SUM(temperature_sum), 0) AS temperature_sum,
+                  COALESCE(SUM(shake_sum), 0) AS shake_sum,
+                  COALESCE(SUM(safe_count), 0) AS safe_count,
+                  COALESCE(SUM(good_count), 0) AS good_count,
+                  COALESCE(SUM(danger_count), 0) AS danger_count,
+                  COALESCE(SUM(critical_count), 0) AS critical_count,
+                  NOW() AS refreshed_at
+                FROM inspection_metric_daily
+                WHERE stat_date = ?
+                GROUP BY stat_date
+                ON DUPLICATE KEY UPDATE
+                  sample_count = VALUES(sample_count),
+                  pressure_sum = VALUES(pressure_sum),
+                  traffic_sum = VALUES(traffic_sum),
+                  temperature_sum = VALUES(temperature_sum),
+                  shake_sum = VALUES(shake_sum),
+                  safe_count = VALUES(safe_count),
+                  good_count = VALUES(good_count),
+                  danger_count = VALUES(danger_count),
+                  critical_count = VALUES(critical_count),
+                  refreshed_at = VALUES(refreshed_at)
+                """,
+                Date.valueOf(statDate));
     }
 
     private void upsertState(

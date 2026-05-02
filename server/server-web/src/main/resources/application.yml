@@ -30,7 +30,7 @@ mybatis:
   type-aliases-package: com.gxa.pipe.entity
   configuration:
     map-underscore-to-camel-case: true
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    log-impl: ${PIPELINE_MYBATIS_LOG_IMPL:org.apache.ibatis.logging.nologging.NoLoggingImpl}
 
 # PageHelper分页插件配置
 pagehelper:
@@ -41,8 +41,8 @@ pagehelper:
 
 performance:
   monitoring-aggregate:
-    enabled: false
-    refresh-enabled: false
+    enabled: ${PIPELINE_MONITORING_AGGREGATE_ENABLED:false}
+    refresh-enabled: ${PIPELINE_MONITORING_AGGREGATE_REFRESH_ENABLED:false}
     today-refresh-interval-ms: 600000
     repair-cron: "0 20 3 * * *"
     repair-window-days: 7

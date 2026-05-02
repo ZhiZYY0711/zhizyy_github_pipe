@@ -43,45 +43,64 @@
         r.name as repairman_name
     </sql>
 
+    <sql id="EquipmentConditionsByRequest">
+        <if test="request.type != null and request.type != ''">
+            AND s.type = #{request.type}
+        </if>
+        <if test="request.status != null and request.status != ''">
+            AND s.status = #{request.status}
+        </if>
+        <if test="request.areaId != null and request.areaId != ''">
+            AND (
+                (MOD(#{request.areaId}, 10000) = 0 AND s.area_id BETWEEN #{request.areaId} AND #{request.areaId} + 9999)
+                OR (MOD(#{request.areaId}, 10000) != 0 AND MOD(#{request.areaId}, 100) = 0 AND s.area_id BETWEEN #{request.areaId} AND #{request.areaId} + 99)
+                OR (MOD(#{request.areaId}, 100) != 0 AND s.area_id = #{request.areaId})
+            )
+        </if>
+        <if test="request.pipeId != null and request.pipeId != ''">
+            AND s.pipeline_id = #{request.pipeId}
+        </if>
+        <if test="request.pipeSegmentId != null and request.pipeSegmentId != ''">
+            AND s.pipe_segment_id = #{request.pipeSegmentId}
+        </if>
+        <if test="request.responsible != null and request.responsible != ''">
+            AND s.repairman_id = #{request.responsible}
+        </if>
+        <if test="request.lastCheckStart != null and request.lastCheckStart != ''">
+            AND s.last_overhaul_time &gt;= #{request.lastCheckStart}
+        </if>
+        <if test="request.lastCheckEnd != null and request.lastCheckEnd != ''">
+            AND s.last_overhaul_time &lt;= #{request.lastCheckEnd}
+        </if>
+    </sql>
+
     <!-- 根据条件查询设备信息 -->
     <select id="selectEquipmentByConditions" resultMap="EquipmentResponseResultMap">
         SELECT
         <include refid="Join_Column_List"/>
-        FROM sensor s
+        FROM (
+            SELECT
+                s.id,
+                s.type,
+                s.status,
+                s.last_overhaul_time,
+                s.area_id,
+                s.pipeline_id,
+                s.pipe_segment_id,
+                s.repairman_id,
+                s.create_time,
+                s.update_time
+            FROM sensor s
+            <where>
+                <include refid="EquipmentConditionsByRequest"/>
+            </where>
+            ORDER BY s.create_time DESC
+            LIMIT #{limit} OFFSET #{offset}
+        ) s
         LEFT JOIN area a ON s.area_id = a.id
         LEFT JOIN pipe p ON s.pipeline_id = p.id
         LEFT JOIN pipe_segment ps ON s.pipe_segment_id = ps.id
         LEFT JOIN repairman r ON s.repairman_id = r.id
-        <where>
-            <if test="type != null and type != ''">
-                AND s.type = #{type}
-            </if>
-            <if test="status != null and status != ''">
-                AND s.status = #{status}
-            </if>
-            <if test="areaId != null and areaId != ''">
-                AND (
-                    (MOD(#{areaId}, 10000) = 0 AND s.area_id BETWEEN #{areaId} AND #{areaId} + 9999)
-                    OR (MOD(#{areaId}, 10000) != 0 AND MOD(#{areaId}, 100) = 0 AND s.area_id BETWEEN #{areaId} AND #{areaId} + 99)
-                    OR (MOD(#{areaId}, 100) != 0 AND s.area_id = #{areaId})
-                )
-            </if>
-            <if test="pipeId != null and pipeId != ''">
-                AND s.pipeline_id = #{pipeId}
-            </if>
-            <if test="pipeSegmentId != null and pipeSegmentId != ''">
-                AND s.pipe_segment_id = #{pipeSegmentId}
-            </if>
-            <if test="responsible != null and responsible != ''">
-                AND s.repairman_id = #{responsible}
-            </if>
-            <if test="lastCheckStart != null and lastCheckStart != ''">
-                AND s.last_overhaul_time &gt;= #{lastCheckStart}
-            </if>
-            <if test="lastCheckEnd != null and lastCheckEnd != ''">
-                AND s.last_overhaul_time &lt;= #{lastCheckEnd}
-            </if>
-        </where>
         ORDER BY s.create_time DESC
     </select>
 
@@ -175,6 +194,14 @@
     <!-- 统计离线设备数量 -->
     <select id="countOffline" resultType="int">
         SELECT COUNT(*) FROM sensor WHERE status = 2
+    </select>
+
+    <select id="countByStatus" resultType="com.gxa.pipe.dataManagement.equipment.EquipmentStatusCount">
+        SELECT
+            status,
+            COUNT(*) AS count
+        FROM sensor
+        GROUP BY status
     </select>
 
     <!-- 验证区域是否存在 -->

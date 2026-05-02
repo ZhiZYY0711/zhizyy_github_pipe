@@ -97,12 +97,7 @@ public class TaskServiceImpl implements TaskService {
     public TaskIndicatorResponse getTaskIndicators(Long areaId) {
         log.info("获取任务指标卡数据，区域ID：{}", areaId);
 
-        TaskIndicatorResponse response = new TaskIndicatorResponse();
-        response.setTotal(String.valueOf(taskMapper.countTotalTasks(areaId)));
-        response.setPending(String.valueOf(taskMapper.countPendingTasks(areaId)));
-        response.setInProgress(String.valueOf(taskMapper.countUnderwayTasks(areaId)));
-        response.setCompleted(String.valueOf(taskMapper.countCompletedTasks(areaId)));
-        response.setUrgent(String.valueOf(taskMapper.countUrgentTasks(areaId)));
-        return response;
+        TaskIndicatorResponse response = taskMapper.selectTaskIndicators(areaId);
+        return response != null ? response : new TaskIndicatorResponse();
     }
 }

@@ -30,8 +30,9 @@ public class DataMonitoringServiceImpl implements DataMonitoringService {
         
         if (monitoringAggregateProperties.isEnabled()) {
             try {
-                List<AreaDetailResponse> aggregateRows =
-                        dataMonitoringMapper.selectAreaDetailsFromDailyAggregate(request);
+                List<AreaDetailResponse> aggregateRows = isGlobalAreaRequest(request)
+                        ? dataMonitoringMapper.selectAreaDetailsFromDailySummary(request)
+                        : dataMonitoringMapper.selectAreaDetailsFromDailyAggregate(request);
                 if (aggregateRows != null && !aggregateRows.isEmpty()) {
                     return aggregateRows;
                 }
@@ -41,6 +42,10 @@ public class DataMonitoringServiceImpl implements DataMonitoringService {
         }
 
         return dataMonitoringMapper.selectAreaDetails(request);
+    }
+
+    private boolean isGlobalAreaRequest(AreaDetailRequest request) {
+        return request.getAreaId() == null || request.getAreaId() == 0L;
     }
     
     @Override

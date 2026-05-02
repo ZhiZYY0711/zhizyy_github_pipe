@@ -19,6 +19,8 @@ public interface DataMonitoringMapper {
      */
     List<AreaDetailResponse> selectAreaDetails(AreaDetailRequest request);
 
+    List<AreaDetailResponse> selectAreaDetailsFromDailySummary(AreaDetailRequest request);
+
     List<AreaDetailResponse> selectAreaDetailsFromDailyAggregate(AreaDetailRequest request);
     
     /**

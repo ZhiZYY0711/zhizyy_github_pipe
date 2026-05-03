@@ -1,4 +1,5 @@
 import re
+from datetime import UTC, datetime
 
 import pytest
 
@@ -183,3 +184,94 @@ async def test_repository_finalizes_session_status_from_run_status(
     session = await repository.get_session("ana_001")
     assert session is not None
     assert session["status"] == expected_session_status
+
+
+@pytest.mark.asyncio
+async def test_repository_delete_user_memory_returns_memory_without_lazy_timestamp_load() -> None:
+    memory = UserMemoryModel(
+        id="mem_001",
+        user_id="system",
+        memory_type="preference",
+        preference_key="answer.style",
+        content="回答先给结论",
+        status="active",
+        risk_level="low",
+        created_at=datetime(2026, 5, 3, 10, 0, tzinfo=UTC),
+        updated_at=datetime(2026, 5, 3, 10, 0, tzinfo=UTC),
+    )
+
+    class FakeDb:
+        async def __aenter__(self) -> "FakeDb":
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb) -> None:
+            return None
+
+        async def commit(self) -> None:
+            return None
+
+        async def get(self, model, key):
+            if model is UserMemoryModel and key == memory.id:
+                return memory
+            return None
+
+    class FakeSessionFactory:
+        def __call__(self) -> FakeDb:
+            return FakeDb()
+
+    repository = AgentRepository(FakeSessionFactory())
+
+    result = await repository.delete_user_memory("system", memory.id)
+
+    assert result is not None
+    assert result["status"] == "deleted"
+    assert isinstance(memory.updated_at, datetime)
+
+
+@pytest.mark.asyncio
+async def test_repository_set_memory_candidate_status_returns_candidate_without_lazy_timestamp_load() -> None:
+    candidate = MemoryCandidateModel(
+        id="cand_001",
+        session_id="ana_001",
+        run_id="run_001",
+        user_id="system",
+        memory_type="preference",
+        candidate_type="preference",
+        preference_key="answer.style",
+        title="回答风格",
+        content="回答先给结论",
+        status="pending",
+        created_at=datetime(2026, 5, 3, 10, 0, tzinfo=UTC),
+    )
+
+    class FakeDb:
+        async def __aenter__(self) -> "FakeDb":
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb) -> None:
+            return None
+
+        async def commit(self) -> None:
+            return None
+
+        async def get(self, model, key):
+            if model is MemoryCandidateModel and key == candidate.id:
+                return candidate
+            return None
+
+    class FakeSessionFactory:
+        def __call__(self) -> FakeDb:
+            return FakeDb()
+
+    repository = AgentRepository(FakeSessionFactory())
+
+    result = await repository.set_memory_candidate_status(
+        "system",
+        candidate.id,
+        "accepted",
+        "system",
+    )
+
+    assert result is not None
+    assert result["status"] == "accepted"
+    assert isinstance(candidate.reviewed_at, datetime)

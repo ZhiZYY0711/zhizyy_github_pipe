@@ -1,7 +1,13 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   buildComposerMessageContent,
+  exportMessageFromEvent,
+  getAgentEventRenderDelay,
+  getFinalAnswerPendingNotice,
+  getAgentStartupNotice,
   groupEventsIntoReactRounds,
+  isDisplayableAgentEvent,
+  shouldQueueAgentEventForPacing,
   isNearConversationBottom,
   isSubmitComposerKey,
   memoryNoticeFromEvent,
@@ -9,8 +15,14 @@ import {
   normalizeAgentMemoryItem,
   normalizeEvidenceDisplayItems,
   readableAgentError,
+  renderMarkdownToHtml,
+  summarizeRecalledMemoryItems,
 } from './service'
 import type { AgentComposerAttachment, AgentEvent } from './types'
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
 
 function event(seq: number, type: string, payload: Record<string, unknown> = {}): AgentEvent {
   return {
@@ -72,6 +84,98 @@ describe('groupEventsIntoReactRounds', () => {
 
     expect(rounds[0].collapsed).toBe(false)
     expect(rounds[0].userPinned).toBe(true)
+  })
+})
+
+describe('agent event display helpers', () => {
+  it('hides step boundary events from the visible process stream', () => {
+    expect(isDisplayableAgentEvent('llm_step_started')).toBe(false)
+    expect(isDisplayableAgentEvent('llm_step_completed')).toBe(false)
+    expect(isDisplayableAgentEvent('recommendation_generated')).toBe(false)
+    expect(isDisplayableAgentEvent('run_completed')).toBe(false)
+    expect(isDisplayableAgentEvent('tool_completed')).toBe(true)
+    expect(isDisplayableAgentEvent('export_created')).toBe(true)
+  })
+
+  it('summarizes recalled memory contents instead of only showing counts', () => {
+    expect(summarizeRecalledMemoryItems([
+      '回答先给结论。',
+      { content: '导出报告默认包含证据表。' },
+      { content: '' },
+    ])).toBe('回答先给结论。；导出报告默认包含证据表。')
+  })
+
+  it('explains the startup wait before the event stream emits', () => {
+    const notice = getAgentStartupNotice()
+
+    expect(notice.title).toBe('运行中')
+    expect(notice.steps).toContain('创建或恢复会话')
+    expect(notice.steps).toContain('建立事件流')
+    expect(notice.reason).toContain('LLM')
+  })
+
+  it('explains the wait before the first final-answer token', () => {
+    const notice = getFinalAnswerPendingNotice()
+
+    expect(notice.title).toBe('正在生成最终回答')
+    expect(notice.detail).toContain('工具结果')
+    expect(notice.detail).toContain('LLM')
+  })
+
+  it('paces block-level events but keeps token deltas immediate', () => {
+    expect(shouldQueueAgentEventForPacing('tool_completed')).toBe(true)
+    expect(shouldQueueAgentEventForPacing('llm_thinking_completed')).toBe(true)
+    expect(shouldQueueAgentEventForPacing('final_answer_started')).toBe(true)
+    expect(shouldQueueAgentEventForPacing('llm_thinking_delta')).toBe(false)
+    expect(shouldQueueAgentEventForPacing('final_answer_delta')).toBe(false)
+  })
+
+  it('calculates the remaining render delay between visible blocks', () => {
+    expect(getAgentEventRenderDelay(1000, 1100, 180)).toBe(80)
+    expect(getAgentEventRenderDelay(1000, 1300, 180)).toBe(0)
+  })
+
+  it('normalizes agent-created export download links through the backend proxy', () => {
+    vi.stubGlobal('window', {
+      location: { origin: 'http://localhost:5173' },
+      localStorage: {
+        getItem: (key: string) => key === 'token' ? 'jwt-token' : null,
+      },
+    })
+
+    const message = exportMessageFromEvent(event(1, 'export_created', {
+      fileName: 'virtual-expert.pdf',
+      downloadUrl: '/manager/virtual-expert/agent/exports/exp_001/download',
+    }))
+
+    expect(message).toEqual({
+      text: 'virtual-expert.pdf 已生成',
+      url: '/api/manager/virtual-expert/agent/exports/exp_001/download?token=jwt-token',
+    })
+  })
+
+  it('renders markdown final answers with tables and escapes unsafe html', () => {
+    const html = renderMarkdownToHtml([
+      '## 查询结果',
+      '',
+      '已定位 **济南市**，`area_id=370100`。',
+      '',
+      '| 数据 | 数量 |',
+      '| --- | ---: |',
+      '| 管段 | 3 |',
+      '',
+      '- 可继续查看告警',
+      '',
+      '<script>alert(1)</script>',
+    ].join('\n'))
+
+    expect(html).toContain('<h3>查询结果</h3>')
+    expect(html).toContain('<strong>济南市</strong>')
+    expect(html).toContain('<code>area_id=370100</code>')
+    expect(html).toContain('<table>')
+    expect(html).toContain('<td>管段</td>')
+    expect(html).toContain('<ul><li>可继续查看告警</li></ul>')
+    expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;')
   })
 })
 

@@ -100,7 +100,6 @@ ENV/
 .worktrees/
 .logs/
 
-superpowers/
 database/
 frontend/public/geo/
 server/server-web/src/main/resources/application-dev.yml

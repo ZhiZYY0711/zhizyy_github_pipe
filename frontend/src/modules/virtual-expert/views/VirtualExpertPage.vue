@@ -10,7 +10,6 @@ import type {
   AgentExportFormat,
   AgentExportPlan,
   AgentMemoryItem,
-  AgentReactRound,
   AgentRecommendation,
   AgentRunSummary,
   AgentRunStatus,
@@ -19,9 +18,13 @@ import type {
 import {
   buildComposerMessageContent,
   createEmptyStreamState,
+  exportMessageFromEvent,
+  getAgentEventRenderDelay,
+  getFinalAnswerPendingNotice,
+  getAgentStartupNotice,
   getFallbackAgentEvents,
   getFallbackAgentSessions,
-  groupEventsIntoReactRounds,
+  isDisplayableAgentEvent,
   isNearConversationBottom,
   isSubmitComposerKey,
   loadAgentMemories,
@@ -39,7 +42,10 @@ import {
   requestAgentCancel,
   requestAgentExport,
   requestAgentSessionDelete,
+  renderMarkdownToHtml,
   sendAgentMessageStream,
+  shouldQueueAgentEventForPacing,
+  summarizeRecalledMemoryItems,
   timelineItemToTurns,
   timelineSummaryFromEvents,
 } from '../service'
@@ -62,6 +68,13 @@ type SpeechWindow = Window & {
 
 type TimelineItem =
   | {
+      kind: 'startup'
+      id: string
+      title: string
+      steps: string[]
+      reason: string
+    }
+  | {
       kind: 'summary'
       id: string
       text: string
@@ -74,6 +87,12 @@ type TimelineItem =
       step: number
       content: string
       running: boolean
+    }
+  | {
+      kind: 'final_pending'
+      id: string
+      title: string
+      detail: string
     }
   | {
       kind: 'final'
@@ -90,12 +109,20 @@ type TimelineItem =
       detail: string
     }
   | {
+      kind: 'tool_batch'
+      id: string
+      seq: number
+      step: number
+      events: AgentEvent[]
+      title: string
+      caption: string
+    }
+  | {
       kind: 'event'
       event: AgentEvent
       displaySeq: number
       label: string
       caption: string
-      detail: string
     }
 
 const input = ref('')
@@ -136,12 +163,18 @@ const autoFollowConversation = ref(true)
 const programmaticScroll = ref(false)
 const isListening = ref(false)
 const speechRecognition = ref<BrowserSpeechRecognition | null>(null)
-const roundExpansionOverrides = ref<Record<string, Record<string, boolean>>>({})
 const memoryPanelOpen = ref(false)
 const activeMemories = ref<AgentMemoryItem[]>([])
 const pendingMemories = ref<AgentMemoryItem[]>([])
 const memoryNotices = ref<AgentMemoryItem[]>([])
 const recalledMemorySummary = ref('')
+const thinkingExpansion = ref<Record<string, boolean>>({})
+const thinkingAutoFollow = ref<Record<string, boolean>>({})
+const pendingStreamEvents = ref<AgentEvent[]>([])
+const streamEventTimer = ref<number | undefined>()
+const lastStreamBlockRenderedAt = ref(0)
+
+const streamBlockRenderIntervalMs = 280
 
 const selectedSession = computed(() =>
   sessions.value.find((session) => session.id === selectedSessionId.value),
@@ -157,7 +190,21 @@ const samplePrompts = [
 const quickExportFormats: Array<{ format: AgentExportFormat; label: string }> = [
   { format: 'pdf', label: '导出 PDF' },
   { format: 'excel', label: '导出 Excel' },
+  { format: 'docx', label: '导出 Word' },
+  { format: 'md', label: '导出 Markdown' },
+  { format: 'txt', label: '导出 TXT' },
 ]
+
+function exportFormatLabel(format: AgentExportFormat) {
+  const labels: Record<AgentExportFormat, string> = {
+    pdf: 'PDF',
+    excel: 'Excel',
+    docx: 'Word',
+    md: 'Markdown',
+    txt: 'TXT',
+  }
+  return labels[format]
+}
 
 onMounted(() => {
   void loadInitialSessions()
@@ -166,6 +213,9 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   speechRecognition.value?.stop()
+  if (streamEventTimer.value !== undefined) {
+    window.clearTimeout(streamEventTimer.value)
+  }
   imageAttachments.value.forEach((item) => URL.revokeObjectURL(item.previewUrl))
 })
 
@@ -234,11 +284,7 @@ async function removeMemory(item: AgentMemoryItem) {
 function rememberNoticeFromEvent(event: AgentEvent) {
   if (event.type === 'memory_recalled') {
     const items = Array.isArray(event.payload?.items) ? event.payload.items : []
-    recalledMemorySummary.value = items
-      .map((item) => String((item as Record<string, unknown>).content ?? ''))
-      .filter(Boolean)
-      .slice(0, 2)
-      .join('、')
+    recalledMemorySummary.value = summarizeRecalledMemoryItems(items)
     return
   }
   const notice = memoryNoticeFromEvent(event)
@@ -338,20 +384,22 @@ function detailLabel(detailLevel?: AgentExportPlan['detailLevel']) {
 
 function eventLabel(type: string) {
   const labels: Record<string, string> = {
-    run_started: '任务启动',
-    context_built: '上下文准备',
-    llm_step_started: '思考回合开始',
+    run_started: '运行中',
+    run_preparation_completed: '准备完成',
+    context_built: '上下文',
+    llm_step_started: '思考开始',
     llm_thinking_started: '开始思考',
     llm_thinking_delta: '思考中',
     llm_thinking_completed: '思考完成',
+    llm_step_completed: '思考完成',
     action_text_delta: '动作生成中',
-    action_selected: '动作选择',
-    tool_started: '工具启动',
+    action_selected: '下一步',
+    tool_started: '调用工具',
     tool_progress: '工具进度',
-    tool_completed: '工具完成',
+    tool_completed: '工具返回',
     tool_failed: '工具失败',
-    retrieval_completed: '证据检索',
-    knowledge_search_started: '开始检索',
+    retrieval_completed: '检索完成',
+    knowledge_search_started: '检索知识',
     knowledge_search_completed: '知识命中',
     memory_search_completed: '记忆召回',
     memory_accepted: '已记住偏好',
@@ -360,9 +408,11 @@ function eventLabel(type: string) {
     final_answer_started: '输出开始',
     final_answer_delta: '输出中',
     final_answer_completed: '输出完成',
-    run_completed: '运行完成',
-    reasoning_completed: '推理完成',
-    recommendation_generated: '建议生成',
+    run_completed: '完成',
+    reasoning_completed: '推理结束',
+    recommendation_generated: '生成建议',
+    export_created: '导出完成',
+    export_failed: '导出失败',
     awaiting_user: '等待确认',
     run_failed: '运行失败',
     run_cancelled: '已取消',
@@ -372,11 +422,41 @@ function eventLabel(type: string) {
 
 function eventCaption(event: AgentEvent) {
   const payload = event.payload || {}
+  if (event.type === 'run_preparation_completed') {
+    return String(payload.detail ?? payload.label ?? event.title ?? '准备完成')
+  }
+  if (event.type === 'run_started') {
+    return '已接收输入，开始装配上下文'
+  }
+  if (event.type === 'context_built') {
+    const toolCount = Array.isArray(payload.available_tools) ? payload.available_tools.length : 0
+    const memoryCount = Number(payload.summary_memory_count ?? 0) + Number(payload.preference_memory_count ?? 0)
+    return `工具 ${toolCount} 个 · 记忆 ${memoryCount} 条`
+  }
+  if (event.type === 'plan_created') {
+    const steps = Array.isArray(payload.steps) ? payload.steps.map(String).slice(0, 3).join('、') : ''
+    return steps || '已形成排查顺序'
+  }
   if (event.type === 'action_selected') {
-    return String(payload.thought_summary ?? payload.action ?? 'Agent 已选择下一步动作')
+    if (payload.thought_summary) {
+      return String(payload.thought_summary)
+    }
+    if (payload.action === 'tool_call') {
+      return `调用工具：${String(payload.tool_name ?? '未命名工具')}`
+    }
+    if (payload.action === 'knowledge_search') {
+      return `检索知识：${String(payload.search_query ?? '')}`
+    }
+    if (payload.action === 'memory_search') {
+      return `检索记忆：${String(payload.search_query ?? '')}`
+    }
+    if (payload.action === 'final_answer') {
+      return '信息已够用，准备生成最终回答'
+    }
+    return String(payload.action ?? 'Agent 已选择下一步')
   }
   if (event.type === 'tool_started') {
-    return String(payload.tool_name ?? payload.toolName ?? '工具开始执行')
+    return String(payload.tool_name ?? payload.toolName ?? '工具执行中')
   }
   if (event.type === 'tool_completed') {
     return String(payload.summary ?? payload.tool_name ?? payload.toolName ?? '工具已返回业务数据')
@@ -385,12 +465,18 @@ function eventCaption(event: AgentEvent) {
     return String(payload.error ?? '工具调用失败')
   }
   if (event.type === 'retrieval_completed' || event.type === 'knowledge_search_completed') {
-    const documents = Array.isArray(payload.documents) ? payload.documents.length : 0
-    return documents ? `命中 ${documents} 条证据` : '已完成知识检索'
+    const documents = Array.isArray(payload.documents) ? payload.documents : []
+    const titles = documents
+      .map((document) => String((document as Record<string, unknown>).title ?? ''))
+      .filter(Boolean)
+      .slice(0, 2)
+      .join('、')
+    return titles ? `命中：${titles}` : '未命中可用知识'
   }
   if (event.type === 'memory_search_completed') {
-    const items = Array.isArray(payload.items) ? payload.items.length : 0
-    return items ? `召回 ${items} 条记忆` : '没有召回摘要记忆'
+    const items = Array.isArray(payload.items) ? payload.items : []
+    const summary = summarizeRecalledMemoryItems(items)
+    return summary ? `召回：${summary}` : '没有召回摘要记忆'
   }
   if (event.type === 'memory_accepted') {
     return String(payload.content ?? '已保存为你的偏好')
@@ -406,6 +492,12 @@ function eventCaption(event: AgentEvent) {
     const recommendation = normalizeRecommendation(payload)
     return recommendation?.judgment || recommendation?.summary || '已生成结构化建议'
   }
+  if (event.type === 'export_created') {
+    return String(payload.fileName ?? payload.file_name ?? '导出文件已生成')
+  }
+  if (event.type === 'export_failed') {
+    return String(payload.error ?? '导出文件生成失败')
+  }
   if (event.type === 'run_completed') {
     return '本轮研判已完成'
   }
@@ -413,16 +505,37 @@ function eventCaption(event: AgentEvent) {
 }
 
 function eventDisplayTitle(event: AgentEvent, fallback: string) {
+  if (event.type === 'action_selected') {
+    return ''
+  }
+  if (event.type === 'run_preparation_completed') {
+    return String(event.payload?.label ?? event.title ?? fallback)
+  }
+  if (event.type === 'memory_search_completed') {
+    return event.payload?.query ? '摘要记忆检索' : '摘要记忆已加载'
+  }
+  if (event.type === 'context_built') {
+    return '上下文已准备'
+  }
+  if (event.type === 'run_started') {
+    return '运行中'
+  }
   if (event.type === 'tool_completed') {
-    return `工具完成：${normalizeEvidenceDisplayItems(event)[0]?.title || fallback}`
+    return normalizeEvidenceDisplayItems(event)[0]?.title || fallback
   }
   if (event.type === 'tool_started') {
     const toolName = String(event.payload?.tool_name ?? event.payload?.toolName ?? '')
-    return toolName ? `工具启动：${toolName}` : event.title || fallback
+    return toolName || event.title || fallback
   }
   if (event.type === 'tool_failed') {
     const toolName = String(event.payload?.tool_name ?? event.payload?.toolName ?? '')
-    return toolName ? `工具失败：${toolName}` : event.title || fallback
+    return toolName ? `${toolName} 失败` : event.title || fallback
+  }
+  if (event.type === 'export_created') {
+    return '导出文件已生成'
+  }
+  if (event.type === 'export_failed') {
+    return '导出失败'
   }
   return event.title || fallback
 }
@@ -530,21 +643,62 @@ function buildTimelineItems(
     displaySeq += 1
     return displaySeq
   }
+  const pushDisplayEvent = (items: TimelineItem[], event: AgentEvent) => {
+    if (isToolTimelineEvent(event.type)) {
+      const latest = items[items.length - 1]
+      const step = toNumber(event.payload?.step) || 0
+      if (latest?.kind === 'tool_batch' && latest.step === step) {
+        latest.events = [...latest.events, event]
+        latest.title = toolBatchTitle(latest.events)
+        latest.caption = toolBatchCaption(latest.events)
+        return
+      }
+      const events = [event]
+      items.push({
+        kind: 'tool_batch',
+        id: `${turn.id}_tool_batch_${event.seq}`,
+        seq: nextDisplaySeq(),
+        step,
+        events,
+        title: toolBatchTitle(events),
+        caption: toolBatchCaption(events),
+      })
+      return
+    }
+
+    items.push({
+      kind: 'event',
+      event,
+      displaySeq: nextDisplaySeq(),
+      label: eventLabel(event.type),
+      caption: eventCaption(event),
+    })
+  }
 
   if (turn.status === 'running') {
     const runningItems: TimelineItem[] = []
-    turn.events
-      .filter((event) => !isHiddenEvent(event.type))
-      .forEach((event) => {
-        runningItems.push({
-          kind: 'event',
-          event,
-          displaySeq: nextDisplaySeq(),
-          label: eventLabel(event.type),
-          caption: eventCaption(event),
-          detail: event.payload ? JSON.stringify(event.payload, null, 2) : '',
-        })
-      })
+    turn.events.forEach((event) => {
+      if (event.type === 'llm_thinking_completed') {
+        const content = String(event.payload?.content ?? '')
+        if (content) {
+          runningItems.push({
+            kind: 'thinking',
+            id: `${turn.id}_thinking_${event.id}`,
+            seq: nextDisplaySeq(),
+            step: toNumber(event.payload?.step) || 0,
+            content,
+            running: false,
+          })
+        }
+        return
+      }
+
+      if (!isDisplayableAgentEvent(event.type)) {
+        return
+      }
+
+      pushDisplayEvent(runningItems, event)
+    })
     if (includeLiveStream && turn.streamState.thinkingText) {
       runningItems.push({
         kind: 'thinking',
@@ -555,28 +709,42 @@ function buildTimelineItems(
         running: true,
       })
     }
-    if (includeLiveStream && turn.streamState.finalText) {
-      const liveFinalText = readableFinalAnswer(turn.streamState.finalText)
+    const liveFinalText = includeLiveStream
+      ? readableFinalAnswer(turn.streamState.finalText)
         || recommendation?.judgment
         || recommendation?.summary
         || ''
-      if (liveFinalText) {
-        runningItems.push({
-          kind: 'final',
-          id: `${turn.id}_final_stream`,
-          seq: nextDisplaySeq(),
-          content: liveFinalText,
-          recommendation: recommendation || summaryRecommendation,
-          running: true,
-        })
-      }
+      : ''
+    if (liveFinalText) {
+      runningItems.push({
+        kind: 'final',
+        id: `${turn.id}_final_stream`,
+        seq: nextDisplaySeq(),
+        content: liveFinalText,
+        recommendation: recommendation || summaryRecommendation,
+        running: true,
+      })
+    }
+    if (includeLiveStream && turn.streamState.finalAnswerPending && !liveFinalText) {
+      runningItems.push({
+        kind: 'final_pending',
+        id: `${turn.id}_final_pending`,
+        ...getFinalAnswerPendingNotice(),
+      })
     }
     if (includeLiveStream && turn.streamState.finalizing) {
       runningItems.push({
         kind: 'finalizing',
         id: `${turn.id}_finalizing`,
         text: '正在整理最终结果',
-        detail: 'ReAct 已完成，正在保存研判摘要、会话消息和记忆候选。',
+        detail: '正在保存研判摘要、会话消息和记忆候选。',
+      })
+    }
+    if (!runningItems.length) {
+      runningItems.push({
+        kind: 'startup',
+        id: `${turn.id}_startup`,
+        ...getAgentStartupNotice(),
       })
     }
     return runningItems
@@ -674,15 +842,8 @@ function buildTimelineItems(
       flushFinal(false)
     }
 
-    if (!isHiddenEvent(event.type)) {
-      items.push({
-        kind: 'event',
-        event,
-        displaySeq: nextDisplaySeq(),
-        label: eventLabel(event.type),
-        caption: eventCaption(event),
-        detail: event.payload ? JSON.stringify(event.payload, null, 2) : '',
-      })
+    if (isDisplayableAgentEvent(event.type)) {
+      pushDisplayEvent(items, event)
     }
   })
 
@@ -691,73 +852,18 @@ function buildTimelineItems(
   return items
 }
 
-function buildReactRounds(turn: Extract<AgentConversationTurn, { kind: 'agent_run' }>) {
-  return groupEventsIntoReactRounds(turn.events, {
-    status: turn.status,
-    roundOverrides: roundExpansionOverrides.value[turn.runId || turn.id],
-  })
-}
-
-function buildRoundTimelineItems(
-  turn: Extract<AgentConversationTurn, { kind: 'agent_run' }>,
-  round: AgentReactRound,
-) {
-  const rounds = buildReactRounds(turn)
-  const finalRoundId = rounds.at(-1)?.id
-  const isFinalRound = round.id === finalRoundId
-  return buildTimelineItems(
-    {
-      ...turn,
-      events: round.events,
-      collapsed: false,
-      streamState: isFinalRound ? turn.streamState : createEmptyStreamState(),
-    },
-    {
-      includeLiveStream: isFinalRound,
-      includeSummaryFallback: isFinalRound,
-    },
-  )
-}
-
-function toggleRound(runId: string, roundId: string) {
-  const currentRun = roundExpansionOverrides.value[runId] || {}
-  const currentValue = currentRun[roundId]
-  roundExpansionOverrides.value = {
-    ...roundExpansionOverrides.value,
-    [runId]: {
-      ...currentRun,
-      [roundId]: currentValue === true ? false : true,
-    },
-  }
-}
-
 function recommendationFromSummary(summary?: AgentRunSummary): AgentRecommendation | undefined {
   if (!summary) {
     return undefined
   }
   return {
     summary: summary.finalAnswer || summary.judgment || '',
-    riskLevel: summary.riskLevel || 'medium',
+    riskLevel: summary.riskLevel,
     judgment: summary.judgment || summary.finalAnswer || '',
     recommendedActions: summary.recommendedActions || [],
     missingInformation: summary.openQuestions || [],
     humanConfirmationRequired: false,
   }
-}
-
-function isHiddenEvent(type: string) {
-  return [
-    'llm_thinking_started',
-    'llm_thinking_delta',
-    'llm_thinking_completed',
-    'action_text_delta',
-    'final_answer_started',
-    'final_answer_delta',
-    'final_answer_completed',
-    'memory_accepted',
-    'memory_candidate_created',
-    'memory_recalled',
-  ].includes(type)
 }
 
 function collectFinalText(events: AgentEvent[], recommendation?: AgentRecommendation) {
@@ -783,6 +889,83 @@ function readableFinalAnswer(value?: string) {
     return ''
   }
   return value
+}
+
+function thinkingPreview(content: string) {
+  const normalized = content.trim()
+  return normalized.length > 180 ? `${normalized.slice(0, 180)}...` : normalized
+}
+
+function isThinkingExpanded(id: string, running: boolean) {
+  return running || thinkingExpansion.value[id] === true
+}
+
+function isThinkingCollapsible(content: string, running: boolean) {
+  return !running && content.trim().length > 180
+}
+
+function toggleThinking(id: string) {
+  thinkingExpansion.value = {
+    ...thinkingExpansion.value,
+    [id]: thinkingExpansion.value[id] !== true,
+  }
+}
+
+function setThinkingTextRef(element: unknown, item: Extract<TimelineItem, { kind: 'thinking' }>) {
+  if (!element || !(element instanceof HTMLElement)) {
+    return
+  }
+  const textElement = element as HTMLElement & {
+    __thinkingScrollBound?: boolean
+    __thinkingProgrammaticScroll?: boolean
+  }
+  if (!textElement.__thinkingScrollBound) {
+    textElement.__thinkingScrollBound = true
+    textElement.addEventListener('scroll', () => {
+      if (textElement.__thinkingProgrammaticScroll) {
+        return
+      }
+      const shouldFollow = isElementNearBottom(textElement)
+      thinkingAutoFollow.value = {
+        ...thinkingAutoFollow.value,
+        [item.id]: shouldFollow,
+      }
+    }, { passive: true })
+  }
+  if (item.running && thinkingAutoFollow.value[item.id] !== false) {
+    textElement.__thinkingProgrammaticScroll = true
+    textElement.scrollTop = textElement.scrollHeight
+    window.requestAnimationFrame(() => {
+      textElement.__thinkingProgrammaticScroll = false
+    })
+  }
+}
+
+function isElementNearBottom(element: HTMLElement, tolerance = 12) {
+  return element.scrollHeight - element.scrollTop - element.clientHeight <= tolerance
+}
+
+function isToolTimelineEvent(type: string) {
+  return ['tool_started', 'tool_progress', 'tool_completed', 'tool_failed'].includes(type)
+}
+
+function toolBatchTitle(events: AgentEvent[]) {
+  const completed = events.filter((event) => event.type === 'tool_completed').length
+  const failed = events.filter((event) => event.type === 'tool_failed').length
+  const running = events.filter((event) => event.type === 'tool_started').length - completed - failed
+  const parts = [
+    completed ? `${completed} 个完成` : '',
+    failed ? `${failed} 个失败` : '',
+    running > 0 ? `${running} 个执行中` : '',
+  ].filter(Boolean)
+  return parts.length ? `本轮工具调用：${parts.join('，')}` : '本轮工具调用'
+}
+
+function toolBatchCaption(events: AgentEvent[]) {
+  const names = Array.from(new Set(events
+    .map((event) => String(event.payload?.tool_name ?? event.payload?.toolName ?? ''))
+    .filter(Boolean)))
+  return names.length ? names.join('、') : '正在查询业务数据'
 }
 
 function looksLikeJson(value: string) {
@@ -823,6 +1006,85 @@ function updateCurrentRun(event: AgentEvent) {
   applyStreamEvent(currentRun, event)
 }
 
+function processStreamEvent(event: AgentEvent) {
+  activeRunId.value = event.runId || activeRunId.value
+  if (event.type === 'export_created') {
+    exportMessage.value = exportMessageFromEvent(event) ?? null
+    pendingExportPlan.value = null
+  }
+  updateCurrentRun(event)
+  void nextTick(() => {
+    if (autoFollowConversation.value) {
+      scrollConversationToBottom()
+    }
+  })
+}
+
+function enqueueStreamEvent(event: AgentEvent) {
+  if (!shouldQueueAgentEventForPacing(event.type)) {
+    processStreamEvent(event)
+    return
+  }
+  pendingStreamEvents.value = [...pendingStreamEvents.value, event]
+  scheduleNextStreamEvent()
+}
+
+function scheduleNextStreamEvent() {
+  if (streamEventTimer.value !== undefined || !pendingStreamEvents.value.length) {
+    return
+  }
+  const delay = getAgentEventRenderDelay(
+    lastStreamBlockRenderedAt.value,
+    Date.now(),
+    streamBlockRenderIntervalMs,
+  )
+  streamEventTimer.value = window.setTimeout(() => {
+    streamEventTimer.value = undefined
+    flushNextStreamEvent()
+  }, delay)
+}
+
+function flushNextStreamEvent() {
+  const [event, ...rest] = pendingStreamEvents.value
+  if (!event) {
+    return
+  }
+  pendingStreamEvents.value = rest
+  processStreamEvent(event)
+  lastStreamBlockRenderedAt.value = Date.now()
+  scheduleNextStreamEvent()
+}
+
+async function drainPendingStreamEvents() {
+  if (streamEventTimer.value !== undefined) {
+    window.clearTimeout(streamEventTimer.value)
+    streamEventTimer.value = undefined
+  }
+  while (pendingStreamEvents.value.length) {
+    flushNextStreamEvent()
+    if (streamEventTimer.value !== undefined) {
+      window.clearTimeout(streamEventTimer.value)
+      streamEventTimer.value = undefined
+    }
+    if (pendingStreamEvents.value.length) {
+      await wait(streamBlockRenderIntervalMs)
+    }
+  }
+}
+
+function resetStreamEventQueue() {
+  pendingStreamEvents.value = []
+  lastStreamBlockRenderedAt.value = 0
+  if (streamEventTimer.value !== undefined) {
+    window.clearTimeout(streamEventTimer.value)
+    streamEventTimer.value = undefined
+  }
+}
+
+function wait(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms))
+}
+
 function applyStreamEvent(turn: Extract<AgentConversationTurn, { kind: 'agent_run' }>, event: AgentEvent) {
   if (event.type === 'llm_thinking_delta') {
     turn.streamState.thinkingSeq = turn.streamState.thinkingSeq || event.seq
@@ -851,16 +1113,34 @@ function applyStreamEvent(turn: Extract<AgentConversationTurn, { kind: 'agent_ru
 
   if (event.type === 'final_answer_delta') {
     turn.streamState.finalSeq = turn.streamState.finalSeq || event.seq
+    turn.streamState.finalAnswerPending = false
     turn.streamState.finalText += String(event.payload?.delta ?? '')
     return
   }
 
+  if (event.type === 'final_answer_started') {
+    turn.streamState.finalAnswerPending = true
+    return
+  }
+
   if (event.type === 'final_answer_completed') {
+    turn.streamState.finalAnswerPending = false
+    const recommendation = normalizeRecommendation(event.payload)
     turn.summary = {
       ...(turn.summary || { recommendedActions: [] }),
-      finalAnswer: turn.streamState.finalText || String(event.payload?.content ?? ''),
-      recommendedActions: turn.summary?.recommendedActions || [],
+      finalAnswer: readableFinalAnswer(turn.streamState.finalText)
+        || recommendation?.judgment
+        || recommendation?.summary
+        || String(event.payload?.content ?? ''),
+      riskLevel: recommendation?.riskLevel || turn.summary?.riskLevel,
+      judgment: recommendation?.judgment || turn.summary?.judgment,
+      recommendedActions: recommendation?.recommendedActions || turn.summary?.recommendedActions || [],
     }
+    return
+  }
+
+  if (event.type === 'recommendation_generated') {
+    turn.events = [...turn.events, event]
     return
   }
 
@@ -868,7 +1148,7 @@ function applyStreamEvent(turn: Extract<AgentConversationTurn, { kind: 'agent_ru
     turn.streamState.finalizing = true
   }
 
-  if (isHiddenEvent(event.type)) {
+  if (!isDisplayableAgentEvent(event.type)) {
     return
   }
 
@@ -899,6 +1179,7 @@ async function toggleRun(turnId: string) {
 }
 
 async function selectSession(session: AgentSession) {
+  resetStreamEventQueue()
   selectedSessionId.value = session.id
   errorMessage.value = ''
   exportMessage.value = null
@@ -915,6 +1196,7 @@ async function selectSession(session: AgentSession) {
 }
 
 function startNewConversation() {
+  resetStreamEventQueue()
   selectedSessionId.value = ''
   activeRunId.value = ''
   turns.value = []
@@ -1103,37 +1385,12 @@ async function submitAnalysis() {
   const sessionTitle = (textInput || imageAttachments.value[0]?.name || '图片研判').slice(0, 36)
 
   isRunning.value = true
+  resetStreamEventQueue()
   autoFollowConversation.value = true
   errorMessage.value = ''
   exportMessage.value = null
   pendingExportPlan.value = null
   input.value = ''
-
-  let sessionId = selectedSessionId.value
-  if (!sessionId || sessionId.startsWith('ana_demo')) {
-    let session
-    try {
-      session = await createAgentSession({ title: sessionTitle, sourceType: 'manual' })
-    } catch (error) {
-      errorMessage.value = readableAgentError(error)
-      input.value = textInput
-      isRunning.value = false
-      return
-    }
-    sessionId = session.sessionId
-    const nextSession: AgentSession = {
-      id: session.sessionId,
-      title: sessionTitle,
-      status: 'running',
-      summary: 'Agent 正在研判',
-      updatedAt: new Date().toLocaleString(),
-    }
-    sessions.value = [nextSession, ...sessions.value.filter((item) => !item.id.startsWith('ana_demo'))]
-    selectedSessionId.value = sessionId
-    turns.value = []
-    beforeCursor.value = undefined
-    hasMoreBefore.value = false
-  }
 
   const userTurn: AgentConversationTurn = {
     kind: 'user_message',
@@ -1151,26 +1408,50 @@ async function submitAnalysis() {
     streamState: createEmptyStreamState(),
     collapsed: false,
   }
+  let sessionId = selectedSessionId.value
+  const needsNewSession = !sessionId || sessionId.startsWith('ana_demo')
+  if (needsNewSession) {
+    selectedSessionId.value = ''
+    activeRunId.value = ''
+    turns.value = []
+    beforeCursor.value = undefined
+    hasMoreBefore.value = false
+  }
   turns.value = [...turns.value, userTurn, runTurn]
   clearImageAttachments()
   activeRunId.value = ''
   await nextTick()
   scrollConversationToBottom()
 
+  if (needsNewSession) {
+    try {
+      const session = await createAgentSession({ title: sessionTitle, sourceType: 'manual' })
+      sessionId = session.sessionId
+      const nextSession: AgentSession = {
+        id: session.sessionId,
+        title: sessionTitle,
+        status: 'running',
+        summary: '运行中 · 正在创建运行任务',
+        updatedAt: new Date().toLocaleString(),
+      }
+      sessions.value = [nextSession, ...sessions.value.filter((item) => !item.id.startsWith('ana_demo'))]
+      selectedSessionId.value = sessionId
+    } catch (error) {
+      errorMessage.value = readableAgentError(error)
+      input.value = textInput
+      setCurrentRunStatus('failed', false)
+      isRunning.value = false
+      return
+    }
+  }
+
   try {
     const { run, exportPlan } = await sendAgentMessageStream(
       sessionId,
       rawInput,
-      (event) => {
-        activeRunId.value = event.runId || activeRunId.value
-        updateCurrentRun(event)
-        void nextTick(() => {
-          if (autoFollowConversation.value) {
-            scrollConversationToBottom()
-          }
-        })
-      },
+      enqueueStreamEvent,
     )
+    await drainPendingStreamEvents()
 
     if (exportPlan && !run) {
       turns.value = turns.value.filter((turn) => turn.id !== runTurn.id)
@@ -1388,7 +1669,7 @@ function scrollConversationToBottom() {
               <div class="run-head">
                 <div>
                   <span class="eyebrow">AGENT RUN</span>
-                  <h3>ReAct 研判过程</h3>
+                  <h3>研判过程</h3>
                 </div>
                 <div class="run-head__actions">
                   <span class="chip" :class="statusClass(turn.status)">{{ statusLabel(turn.status) }}</span>
@@ -1410,8 +1691,8 @@ function scrollConversationToBottom() {
                 </div>
               </div>
 
-              <div class="timeline">
-                <template v-if="turn.collapsed">
+              <Transition name="run-collapse" mode="out-in">
+                <div v-if="turn.collapsed" class="timeline timeline--collapsed">
                   <article
                     v-for="item in buildTimelineItems(turn)"
                     :key="item.kind === 'event' ? item.event.id : item.id"
@@ -1433,160 +1714,259 @@ function scrollConversationToBottom() {
                           <span class="chip" :class="riskClass(item.recommendation?.riskLevel)">最终回答</span>
                           <small>{{ riskLabel(item.recommendation?.riskLevel) }}</small>
                         </div>
-                        <p class="stream-text">{{ item.content }}<span v-if="item.running" class="cursor">|</span></p>
+                        <div class="markdown-answer" v-html="renderMarkdownToHtml(item.content)"></div>
+                        <span v-if="item.running" class="cursor">|</span>
                         <ol v-if="item.recommendation?.recommendedActions.length" class="action-list">
                           <li v-for="action in item.recommendation.recommendedActions" :key="action">{{ action }}</li>
                         </ol>
                       </div>
                     </template>
                   </article>
-                </template>
+                </div>
 
-                <template v-else>
-                  <section
-                    v-for="round in buildReactRounds(turn)"
-                    :key="round.id"
-                    class="react-round"
-                    :class="{ 'is-collapsed': round.collapsed }"
+                <div v-else class="timeline timeline--flow">
+                  <article
+                    v-for="item in buildTimelineItems(turn)"
+                    :key="item.kind === 'event' ? item.event.id : item.id"
+                    class="timeline-card"
+                    :class="`is-${item.kind}`"
                   >
-                    <button
-                      class="react-round__head"
-                      type="button"
-                      @click="toggleRound(turn.runId || turn.id, round.id)"
-                    >
-                      <span>{{ round.title }}</span>
-                      <small>
-                        工具 {{ round.summary.toolCount }} 次 · 知识 {{ round.summary.knowledgeCount }} 条 · 异常 {{ round.summary.errorCount + round.summary.warningCount }} 条
-                      </small>
-                    </button>
+                    <template v-if="item.kind === 'startup'">
+                      <div class="timeline-rail"><span></span></div>
+                      <div class="timeline-body">
+                        <div class="event-head">
+                          <span class="chip is-warn">{{ item.title }}</span>
+                          <small>启动准备</small>
+                        </div>
+                        <h3>正在连接后端 Agent</h3>
+                        <ul class="startup-steps">
+                          <li v-for="step in item.steps" :key="step">{{ step }}</li>
+                        </ul>
+                        <p>{{ item.reason }}<span class="cursor">|</span></p>
+                      </div>
+                    </template>
 
-                    <div v-if="!round.collapsed" class="react-round__body">
-                      <article
-                        v-for="item in buildRoundTimelineItems(turn, round)"
-                        :key="item.kind === 'event' ? item.event.id : item.id"
-                        class="timeline-card"
-                        :class="`is-${item.kind}`"
-                      >
-                        <template v-if="item.kind === 'summary'">
-                          <div class="timeline-rail"><span>OK</span></div>
-                          <div class="timeline-body">
-                            <h3>{{ item.text }}</h3>
-                            <p>{{ item.stats }}</p>
-                          </div>
-                        </template>
+	                    <template v-else-if="item.kind === 'thinking'">
+	                      <div class="timeline-rail"><span>{{ item.seq }}</span></div>
+	                      <div class="timeline-body">
+	                        <div class="event-head">
+	                          <span class="chip">LLM 思考</span>
+	                          <small>第 {{ item.step || '-' }} 轮</small>
+	                        </div>
+	                        <p
+                            :ref="(element) => setThinkingTextRef(element, item)"
+                            class="stream-text"
+                            :class="{ 'is-preview': !isThinkingExpanded(item.id, item.running) }"
+                          >
+	                          {{ isThinkingExpanded(item.id, item.running) ? item.content : thinkingPreview(item.content) }}<span v-if="item.running" class="cursor">|</span>
+	                        </p>
+	                        <button
+	                          v-if="isThinkingCollapsible(item.content, item.running)"
+	                          class="inline-toggle"
+	                          type="button"
+	                          @click="toggleThinking(item.id)"
+	                        >
+	                          {{ isThinkingExpanded(item.id, item.running) ? '收起思考' : '展开思考' }}
+	                        </button>
+	                      </div>
+	                    </template>
 
-                        <template v-else-if="item.kind === 'thinking'">
-                          <div class="timeline-rail"><span>{{ item.seq }}</span></div>
-                          <div class="timeline-body">
-                            <div class="event-head">
-                              <span class="chip">LLM 思考</span>
-                              <small>STEP {{ item.step || '-' }}</small>
-                            </div>
-                            <p class="stream-text">{{ item.content }}<span v-if="item.running" class="cursor">|</span></p>
-                          </div>
-                        </template>
+	                    <template v-else-if="item.kind === 'final_pending'">
+	                      <div class="timeline-rail"><span></span></div>
+	                      <div class="timeline-body">
+	                        <div class="event-head">
+	                          <span class="chip is-warn">{{ item.title }}</span>
+	                          <small>等待首段回答</small>
+	                        </div>
+	                        <p>{{ item.detail }}<span class="cursor">|</span></p>
+	                      </div>
+	                    </template>
 
-                        <template v-else-if="item.kind === 'final'">
-                          <div class="timeline-rail"><span>{{ item.seq || 'AI' }}</span></div>
-                          <div class="timeline-body">
-                            <div class="event-head">
-                              <span class="chip" :class="riskClass(item.recommendation?.riskLevel)">最终回答</span>
-                              <small>{{ riskLabel(item.recommendation?.riskLevel) }}</small>
-                            </div>
-                            <p class="stream-text">{{ item.content }}<span v-if="item.running" class="cursor">|</span></p>
-                            <ol v-if="item.recommendation?.recommendedActions.length" class="action-list">
-                              <li v-for="action in item.recommendation.recommendedActions" :key="action">{{ action }}</li>
-                            </ol>
-                          </div>
-                        </template>
+                    <template v-else-if="item.kind === 'final'">
+                      <div class="timeline-rail"><span>{{ item.seq || 'AI' }}</span></div>
+                      <div class="timeline-body">
+                        <div class="event-head">
+                          <span class="chip" :class="riskClass(item.recommendation?.riskLevel)">最终回答</span>
+                          <small>{{ riskLabel(item.recommendation?.riskLevel) }}</small>
+                        </div>
+                        <div class="markdown-answer" v-html="renderMarkdownToHtml(item.content)"></div>
+                        <span v-if="item.running" class="cursor">|</span>
+                        <ol v-if="item.recommendation?.recommendedActions.length" class="action-list">
+                          <li v-for="action in item.recommendation.recommendedActions" :key="action">{{ action }}</li>
+                        </ol>
+                      </div>
+                    </template>
 
-                        <template v-else-if="item.kind === 'finalizing'">
-                          <div class="timeline-rail"><span>...</span></div>
-                          <div class="timeline-body">
-                            <div class="event-head">
-                              <span class="chip is-warn">收尾中</span>
-                              <small>正在归档</small>
-                            </div>
-                            <h3>{{ item.text }}<span class="cursor">|</span></h3>
-                            <p>{{ item.detail }}</p>
-                          </div>
-                        </template>
+                    <template v-else-if="item.kind === 'finalizing'">
+                      <div class="timeline-rail"><span></span></div>
+                      <div class="timeline-body">
+                        <div class="event-head">
+                          <span class="chip is-warn">收尾中</span>
+                          <small>正在归档</small>
+                        </div>
+                        <h3>{{ item.text }}<span class="cursor">|</span></h3>
+                        <p>{{ item.detail }}</p>
+                      </div>
+                    </template>
 
-                        <template v-else>
-                          <div class="timeline-rail"><span>{{ item.displaySeq }}</span></div>
-                          <div class="timeline-body">
-                            <div class="event-head">
-                              <span class="chip">{{ item.label }}</span>
-                              <small>{{ item.event.createdAt || `SEQ ${item.event.seq}` }}</small>
+                    <template v-else-if="item.kind === 'tool_batch'">
+                      <div class="timeline-rail"><span>{{ item.seq }}</span></div>
+                      <div class="timeline-body tool-batch">
+                        <div class="event-head">
+                          <span class="chip">工具调用</span>
+                          <small>{{ item.step ? `第 ${item.step} 轮` : '当前轮' }}</small>
+                        </div>
+                        <h3>{{ item.title }}</h3>
+                        <p>{{ item.caption }}</p>
+                        <div class="tool-batch__items">
+                          <article
+                            v-for="event in item.events.filter((entry) => entry.type !== 'tool_started' || !item.events.some((next) => next.type !== 'tool_started' && next.payload?.tool_name === entry.payload?.tool_name))"
+                            :key="event.id"
+                            class="tool-batch__item"
+                            :class="{ 'is-error': event.type === 'tool_failed' }"
+                          >
+                            <strong>{{ eventDisplayTitle(event, eventLabel(event.type)) }}</strong>
+                            <span>{{ eventCaption(event) }}</span>
+                          </article>
+                        </div>
+                        <div
+                          v-if="item.events.flatMap((event) => normalizeEvidenceDisplayItems(event)).length"
+                          class="evidence-stack"
+                        >
+                          <article
+                            v-for="evidence in item.events.flatMap((event) => normalizeEvidenceDisplayItems(event))"
+                            :key="evidence.id"
+                            class="evidence-card"
+                            :class="`is-${evidence.kind}`"
+                          >
+                            <div class="evidence-card__head">
+                              <div>
+                                <strong>{{ evidence.title }}</strong>
+                                <small>{{ evidence.sourceLabel }}</small>
+                              </div>
+                              <span v-if="evidenceScoreLabel(evidence.score)" class="evidence-score">
+                                {{ evidenceScoreLabel(evidence.score) }}
+                              </span>
                             </div>
-                            <h3>{{ eventDisplayTitle(item.event, item.label) }}</h3>
-                            <p>{{ item.caption }}</p>
-                            <div v-if="normalizeEvidenceDisplayItems(item.event).length" class="evidence-stack">
-                              <article
-                                v-for="evidence in normalizeEvidenceDisplayItems(item.event)"
-                                :key="evidence.id"
-                                class="evidence-card"
-                                :class="`is-${evidence.kind}`"
-                              >
-                                <div class="evidence-card__head">
-                                  <div>
-                                    <strong>{{ evidence.title }}</strong>
-                                    <small>{{ evidence.sourceLabel }}</small>
-                                  </div>
-                                  <span v-if="evidenceScoreLabel(evidence.score)" class="evidence-score">
-                                    {{ evidenceScoreLabel(evidence.score) }}
-                                  </span>
-                                </div>
-                                <p>{{ evidence.summary }}</p>
-                                <dl v-if="evidenceMetaRows(evidence).length" class="evidence-meta">
-                                  <div v-for="row in evidenceMetaRows(evidence)" :key="`${evidence.id}-${row.label}-${row.value}`">
-                                    <dt>{{ row.label }}</dt>
-                                    <dd>{{ row.value }}</dd>
-                                  </div>
-                                </dl>
-                                <dl v-if="evidence.facts.length" class="evidence-facts">
-                                  <div v-for="fact in evidence.facts" :key="`${fact.label}_${fact.value}`">
-                                    <dt>{{ fact.label }}</dt>
-                                    <dd :class="fact.status ? `is-${fact.status}` : ''">{{ fact.value }}</dd>
-                                  </div>
-                                </dl>
-                                <div v-if="evidenceRecords(evidence).length" class="tool-records">
-                                  <div class="tool-records__head">
-                                    <strong>业务数据预览</strong>
-                                    <small>{{ evidence.records?.length || 0 }} 条</small>
-                                  </div>
-                                  <div class="tool-records__table">
-                                    <table>
-                                      <thead>
-                                        <tr>
-                                          <th v-for="column in evidenceRecordColumns(evidence)" :key="column">
-                                            {{ evidenceColumnLabel(column) }}
-                                          </th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        <tr v-for="(record, index) in evidenceRecords(evidence)" :key="`${evidence.id}-record-${index}`">
-                                          <td v-for="column in evidenceRecordColumns(evidence)" :key="column">
-                                            {{ evidenceCellValue(record[column]) }}
-                                          </td>
-                                        </tr>
-                                      </tbody>
-                                    </table>
-                                  </div>
-                                </div>
-                              </article>
+                            <p>{{ evidence.summary }}</p>
+                            <dl v-if="evidenceMetaRows(evidence).length" class="evidence-meta">
+                              <div v-for="row in evidenceMetaRows(evidence)" :key="`${evidence.id}-${row.label}-${row.value}`">
+                                <dt>{{ row.label }}</dt>
+                                <dd>{{ row.value }}</dd>
+                              </div>
+                            </dl>
+                            <dl v-if="evidence.facts.length" class="evidence-facts">
+                              <div v-for="fact in evidence.facts" :key="`${fact.label}_${fact.value}`">
+                                <dt>{{ fact.label }}</dt>
+                                <dd :class="fact.status ? `is-${fact.status}` : ''">{{ fact.value }}</dd>
+                              </div>
+                            </dl>
+                            <div v-if="evidenceRecords(evidence).length" class="tool-records">
+                              <div class="tool-records__head">
+                                <strong>业务数据预览</strong>
+                                <small>{{ evidence.records?.length || 0 }} 条</small>
+                              </div>
+                              <div class="tool-records__table">
+                                <table>
+                                  <thead>
+                                    <tr>
+                                      <th v-for="column in evidenceRecordColumns(evidence)" :key="column">
+                                        {{ evidenceColumnLabel(column) }}
+                                      </th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    <tr v-for="(record, index) in evidenceRecords(evidence)" :key="`${evidence.id}-record-${index}`">
+                                      <td v-for="column in evidenceRecordColumns(evidence)" :key="column">
+                                        {{ evidenceCellValue(record[column]) }}
+                                      </td>
+                                    </tr>
+                                  </tbody>
+                                </table>
+                              </div>
                             </div>
-                            <details v-if="item.detail" class="event-detail">
-                              <summary>查看调试详情</summary>
-                              <pre>{{ item.detail }}</pre>
-                            </details>
-                          </div>
-                        </template>
-                      </article>
-                    </div>
-                  </section>
-                </template>
-              </div>
+                          </article>
+                        </div>
+                      </div>
+                    </template>
+
+                    <template v-else-if="item.kind === 'summary'">
+                      <div class="timeline-rail"><span>OK</span></div>
+                      <div class="timeline-body">
+                        <h3>{{ item.text }}</h3>
+                        <p>{{ item.stats }}</p>
+                      </div>
+                    </template>
+
+                    <template v-else>
+                      <div class="timeline-rail"><span>{{ item.displaySeq }}</span></div>
+                      <div class="timeline-body">
+                        <div class="event-head">
+                          <span class="chip">{{ item.label }}</span>
+                          <small>{{ item.event.createdAt || `SEQ ${item.event.seq}` }}</small>
+                        </div>
+	                        <h3 v-if="eventDisplayTitle(item.event, item.label)">{{ eventDisplayTitle(item.event, item.label) }}</h3>
+                        <p>{{ item.caption }}</p>
+                        <div v-if="normalizeEvidenceDisplayItems(item.event).length" class="evidence-stack">
+                          <article
+                            v-for="evidence in normalizeEvidenceDisplayItems(item.event)"
+                            :key="evidence.id"
+                            class="evidence-card"
+                            :class="`is-${evidence.kind}`"
+                          >
+                            <div class="evidence-card__head">
+                              <div>
+                                <strong>{{ evidence.title }}</strong>
+                                <small>{{ evidence.sourceLabel }}</small>
+                              </div>
+                              <span v-if="evidenceScoreLabel(evidence.score)" class="evidence-score">
+                                {{ evidenceScoreLabel(evidence.score) }}
+                              </span>
+                            </div>
+                            <p>{{ evidence.summary }}</p>
+                            <dl v-if="evidenceMetaRows(evidence).length" class="evidence-meta">
+                              <div v-for="row in evidenceMetaRows(evidence)" :key="`${evidence.id}-${row.label}-${row.value}`">
+                                <dt>{{ row.label }}</dt>
+                                <dd>{{ row.value }}</dd>
+                              </div>
+                            </dl>
+                            <dl v-if="evidence.facts.length" class="evidence-facts">
+                              <div v-for="fact in evidence.facts" :key="`${fact.label}_${fact.value}`">
+                                <dt>{{ fact.label }}</dt>
+                                <dd :class="fact.status ? `is-${fact.status}` : ''">{{ fact.value }}</dd>
+                              </div>
+                            </dl>
+                            <div v-if="evidenceRecords(evidence).length" class="tool-records">
+                              <div class="tool-records__head">
+                                <strong>业务数据预览</strong>
+                                <small>{{ evidence.records?.length || 0 }} 条</small>
+                              </div>
+                              <div class="tool-records__table">
+                                <table>
+                                  <thead>
+                                    <tr>
+                                      <th v-for="column in evidenceRecordColumns(evidence)" :key="column">
+                                        {{ evidenceColumnLabel(column) }}
+                                      </th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    <tr v-for="(record, index) in evidenceRecords(evidence)" :key="`${evidence.id}-record-${index}`">
+                                      <td v-for="column in evidenceRecordColumns(evidence)" :key="column">
+                                        {{ evidenceCellValue(record[column]) }}
+                                      </td>
+                                    </tr>
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          </article>
+                        </div>
+                      </div>
+                    </template>
+                  </article>
+                </div>
+              </Transition>
             </article>
           </template>
 
@@ -1603,7 +1983,7 @@ function scrollConversationToBottom() {
             <dl>
               <div>
                 <dt>格式</dt>
-                <dd>{{ pendingExportPlan.format === 'excel' ? 'Excel' : 'PDF' }}</dd>
+                <dd>{{ exportFormatLabel(pendingExportPlan.format) }}</dd>
               </div>
               <div>
                 <dt>对象</dt>
@@ -2050,112 +2430,277 @@ function scrollConversationToBottom() {
 
 .timeline {
   display: grid;
-  gap: var(--space-2);
-}
-
-.react-round {
-  display: grid;
-  gap: var(--space-2);
-  min-width: 0;
-  border: 1px solid rgba(96, 121, 139, 0.16);
-  background: rgba(255, 255, 255, 0.012);
-}
-
-.react-round.is-collapsed {
-  background: rgba(255, 255, 255, 0.008);
-}
-
-.react-round__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  width: 100%;
-  min-width: 0;
-  padding: var(--space-3);
-  border: 0;
-  color: var(--color-text);
-  background: transparent;
-  cursor: pointer;
-}
-
-.react-round__head span,
-.react-round__head small {
+  gap: 6px;
   min-width: 0;
 }
 
-.react-round__head small {
-  color: var(--color-text-muted);
-  text-align: right;
+.timeline--flow {
+  position: relative;
 }
 
-.react-round__body {
-  display: grid;
-  gap: var(--space-3);
-  min-width: 0;
-  padding: 0 var(--space-3) var(--space-3);
+.timeline--flow::before {
+  content: "";
+  position: absolute;
+  inset-block: 14px 14px;
+  inset-inline-start: 15px;
+  width: 1px;
+  background: linear-gradient(180deg, rgba(110, 202, 212, 0.34), rgba(96, 121, 139, 0.06));
+}
+
+.run-collapse-enter-active,
+.run-collapse-leave-active {
+  overflow: hidden;
+  transition: opacity 180ms ease, transform 180ms ease, max-height 220ms ease;
+}
+
+.run-collapse-enter-from,
+.run-collapse-leave-to {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+.run-collapse-enter-to,
+.run-collapse-leave-from {
+  max-height: 72vh;
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .timeline-card {
+  position: relative;
   display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: var(--space-2);
+  min-width: 0;
+  padding: 8px 0;
+  border: 0;
+  background: transparent;
+}
+
+.timeline--collapsed .timeline-card {
   grid-template-columns: 44px minmax(0, 1fr);
   gap: var(--space-3);
   padding: var(--space-3);
-  border: 1px solid rgba(96, 121, 139, 0.18);
+  border: 1px solid rgba(96, 121, 139, 0.16);
   background: rgba(255, 255, 255, 0.014);
 }
 
-.timeline-card.is-thinking {
+.timeline-card + .timeline-card {
+  border-top: 1px solid rgba(96, 121, 139, 0.09);
+}
+
+.timeline--collapsed .timeline-card + .timeline-card {
+  border-top: 1px solid rgba(96, 121, 139, 0.16);
+}
+
+.timeline-card.is-thinking .stream-text {
+  max-block-size: min(42vh, 360px);
+  overflow: auto;
+  padding-inline-end: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(110, 202, 212, 0.42) rgba(5, 12, 18, 0.62);
+}
+
+.timeline-card.is-thinking .stream-text::-webkit-scrollbar {
+  width: 8px;
+}
+
+.timeline-card.is-thinking .stream-text::-webkit-scrollbar-track {
+  background: rgba(5, 12, 18, 0.62);
+}
+
+.timeline-card.is-thinking .stream-text::-webkit-scrollbar-thumb {
+  border: 2px solid rgba(5, 12, 18, 0.62);
+  border-radius: 999px;
+  background: rgba(110, 202, 212, 0.42);
+}
+
+.timeline-card.is-startup .timeline-body,
+.timeline-card.is-final_pending .timeline-body {
+  padding: 10px 12px;
+  border: 1px solid rgba(213, 171, 76, 0.22);
+  background: rgba(63, 45, 15, 0.18);
+}
+
+.timeline-card.is-final .timeline-body {
+  padding-block-start: 2px;
+}
+
+.timeline--collapsed .timeline-card.is-final {
+  border-color: rgba(231, 104, 45, 0.26);
+}
+
+.timeline--collapsed .timeline-card.is-summary {
   border-color: rgba(110, 202, 212, 0.24);
-  background:
-    linear-gradient(135deg, rgba(110, 202, 212, 0.07), rgba(255, 255, 255, 0.01)),
-    rgba(4, 8, 12, 0.82);
-}
-
-.timeline-card.is-final {
-  border-color: rgba(231, 104, 45, 0.28);
-  background:
-    linear-gradient(180deg, rgba(231, 104, 45, 0.09), rgba(255, 255, 255, 0.01)),
-    rgba(7, 10, 13, 0.9);
-}
-
-.timeline-card.is-finalizing {
-  border-color: rgba(213, 171, 76, 0.32);
-  background:
-    linear-gradient(180deg, rgba(213, 171, 76, 0.08), rgba(255, 255, 255, 0.01)),
-    rgba(7, 10, 13, 0.9);
-}
-
-.timeline-card.is-summary {
-  border-color: rgba(110, 202, 212, 0.3);
 }
 
 .timeline-rail {
   display: grid;
   justify-items: center;
+  z-index: 1;
 }
 
 .timeline-rail span {
   display: grid;
   place-items: center;
+  width: 18px;
+  min-width: 18px;
+  height: 18px;
+  margin-top: 3px;
+  border: 1px solid rgba(110, 202, 212, 0.28);
+  border-radius: 999px;
+  color: var(--color-accent-cyan);
+  font-family: var(--font-mono);
+  font-size: 0;
+  background: rgba(5, 12, 18, 0.96);
+}
+
+.timeline--collapsed .timeline-rail span {
   width: 32px;
   min-width: 32px;
   height: 32px;
-  border: 1px solid rgba(110, 202, 212, 0.24);
-  color: var(--color-accent-cyan);
-  font-family: var(--font-mono);
+  margin-top: 0;
+  border-radius: 0;
   font-size: var(--text-meta);
   background: rgba(255, 255, 255, 0.02);
 }
 
 .timeline-body {
   display: grid;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
 }
 
 .stream-text {
   white-space: pre-wrap;
+}
+
+.stream-text.is-preview {
+  color: var(--color-text-muted);
+}
+
+.markdown-answer {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  color: var(--color-text);
+  font-size: var(--text-body-sm);
+  line-height: 1.62;
+}
+
+.markdown-answer :deep(h2),
+.markdown-answer :deep(h3),
+.markdown-answer :deep(h4),
+.markdown-answer :deep(h5) {
+  margin: 6px 0 0;
+  color: var(--color-text);
+  font-size: var(--text-section);
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.markdown-answer :deep(p) {
+  margin: 0;
+  color: var(--color-text);
+  white-space: normal;
+}
+
+.markdown-answer :deep(ul),
+.markdown-answer :deep(ol) {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-inline-start: 20px;
+}
+
+.markdown-answer :deep(li) {
+  padding-inline-start: 2px;
+}
+
+.markdown-answer :deep(code) {
+  padding: 1px 5px;
+  border: 1px solid rgba(110, 202, 212, 0.14);
+  color: var(--color-accent-cyan);
+  background: rgba(255, 255, 255, 0.035);
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+}
+
+.markdown-answer :deep(pre) {
+  max-block-size: min(42vh, 360px);
+  margin: 0;
+  padding: 10px 12px;
+  overflow: auto;
+  border: 1px solid rgba(96, 121, 139, 0.16);
+  background: rgba(4, 8, 12, 0.7);
+}
+
+.markdown-answer :deep(pre code) {
+  padding: 0;
+  border: 0;
+  color: var(--color-text-muted);
+  background: transparent;
+}
+
+.markdown-answer :deep(.markdown-table-wrap) {
+  max-width: 100%;
+  overflow: auto;
+  border: 1px solid rgba(96, 121, 139, 0.16);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(110, 202, 212, 0.42) rgba(5, 12, 18, 0.62);
+}
+
+.markdown-answer :deep(table) {
+  width: 100%;
+  min-width: 420px;
+  border-collapse: collapse;
+  font-size: var(--text-micro);
+}
+
+.markdown-answer :deep(th),
+.markdown-answer :deep(td) {
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(96, 121, 139, 0.12);
+  text-align: left;
+  vertical-align: top;
+}
+
+.markdown-answer :deep(th) {
+  color: var(--color-text);
+  background: rgba(255, 255, 255, 0.035);
+  font-weight: 700;
+}
+
+.markdown-answer :deep(td) {
+  color: var(--color-text-muted);
+}
+
+.inline-toggle {
+  justify-self: start;
+  min-height: 26px;
+  padding: 0;
+  border: 0;
+  color: var(--color-accent-cyan);
+  background: transparent;
+  font-size: var(--text-micro);
+}
+
+.startup-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.startup-steps li {
+  padding: 4px 8px;
+  border: 1px solid rgba(213, 171, 76, 0.18);
+  color: var(--color-text-muted);
+  background: rgba(255, 255, 255, 0.018);
+  font-size: var(--text-micro);
 }
 
 .cursor {
@@ -2166,7 +2711,53 @@ function scrollConversationToBottom() {
   margin: 0;
   padding-left: 18px;
   color: var(--color-text);
+  font-size: var(--text-body-sm);
   line-height: var(--leading-body);
+}
+
+.tool-batch {
+  padding: 10px 12px;
+  border: 1px solid rgba(110, 202, 212, 0.18);
+  background: rgba(8, 38, 46, 0.16);
+}
+
+.tool-batch__items {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.tool-batch__item {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid rgba(96, 121, 139, 0.14);
+  background: rgba(5, 12, 18, 0.5);
+}
+
+.tool-batch__item strong,
+.tool-batch__item span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tool-batch__item strong {
+  color: var(--color-text);
+  font-size: var(--text-meta);
+}
+
+.tool-batch__item span {
+  color: var(--color-text-muted);
+  font-size: var(--text-micro);
+}
+
+.tool-batch__item.is-error {
+  border-color: rgba(231, 78, 45, 0.28);
+  background: rgba(231, 78, 45, 0.08);
 }
 
 .evidence-stack {
@@ -2327,28 +2918,6 @@ function scrollConversationToBottom() {
 .tool-records td {
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.event-detail {
-  display: grid;
-  gap: var(--space-2);
-}
-
-.event-detail summary {
-  color: var(--color-text-muted);
-  font-size: var(--text-meta);
-  cursor: pointer;
-}
-
-.event-detail pre {
-  max-height: 180px;
-  margin: 0;
-  padding: var(--space-2);
-  overflow: auto;
-  border: 1px solid rgba(110, 202, 212, 0.12);
-  color: var(--color-text-muted);
-  background: rgba(2, 6, 10, 0.5);
-  white-space: pre-wrap;
 }
 
 .composer {

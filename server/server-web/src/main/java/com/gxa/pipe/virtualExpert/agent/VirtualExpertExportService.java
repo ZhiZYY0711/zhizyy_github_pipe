@@ -13,10 +13,15 @@ import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Font;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.xwpf.usermodel.ParagraphAlignment;
+import org.apache.poi.xwpf.usermodel.XWPFDocument;
+import org.apache.poi.xwpf.usermodel.XWPFParagraph;
+import org.apache.poi.xwpf.usermodel.XWPFRun;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
@@ -37,6 +42,9 @@ public class VirtualExpertExportService {
     private static final DateTimeFormatter FILE_TIME = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
     private static final String PDF = "pdf";
     private static final String EXCEL = "excel";
+    private static final String TXT = "txt";
+    private static final String MARKDOWN = "md";
+    private static final String DOCX = "docx";
 
     private final AgentClient agentClient;
     private final Map<String, ExportFile> files = new ConcurrentHashMap<>();
@@ -54,7 +62,14 @@ public class VirtualExpertExportService {
         String format = normalizeFormat(firstNonBlank(text(exportPlan.get("format")), text(request.getOrDefault("format", PDF))));
         ExportSnapshot snapshot = loadSnapshot(sessionId, text(request.get("runId")), exportPlan);
         try {
-            return PDF.equals(format) ? writePdf(snapshot) : writeExcel(snapshot);
+            return switch (format) {
+                case PDF -> writePdf(snapshot);
+                case EXCEL -> writeExcel(snapshot);
+                case TXT -> writeText(snapshot);
+                case MARKDOWN -> writeMarkdown(snapshot);
+                case DOCX -> writeDocx(snapshot);
+                default -> throw new IllegalArgumentException("Unsupported export format: " + format);
+            };
         } catch (IOException e) {
             throw new IllegalStateException("Export file generation failed", e);
         }
@@ -335,6 +350,124 @@ public class VirtualExpertExportService {
         return remember(exportId, fileName, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", path);
     }
 
+    private ExportFile writeText(ExportSnapshot snapshot) throws IOException {
+        String exportId = "exp_" + UUID.randomUUID().toString().replace("-", "");
+        String fileName = "virtual-expert-" + FILE_TIME.format(LocalDateTime.now()) + ".txt";
+        Path path = exportRoot().resolve(exportId + ".txt");
+        Files.writeString(path, plainReport(snapshot), StandardCharsets.UTF_8);
+        return remember(exportId, fileName, "text/plain;charset=UTF-8", path);
+    }
+
+    private ExportFile writeMarkdown(ExportSnapshot snapshot) throws IOException {
+        String exportId = "exp_" + UUID.randomUUID().toString().replace("-", "");
+        String fileName = "virtual-expert-" + FILE_TIME.format(LocalDateTime.now()) + ".md";
+        Path path = exportRoot().resolve(exportId + ".md");
+        Files.writeString(path, markdownReport(snapshot), StandardCharsets.UTF_8);
+        return remember(exportId, fileName, "text/markdown;charset=UTF-8", path);
+    }
+
+    private ExportFile writeDocx(ExportSnapshot snapshot) throws IOException {
+        String exportId = "exp_" + UUID.randomUUID().toString().replace("-", "");
+        String fileName = "virtual-expert-" + FILE_TIME.format(LocalDateTime.now()) + ".docx";
+        Path path = exportRoot().resolve(exportId + ".docx");
+
+        try (XWPFDocument document = new XWPFDocument()) {
+            addDocxParagraph(document, snapshot.title(), true, 18);
+            addDocxParagraph(document, "会话编号：" + snapshot.sessionId(), false, 10);
+            addDocxParagraph(document, "运行编号：" + snapshot.runId(), false, 10);
+            if (!snapshot.audience().isBlank()) {
+                addDocxParagraph(document, "面向对象：" + snapshot.audience(), false, 10);
+            }
+            if (!snapshot.purpose().isBlank()) {
+                addDocxParagraph(document, "导出用途：" + snapshot.purpose(), false, 10);
+            }
+            addDocxParagraph(document, "生成时间：" + LocalDateTime.now(), false, 10);
+            addDocxParagraph(document, "一、用户问题", true, 14);
+            addDocxParagraph(document, snapshot.userMessage(), false, 11);
+            addDocxParagraph(document, "二、风险判断", true, 14);
+            addDocxParagraph(document, riskLabel(snapshot.riskLevel()) + "。" + snapshot.judgment(), false, 11);
+            addDocxParagraph(document, "三、处置建议", true, 14);
+            addDocxList(document, snapshot.actions());
+            addDocxParagraph(document, "四、待补充信息", true, 14);
+            addDocxList(document, snapshot.openQuestions());
+            if (snapshot.includeTimeline()) {
+                addDocxParagraph(document, "五、过程摘要", true, 14);
+                addDocxList(document, eventSummaries(snapshot.events(), snapshot.includeEvidence()));
+            }
+            document.write(Files.newOutputStream(path));
+        }
+
+        return remember(exportId, fileName, "application/vnd.openxmlformats-officedocument.wordprocessingml.document", path);
+    }
+
+    private void addDocxParagraph(XWPFDocument document, String text, boolean bold, int fontSize) {
+        XWPFParagraph paragraph = document.createParagraph();
+        paragraph.setAlignment(ParagraphAlignment.LEFT);
+        XWPFRun run = paragraph.createRun();
+        run.setText(firstNonBlank(text, "暂无"));
+        run.setBold(bold);
+        run.setFontSize(fontSize);
+        run.setFontFamily("Microsoft YaHei");
+    }
+
+    private void addDocxList(XWPFDocument document, List<String> values) {
+        for (String value : values.isEmpty() ? List.of("暂无") : values) {
+            addDocxParagraph(document, "· " + value, false, 11);
+        }
+    }
+
+    private String plainReport(ExportSnapshot snapshot) {
+        StringBuilder builder = new StringBuilder();
+        builder.append(snapshot.title()).append("\n");
+        builder.append("会话编号：").append(snapshot.sessionId()).append("\n");
+        builder.append("运行编号：").append(snapshot.runId()).append("\n");
+        if (!snapshot.audience().isBlank()) {
+            builder.append("面向对象：").append(snapshot.audience()).append("\n");
+        }
+        if (!snapshot.purpose().isBlank()) {
+            builder.append("导出用途：").append(snapshot.purpose()).append("\n");
+        }
+        builder.append("生成时间：").append(LocalDateTime.now()).append("\n\n");
+        builder.append("一、用户问题\n").append(snapshot.userMessage()).append("\n\n");
+        builder.append("二、风险判断\n").append(riskLabel(snapshot.riskLevel())).append("。").append(snapshot.judgment()).append("\n\n");
+        builder.append("三、处置建议\n").append(listText(snapshot.actions()));
+        builder.append("\n四、待补充信息\n").append(listText(snapshot.openQuestions()));
+        if (snapshot.includeTimeline()) {
+            builder.append("\n五、过程摘要\n").append(listText(eventSummaries(snapshot.events(), snapshot.includeEvidence())));
+        }
+        return builder.toString();
+    }
+
+    private String markdownReport(ExportSnapshot snapshot) {
+        StringBuilder builder = new StringBuilder();
+        builder.append("# ").append(snapshot.title()).append("\n\n");
+        builder.append("- 会话编号：").append(snapshot.sessionId()).append("\n");
+        builder.append("- 运行编号：").append(snapshot.runId()).append("\n");
+        if (!snapshot.audience().isBlank()) {
+            builder.append("- 面向对象：").append(snapshot.audience()).append("\n");
+        }
+        if (!snapshot.purpose().isBlank()) {
+            builder.append("- 导出用途：").append(snapshot.purpose()).append("\n");
+        }
+        builder.append("- 生成时间：").append(LocalDateTime.now()).append("\n\n");
+        builder.append("## 一、用户问题\n\n").append(snapshot.userMessage()).append("\n\n");
+        builder.append("## 二、风险判断\n\n").append(riskLabel(snapshot.riskLevel())).append("。").append(snapshot.judgment()).append("\n\n");
+        builder.append("## 三、处置建议\n\n").append(markdownList(snapshot.actions()));
+        builder.append("\n## 四、待补充信息\n\n").append(markdownList(snapshot.openQuestions()));
+        if (snapshot.includeTimeline()) {
+            builder.append("\n## 五、过程摘要\n\n").append(markdownList(eventSummaries(snapshot.events(), snapshot.includeEvidence())));
+        }
+        return builder.toString();
+    }
+
+    private String listText(List<String> values) {
+        return String.join("\n", (values.isEmpty() ? List.of("暂无") : values).stream().map(value -> "· " + value).toList()) + "\n";
+    }
+
+    private String markdownList(List<String> values) {
+        return String.join("\n", (values.isEmpty() ? List.of("暂无") : values).stream().map(value -> "- " + value).toList()) + "\n";
+    }
+
     private ExportFile remember(String exportId, String fileName, String contentType, Path path) throws IOException {
         ExportFile file = new ExportFile(exportId, fileName, contentType, path, Files.size(path));
         files.put(exportId, file);
@@ -447,7 +580,13 @@ public class VirtualExpertExportService {
         if ("xlsx".equals(normalized)) {
             return EXCEL;
         }
-        if (PDF.equals(normalized) || EXCEL.equals(normalized)) {
+        if ("markdown".equals(normalized)) {
+            return MARKDOWN;
+        }
+        if ("word".equals(normalized) || "doc".equals(normalized)) {
+            return DOCX;
+        }
+        if (List.of(PDF, EXCEL, TXT, MARKDOWN, DOCX).contains(normalized)) {
             return normalized;
         }
         throw new IllegalArgumentException("Unsupported export format: " + format);
@@ -456,6 +595,15 @@ public class VirtualExpertExportService {
     private boolean contentTypeMatches(String contentType, String format) {
         if (PDF.equals(format)) {
             return "application/pdf".equals(contentType);
+        }
+        if (TXT.equals(format)) {
+            return contentType != null && contentType.startsWith("text/plain");
+        }
+        if (MARKDOWN.equals(format)) {
+            return contentType != null && contentType.startsWith("text/markdown");
+        }
+        if (DOCX.equals(format)) {
+            return contentType != null && contentType.contains("wordprocessingml");
         }
         return contentType != null && contentType.contains("spreadsheet");
     }
@@ -493,7 +641,7 @@ public class VirtualExpertExportService {
         List<String> summaries = new ArrayList<>();
         for (Map<String, Object> event : visibleEvents(events, includeEvidence)) {
             String type = text(event.get("type"));
-            if (List.of("tool_completed", "knowledge_search_completed", "retrieval_completed", "recommendation_generated", "run_completed").contains(type)) {
+            if (List.of("tool_completed", "knowledge_search_completed", "retrieval_completed", "memory_search_completed", "export_created").contains(type)) {
                 summaries.add(type + "：" + eventCaption(event));
             }
         }

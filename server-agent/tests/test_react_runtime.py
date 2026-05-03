@@ -10,14 +10,18 @@ from app.tools.registry import ToolDefinition, ToolRegistry
 
 
 class ScriptedLlm:
-    def __init__(self, actions: list[ReactAction]) -> None:
+    def __init__(self, actions: list[Any], final_markdown: str = "## 结论\n\n压力波动需要现场复核。") -> None:
         self.actions = actions
+        self.final_markdown = final_markdown
         self.calls: list[dict[str, str]] = []
 
     async def complete_json(self, system_prompt: str, user_prompt: str, schema: type) -> Any:
         self.calls.append({"system": system_prompt, "user": user_prompt})
         if schema is ReactAction:
-            return self.actions.pop(0)
+            action = self.actions.pop(0)
+            if isinstance(action, ReactAction):
+                return action
+            return ReactAction.model_validate(action)
         if schema is RecommendationState:
             return RecommendationState(
                 summary="压力波动需要现场复核",
@@ -28,6 +32,10 @@ class ScriptedLlm:
                 human_confirmation_required=True,
             )
         raise AssertionError(f"Unexpected schema: {schema}")
+
+    async def complete_text(self, system_prompt: str, user_prompt: str) -> str:
+        self.calls.append({"system": system_prompt, "user": user_prompt})
+        return self.final_markdown
 
 
 class StreamingScriptedLlm:
@@ -122,8 +130,75 @@ async def test_react_runtime_allows_llm_to_choose_search_tool_and_final_answer()
     assert event_types[-1] == AgentEventType.RUN_COMPLETED
 
     recommendation = next(event for event in events if event.type == AgentEventType.RECOMMENDATION_GENERATED)
-    assert recommendation.payload["summary"] == "压力波动需要现场复核"
+    assert recommendation.payload["final_answer"].startswith("## 结论")
     assert "query_monitoring_trend" in recommendation.payload["tool_calls"]
+
+
+async def test_react_runtime_executes_multiple_actions_in_one_step() -> None:
+    async def resolve_area(payload: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "summary": "已定位山东省济南市。",
+            "context": {"resolved_scope_id": "370100", "resolved_scope_type": "city"},
+            "records": [{"scope_type": "city", "area_id": "370100", "city_name": "济南市"}],
+        }
+
+    async def query_catalog(payload: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "summary": "济南市可查监测、告警、巡检和设备数据。",
+            "facts": [{"label": "可查数据", "value": "监测/告警/巡检/设备"}],
+        }
+
+    runtime = ReactRuntime(
+        tool_registry=ToolRegistry(
+            [
+                ToolDefinition("resolve_area_scope", "解析区域", "pipeline:read", 8000, False, resolve_area),
+                ToolDefinition("query_area_data_catalog", "查询数据目录", "monitoring:read", 8000, False, query_catalog),
+            ]
+        ),
+        llm_client=ScriptedLlm(
+            [
+                {
+                    "thought_summary": "宽泛地域查询，先定位区域并查询数据目录。",
+                    "actions": [
+                        {
+                            "action": "tool_call",
+                            "tool_name": "resolve_area_scope",
+                            "tool_input": {"raw_input": "帮我查一下山东济南的一些数据", "province": "山东", "city": "济南"},
+                        },
+                        {
+                            "action": "tool_call",
+                            "tool_name": "query_area_data_catalog",
+                            "tool_input": {"area_id": "370100", "scope_type": "city"},
+                        },
+                    ],
+                },
+                ReactAction(thought_summary="已有区域和目录证据，输出概览。", action="final_answer"),
+            ]
+        ),
+        retriever=lambda query: [],
+    )
+
+    events = [
+        event
+        async for event in runtime.run(
+            session_id="ana_area",
+            run_id="run_area",
+            raw_input="帮我查一下山东济南的一些数据",
+            permissions={"pipeline:read", "monitoring:read"},
+        )
+    ]
+
+    completed_tools = [
+        event.payload["tool_name"]
+        for event in events
+        if event.type == AgentEventType.TOOL_COMPLETED
+    ]
+    assert completed_tools == ["resolve_area_scope", "query_area_data_catalog"]
+    assert any(
+        event.type == AgentEventType.ACTION_SELECTED
+        and len(event.payload.get("actions", [])) == 2
+        for event in events
+    )
 
 
 async def test_react_runtime_injects_summary_memory_into_prompt() -> None:
@@ -169,6 +244,64 @@ async def test_react_runtime_injects_preference_memory_into_prompt() -> None:
 
     assert "用户长期偏好" in llm.calls[0]["user"]
     assert "回答先给结论" in llm.calls[0]["user"]
+
+
+async def test_react_runtime_compacts_large_tool_payloads_before_final_prompt() -> None:
+    async def query_monitoring(payload: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "summary": "压力波动明显。",
+            "facts": [{"label": "压力", "value": "1.8MPa"}],
+            "raw": {
+                "records": [
+                    {"id": index, "debug_blob": "RAW_RECORD_SHOULD_NOT_BE_IN_FINAL_PROMPT"}
+                    for index in range(20)
+                ]
+            },
+            "metadata": {"debug": "METADATA_SHOULD_NOT_BE_IN_FINAL_PROMPT"},
+        }
+
+    llm = ScriptedLlm(
+        [
+            ReactAction(
+                thought_summary="先查询监测趋势。",
+                action="tool_call",
+                tool_name="query_monitoring_trend",
+                tool_input={"raw_input": "压力波动"},
+            ),
+            ReactAction(thought_summary="证据够了。", action="final_answer"),
+        ]
+    )
+    runtime = ReactRuntime(
+        tool_registry=ToolRegistry(
+            [
+                ToolDefinition(
+                    "query_monitoring_trend",
+                    "查询监测趋势",
+                    "monitoring:read",
+                    8000,
+                    True,
+                    query_monitoring,
+                )
+            ]
+        ),
+        llm_client=llm,
+        retriever=lambda query: [],
+    )
+
+    _ = [
+        event
+        async for event in runtime.run(
+            session_id="ana_compact",
+            run_id="run_compact",
+            raw_input="压力波动",
+            permissions={"monitoring:read"},
+        )
+    ]
+
+    final_prompt = llm.calls[-1]["user"]
+    assert "压力波动明显" in final_prompt
+    assert "RAW_RECORD_SHOULD_NOT_BE_IN_FINAL_PROMPT" not in final_prompt
+    assert "METADATA_SHOULD_NOT_BE_IN_FINAL_PROMPT" not in final_prompt
 
 
 def test_action_prompt_includes_tool_catalog_metadata_for_llm_choice() -> None:
@@ -243,14 +376,10 @@ async def test_react_runtime_streams_thinking_before_model_selected_action() -> 
                     LlmStreamChunk(channel="content", delta='{"thought_summary":"输出结论。","action":"final_answer"}'),
                 ],
                 [
-                    LlmStreamChunk(channel="content", delta='{"summary":"压力波动需要复核",'),
+                    LlmStreamChunk(channel="content", delta='## 查询结果\n\n'),
                     LlmStreamChunk(
                         channel="content",
-                        delta=(
-                            '"risk_level":"medium","judgment":"工具证据提示压力波动。",'
-                            '"recommended_actions":["复核压力传感器"],"missing_information":[],'
-                            '"human_confirmation_required":true}'
-                        ),
+                        delta="工具证据提示压力波动。\n\n| 指标 | 结果 |\n| --- | --- |\n| 压力 | 波动明显 |\n",
                     ),
                 ],
             ]
@@ -282,7 +411,7 @@ async def test_react_runtime_streams_thinking_before_model_selected_action() -> 
     assert event_types[-1] == AgentEventType.RUN_COMPLETED
 
 
-async def test_react_runtime_accepts_markdown_json_fence_in_streamed_final_answer() -> None:
+async def test_react_runtime_streams_markdown_final_answer_without_json_schema() -> None:
     runtime = ReactRuntime(
         tool_registry=ToolRegistry([]),
         llm_client=StreamingScriptedLlm(
@@ -294,17 +423,11 @@ async def test_react_runtime_accepts_markdown_json_fence_in_streamed_final_answe
                     ),
                 ],
                 [
-                    LlmStreamChunk(channel="content", delta="```json\n"),
+                    LlmStreamChunk(channel="content", delta="## 查询结果\n\n"),
                     LlmStreamChunk(
                         channel="content",
-                        delta=(
-                            '{"summary":"阀室温度异常需要复核",'
-                            '"risk_level":"medium","judgment":"温度异常可能来自通风、伴热或传感器漂移。",'
-                            '"recommended_actions":["复核温度传感器"],"missing_information":[],'
-                            '"human_confirmation_required":true}'
-                        ),
+                        delta="已定位济南市。\n\n| 数据 | 数量 |\n| --- | ---: |\n| 管段 | 3 |\n",
                     ),
-                    LlmStreamChunk(channel="content", delta="\n```"),
                 ],
             ]
         ),
@@ -321,8 +444,15 @@ async def test_react_runtime_accepts_markdown_json_fence_in_streamed_final_answe
         )
     ]
 
+    final_text = "".join(
+        event.payload.get("delta", "")
+        for event in events
+        if event.type == AgentEventType.FINAL_ANSWER_DELTA
+    )
     recommendation = next(event for event in events if event.type == AgentEventType.RECOMMENDATION_GENERATED)
-    assert recommendation.payload["summary"] == "阀室温度异常需要复核"
+    assert "| 管段 | 3 |" in final_text
+    assert recommendation.payload["final_answer"] == final_text
+    assert recommendation.payload["answer_format"] == "markdown"
     assert [event.type for event in events][-1] == AgentEventType.RUN_COMPLETED
 
 
@@ -342,12 +472,7 @@ async def test_react_runtime_accepts_markdown_json_fence_in_streamed_action() ->
                 [
                     LlmStreamChunk(
                         channel="content",
-                        delta=(
-                            '{"summary":"压力波动需要复核",'
-                            '"risk_level":"medium","judgment":"压力趋势异常需要现场确认。",'
-                            '"recommended_actions":["复核压力传感器"],"missing_information":[],'
-                            '"human_confirmation_required":true}'
-                        ),
+                        delta="## 结论\n\n压力趋势异常需要现场确认。\n",
                     ),
                 ],
             ]

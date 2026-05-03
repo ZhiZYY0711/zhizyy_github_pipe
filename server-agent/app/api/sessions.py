@@ -11,15 +11,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, field_validator
 
+from app.agent.events import AgentEvent, AgentEventType
 from app.agent.service import AgentRuntimeService
 from app.agent.state import RunStatus
 from app.core.config import get_settings
-from app.llm.client import build_llm_client
 from app.persistence.redis_state import AgentRedisState
 from app.persistence.repository import AgentRepository
 from app.security import require_internal_token
 from app.services import (
-    export_intent_service,
     message_service,
     preference_memory_service,
     run_service,
@@ -28,6 +27,7 @@ from app.services import (
     stream_service,
 )
 from app.tools.business_tools import build_business_registry
+from app.tools.http_client import build_tool_http_client
 
 router = APIRouter(prefix="/api/agent", tags=["agent"], dependencies=[Depends(require_internal_token)])
 logger = logging.getLogger(__name__)
@@ -49,7 +49,9 @@ DEFAULT_RUN_PERMISSIONS = {
     "maintenance:read",
     "emergency:read",
     "log:read",
+    "operations:read",
     "report:read",
+    "report:write",
 }
 
 
@@ -131,7 +133,6 @@ async def create_message(session_id: str, request: CreateMessageRequest) -> dict
         use_in_memory_store=_use_in_memory_store,
         get_repository=_get_repository,
         get_session=_get_session,
-        infer_export_plan=_infer_export_plan,
         active_run_response=_active_run_response,
         message_response=_message_response,
         run_created_response=_run_created_response,
@@ -195,7 +196,22 @@ async def stream_run_session(
     async def generator():
         user_id = _user_id_from_request(request)
         input_text = session["request"]["raw_input"]
+        yield _sse_event("agent_event", _preparation_event(
+            session_id,
+            run_id,
+            "stream_connected",
+            "事件流已建立",
+            "后端已接管运行任务，接下来会召回记忆并准备运行时上下文。",
+        ))
         recalled_memories = await _recall_preference_memories(user_id, input_text)
+        yield _sse_event("agent_event", _preparation_event(
+            session_id,
+            run_id,
+            "memory_recall",
+            "偏好记忆已检查",
+            f"已完成长期偏好召回，命中 {len(recalled_memories)} 条。",
+            {"count": len(recalled_memories)},
+        ))
         if recalled_memories:
             yield _sse_event(
                 "agent_event",
@@ -211,7 +227,16 @@ async def stream_run_session(
                     "created_at": _now_iso(),
                 },
             )
-        service = _build_runtime_service(_accepted_summary_memory(input_text), recalled_memories)
+        summary_memory = _accepted_summary_memory(input_text)
+        service = _build_runtime_service(summary_memory, recalled_memories)
+        yield _sse_event("agent_event", _preparation_event(
+            session_id,
+            run_id,
+            "runtime_ready",
+            "运行时已准备",
+            f"已装载工具注册表和摘要记忆，摘要记忆 {len(summary_memory)} 条。",
+            {"summary_memory_count": len(summary_memory)},
+        ))
         events = []
         async for event in service.run_analysis(
             session_id=session_id,
@@ -316,7 +341,22 @@ async def stream_specific_run_session(
 
     async def generator():
         user_id = _user_id_from_request(request)
+        yield _sse_event("agent_event", _preparation_event(
+            session_id,
+            run_id,
+            "stream_connected",
+            "事件流已建立",
+            "后端已接管运行任务，接下来会召回记忆并准备运行时上下文。",
+        ))
         recalled_memories = await _recall_preference_memories(user_id, run["input_text"])
+        yield _sse_event("agent_event", _preparation_event(
+            session_id,
+            run_id,
+            "memory_recall",
+            "偏好记忆已检查",
+            f"已完成长期偏好召回，命中 {len(recalled_memories)} 条。",
+            {"count": len(recalled_memories)},
+        ))
         if recalled_memories:
             yield _sse_event(
                 "agent_event",
@@ -332,7 +372,16 @@ async def stream_specific_run_session(
                     "created_at": _now_iso(),
                 },
             )
-        service = _build_runtime_service(_accepted_summary_memory(run["input_text"]), recalled_memories)
+        summary_memory = _accepted_summary_memory(run["input_text"])
+        service = _build_runtime_service(summary_memory, recalled_memories)
+        yield _sse_event("agent_event", _preparation_event(
+            session_id,
+            run_id,
+            "runtime_ready",
+            "运行时已准备",
+            f"已装载工具注册表和摘要记忆，摘要记忆 {len(summary_memory)} 条。",
+            {"summary_memory_count": len(summary_memory)},
+        ))
         events = []
         async for event in service.run_analysis(
             session_id=session_id,
@@ -362,6 +411,13 @@ async def stream_specific_run_session(
 
         final_status = _derive_run_status(events)
         _complete_in_memory_message_run(session, run, events, final_status)
+        export_events = await _create_export_events_if_requested(session_id, run_id, events, len(events) + 1)
+        for export_event in export_events:
+            payload = export_event.model_dump(mode="json")
+            events.append(payload)
+            run["events"] = events
+            session["events"] = events
+            yield _sse_event("agent_event", payload)
         memory_result = await _store_preference_memories(user_id, session_id, run_id, run["input_text"])
         if _has_preference_memory_result(memory_result):
             _remove_legacy_memory_candidates_for_run(run_id)
@@ -826,10 +882,25 @@ async def _stream_persistent_specific_run(
         raise HTTPException(status_code=409, detail="Run already started")
 
     logger.info("agent stream run started session_id=%s run_id=%s mode=persistent-multiturn", session_id, run_id)
-    await _start_run_if_supported(repository, session_id, run_id)
     user_id = _user_id_from_request(request)
     input_text = run.get("input_text") or ""
+    yield _sse_event("agent_event", _preparation_event(
+        session_id,
+        run_id,
+        "stream_connected",
+        "事件流已建立",
+        "后端已接管运行任务，正在标记运行状态并准备上下文。",
+    ))
+    await _start_run_if_supported(repository, session_id, run_id)
     recalled_memories = await _recall_preference_memories(user_id, input_text)
+    yield _sse_event("agent_event", _preparation_event(
+        session_id,
+        run_id,
+        "memory_recall",
+        "偏好记忆已检查",
+        f"已完成长期偏好召回，命中 {len(recalled_memories)} 条。",
+        {"count": len(recalled_memories)},
+    ))
     if recalled_memories:
         yield _sse_event(
             "agent_event",
@@ -845,10 +916,19 @@ async def _stream_persistent_specific_run(
                 "created_at": _now_iso(),
             },
         )
+    summary_memory = await _list_accepted_memories(repository, input_text)
     service = _build_runtime_service(
-        await _list_accepted_memories(repository, input_text),
+        summary_memory,
         recalled_memories,
     )
+    yield _sse_event("agent_event", _preparation_event(
+        session_id,
+        run_id,
+        "runtime_ready",
+        "运行时已准备",
+        f"已装载工具注册表、会话上下文和摘要记忆，摘要记忆 {len(summary_memory)} 条。",
+        {"summary_memory_count": len(summary_memory)},
+    ))
     events: list[dict[str, Any]] = []
     cancelled_by_disconnect = False
     cancelled_by_request = False
@@ -906,6 +986,13 @@ async def _stream_persistent_specific_run(
         content=summary.get("final_answer") or summary.get("judgment") or f"本轮研判{final_status}",
         triggered_run_id=run_id,
     )
+    export_events = await _create_export_events_if_requested(session_id, run_id, events, len(events) + 1)
+    for export_event in export_events:
+        await repository.append_event(export_event)
+        payload = export_event.model_dump(mode="json")
+        events.append(payload)
+        await _get_redis_state().remember_last_seq(session_id, export_event.seq)
+        yield _sse_event("agent_event", payload)
     memory_result = await _store_preference_memories(user_id, session_id, run_id, input_text)
     for memory in memory_result["accepted"]:
         yield _sse_event(
@@ -969,11 +1056,26 @@ async def _stream_persistent_session(
         run_id = f"run_{uuid4().hex}"
         await repository.create_run(session_id, run_id)
 
-    await _start_run_if_supported(repository, session_id, run_id)
     logger.info("agent stream run started session_id=%s run_id=%s mode=persistent", session_id, run_id)
     user_id = _user_id_from_request(request)
     input_text = session.get("raw_input") or ""
+    yield _sse_event("agent_event", _preparation_event(
+        session_id,
+        run_id,
+        "stream_connected",
+        "事件流已建立",
+        "后端已接管运行任务，正在标记运行状态并准备上下文。",
+    ))
+    await _start_run_if_supported(repository, session_id, run_id)
     recalled_memories = await _recall_preference_memories(user_id, input_text)
+    yield _sse_event("agent_event", _preparation_event(
+        session_id,
+        run_id,
+        "memory_recall",
+        "偏好记忆已检查",
+        f"已完成长期偏好召回，命中 {len(recalled_memories)} 条。",
+        {"count": len(recalled_memories)},
+    ))
     if recalled_memories:
         yield _sse_event(
             "agent_event",
@@ -989,10 +1091,19 @@ async def _stream_persistent_session(
                 "created_at": _now_iso(),
             },
         )
+    summary_memory = await _list_accepted_memories(repository, input_text)
     service = _build_runtime_service(
-        await _list_accepted_memories(repository, input_text),
+        summary_memory,
         recalled_memories,
     )
+    yield _sse_event("agent_event", _preparation_event(
+        session_id,
+        run_id,
+        "runtime_ready",
+        "运行时已准备",
+        f"已装载工具注册表和摘要记忆，摘要记忆 {len(summary_memory)} 条。",
+        {"summary_memory_count": len(summary_memory)},
+    ))
     events: list[dict[str, Any]] = []
     cancelled_by_disconnect = False
     cancelled_by_request = False
@@ -1033,6 +1144,27 @@ async def _stream_persistent_session(
         return
     final_status = _derive_run_status(events)
     await repository.complete_run(session_id, run_id, final_status)
+    summary = _build_run_summary(events)
+    await repository.create_run_summary(
+        summary_id=f"sum_{uuid4().hex}",
+        session_id=session_id,
+        run_id=run_id,
+        summary=summary,
+    )
+    await repository.create_message(
+        message_id=f"msg_{uuid4().hex}",
+        session_id=session_id,
+        role="assistant",
+        content=summary.get("final_answer") or summary.get("judgment") or f"本轮研判{final_status}",
+        triggered_run_id=run_id,
+    )
+    export_events = await _create_export_events_if_requested(session_id, run_id, events, len(events) + 1)
+    for export_event in export_events:
+        await repository.append_event(export_event)
+        payload = export_event.model_dump(mode="json")
+        events.append(payload)
+        await _get_redis_state().remember_last_seq(session_id, export_event.seq)
+        yield _sse_event("agent_event", payload)
     memory_result = await _store_preference_memories(user_id, session_id, run_id, input_text)
     for memory in memory_result["accepted"]:
         yield _sse_event(
@@ -1137,11 +1269,83 @@ def _run_created_response(session_id: str, run_id: str) -> dict[str, Any]:
     }
 
 
-async def _infer_export_plan(content: str) -> dict[str, Any] | None:
-    return await export_intent_service.infer_export_plan(
-        content,
-        llm_client_factory=build_llm_client,
+async def _create_export_events_if_requested(
+    session_id: str,
+    run_id: str,
+    events: list[dict[str, Any]],
+    start_seq: int,
+) -> list[AgentEvent]:
+    export_plan = _extract_export_plan(events)
+    if export_plan is None:
+        return []
+    try:
+        export_file = await _create_export_file(session_id, run_id, export_plan)
+    except Exception as exc:
+        logger.exception("agent export generation failed session_id=%s run_id=%s", session_id, run_id)
+        return [
+            AgentEvent(
+                id=f"evt_export_failed_{uuid4().hex}",
+                session_id=session_id,
+                run_id=run_id,
+                seq=start_seq,
+                type=AgentEventType.EXPORT_FAILED,
+                level="error",
+                title="导出文件生成失败",
+                payload={
+                    "error": str(exc),
+                    "export_plan": export_plan,
+                },
+            )
+        ]
+    return [
+        AgentEvent(
+            id=f"evt_export_created_{uuid4().hex}",
+            session_id=session_id,
+            run_id=run_id,
+            seq=start_seq,
+            type=AgentEventType.EXPORT_CREATED,
+            title="导出文件已生成",
+            payload={
+                **export_file,
+                "export_plan": export_plan,
+            },
+        )
+    ]
+
+
+def _extract_export_plan(events: list[dict[str, Any]]) -> dict[str, Any] | None:
+    for event in reversed(events):
+        payload = event.get("payload")
+        if not isinstance(payload, dict) or payload.get("tool_name") != "create_export_report":
+            continue
+        context = payload.get("context")
+        raw = payload.get("raw")
+        for candidate in (
+            context.get("export_plan") if isinstance(context, dict) else None,
+            raw.get("export_plan") if isinstance(raw, dict) else None,
+        ):
+            if isinstance(candidate, dict):
+                return candidate
+    return None
+
+
+async def _create_export_file(session_id: str, run_id: str, export_plan: dict[str, Any]) -> dict[str, Any]:
+    client = build_tool_http_client()
+    raw = await client.post(
+        "/internal/virtual-expert/tools/create-export",
+        {
+            "session_id": session_id,
+            "run_id": run_id,
+            "format": export_plan.get("format"),
+            "export_plan": export_plan,
+        },
     )
+    context = raw.get("context") if isinstance(raw.get("context"), dict) else {}
+    return {
+        **context,
+        "summary": raw.get("summary") or "导出文件已生成",
+        "metadata": raw.get("metadata") or {},
+    }
 
 
 def _accepted_summary_memory(query: str | None, limit: int = 5) -> list[str]:
@@ -1322,6 +1526,32 @@ def _summary_response(summary: dict[str, Any] | None) -> dict[str, Any] | None:
 
 def _sse_event(event_name: str, payload: dict[str, Any]) -> str:
     return stream_service.sse_event(event_name, payload)
+
+
+def _preparation_event(
+    session_id: str,
+    run_id: str,
+    step: str,
+    label: str,
+    detail: str,
+    extra_payload: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    return {
+        "id": f"evt_prep_{step}_{uuid4().hex}",
+        "session_id": session_id,
+        "run_id": run_id,
+        "seq": 0,
+        "type": AgentEventType.RUN_PREPARATION_COMPLETED,
+        "level": "info",
+        "title": label,
+        "payload": {
+            "step": step,
+            "label": label,
+            "detail": detail,
+            **(extra_payload or {}),
+        },
+        "created_at": _now_iso(),
+    }
 
 
 def _log_agent_event(payload: dict[str, Any]) -> None:

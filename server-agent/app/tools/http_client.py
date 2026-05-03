@@ -12,6 +12,19 @@ class ToolHttpClient:
         self._client = client
 
     async def get(self, path: str, params: dict[str, Any]) -> dict[str, Any]:
+        return await self._request("GET", path, params=params)
+
+    async def post(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return await self._request("POST", path, json=payload)
+
+    async def _request(
+        self,
+        method: str,
+        path: str,
+        *,
+        params: dict[str, Any] | None = None,
+        json: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         settings = get_settings()
         headers = {
             "Authorization": f"Bearer {_internal_token()}",
@@ -20,9 +33,11 @@ class ToolHttpClient:
         client = self._client or httpx.AsyncClient()
         close_client = self._client is None
         try:
-            response = await client.get(
+            response = await client.request(
+                method,
                 f"{self._base_url}{path}",
-                params={key: value for key, value in params.items() if value is not None},
+                params={key: value for key, value in (params or {}).items() if value is not None},
+                json={key: value for key, value in (json or {}).items() if value is not None} if json is not None else None,
                 headers=headers,
             )
             response.raise_for_status()

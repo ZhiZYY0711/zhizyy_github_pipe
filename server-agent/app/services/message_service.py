@@ -1,4 +1,3 @@
-import json
 from typing import Any
 from uuid import uuid4
 
@@ -12,7 +11,6 @@ async def create_message(
     use_in_memory_store,
     get_repository,
     get_session,
-    infer_export_plan,
     active_run_response,
     message_response,
     run_created_response,
@@ -23,7 +21,6 @@ async def create_message(
             session_id,
             request,
             get_repository=get_repository,
-            infer_export_plan=infer_export_plan,
             active_run_response=active_run_response,
             message_response=message_response,
             run_created_response=run_created_response,
@@ -46,25 +43,6 @@ async def create_message(
         "created_at": created_at,
     }
     session["messages"].append(message)
-
-    export_plan = await infer_export_plan(request.content)
-    if export_plan is not None:
-        session["messages"].append(
-            {
-                "id": f"msg_{uuid4().hex}",
-                "session_id": session_id,
-                "role": "assistant",
-                "content": json.dumps(export_plan, ensure_ascii=False),
-                "message_type": "export_plan",
-                "created_at": now_iso(),
-            }
-        )
-        session["updated_at"] = created_at
-        return {
-            "message": message_response(message),
-            "export_plan": export_plan,
-            "run": None,
-        }
 
     session["runs"][run_id] = {
         "id": run_id,
@@ -90,7 +68,6 @@ async def _create_persistent_message(
     request: Any,
     *,
     get_repository,
-    infer_export_plan,
     active_run_response,
     message_response,
     run_created_response,
@@ -112,21 +89,6 @@ async def _create_persistent_message(
         content=request.content,
         message_type=request.message_type,
     )
-    export_plan = await infer_export_plan(request.content)
-    if export_plan is not None:
-        await repository.create_message(
-            message_id=f"msg_{uuid4().hex}",
-            session_id=session_id,
-            role="assistant",
-            content=json.dumps(export_plan, ensure_ascii=False),
-            message_type="export_plan",
-        )
-        return {
-            "message": message_response(message),
-            "export_plan": export_plan,
-            "run": None,
-        }
-
     await repository.create_run(
         session_id=session_id,
         run_id=run_id,

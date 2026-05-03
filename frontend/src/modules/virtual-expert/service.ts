@@ -119,6 +119,78 @@ export function memoryNoticeFromEvent(event: AgentEvent): AgentMemoryItem | unde
   return normalizeAgentMemoryItem(event.payload || {})
 }
 
+const hiddenAgentEventTypes = new Set([
+  'llm_step_started',
+  'llm_step_completed',
+  'llm_thinking_started',
+  'llm_thinking_delta',
+  'action_text_delta',
+  'final_answer_started',
+  'final_answer_delta',
+  'final_answer_completed',
+  'recommendation_generated',
+  'run_completed',
+  'memory_accepted',
+  'memory_candidate_created',
+  'memory_recalled',
+])
+
+const immediateStreamEventTypes = new Set([
+  'llm_thinking_started',
+  'llm_thinking_delta',
+  'action_text_delta',
+  'final_answer_delta',
+  'final_answer_completed',
+])
+
+export function isDisplayableAgentEvent(type: string) {
+  return !hiddenAgentEventTypes.has(type)
+}
+
+export function summarizeRecalledMemoryItems(items: unknown[], limit = 4) {
+  return items
+    .map((item) => {
+      if (typeof item === 'string') {
+        return item.trim()
+      }
+      if (item && typeof item === 'object') {
+        const raw = item as Record<string, unknown>
+        return String(raw.content ?? raw.summary ?? raw.text ?? '').trim()
+      }
+      return ''
+    })
+    .filter(Boolean)
+    .slice(0, limit)
+    .join('；')
+}
+
+export function getAgentStartupNotice() {
+  return {
+    title: '运行中',
+    steps: ['创建或恢复会话', '保存你的消息', '创建运行任务', '建立事件流'],
+    reason: '首次响应会稍慢，后端需要召回记忆、装配业务上下文、准备工具，并等待 LLM 开始输出。',
+  }
+}
+
+export function getFinalAnswerPendingNotice() {
+  return {
+    title: '正在生成最终回答',
+    detail: '后端正在汇总工具结果、知识证据、风险等级和处置建议，并等待 LLM 返回第一段结构化回答。',
+  }
+}
+
+export function shouldQueueAgentEventForPacing(type: string) {
+  return !immediateStreamEventTypes.has(type)
+}
+
+export function getAgentEventRenderDelay(
+  lastRenderedAt: number,
+  now: number,
+  minIntervalMs: number,
+) {
+  return Math.max(0, lastRenderedAt + minIntervalMs - now)
+}
+
 export async function loadAgentMemories(status: 'active' | 'pending' = 'active') {
   const response = await fetchAgentMemories(status)
   return response.items.map((item) => normalizeAgentMemoryItem(item as unknown as Record<string, unknown>))
@@ -460,6 +532,120 @@ export function timelineSummaryFromEvents(events: AgentEvent[]) {
   }
 }
 
+export function renderMarkdownToHtml(markdown: string) {
+  const lines = markdown.replace(/\r\n/g, '\n').split('\n')
+  const html: string[] = []
+  let index = 0
+
+  const closeParagraph = (buffer: string[]) => {
+    if (buffer.length) {
+      html.push(`<p>${renderInlineMarkdown(buffer.join(' '))}</p>`)
+      buffer.length = 0
+    }
+  }
+
+  const paragraph: string[] = []
+  while (index < lines.length) {
+    const line = lines[index]
+    const trimmed = line.trim()
+    if (!trimmed) {
+      closeParagraph(paragraph)
+      index += 1
+      continue
+    }
+
+    if (trimmed.startsWith('```')) {
+      closeParagraph(paragraph)
+      const code: string[] = []
+      index += 1
+      while (index < lines.length && !lines[index].trim().startsWith('```')) {
+        code.push(lines[index])
+        index += 1
+      }
+      html.push(`<pre><code>${escapeHtml(code.join('\n'))}</code></pre>`)
+      index += 1
+      continue
+    }
+
+    const heading = /^(#{1,4})\s+(.+)$/.exec(trimmed)
+    if (heading) {
+      closeParagraph(paragraph)
+      const level = Math.min(heading[1].length + 1, 5)
+      html.push(`<h${level}>${renderInlineMarkdown(heading[2])}</h${level}>`)
+      index += 1
+      continue
+    }
+
+    if (isMarkdownTableStart(lines, index)) {
+      closeParagraph(paragraph)
+      const tableLines: string[] = []
+      while (index < lines.length && lines[index].trim().startsWith('|')) {
+        tableLines.push(lines[index].trim())
+        index += 1
+      }
+      html.push(renderMarkdownTable(tableLines))
+      continue
+    }
+
+    if (/^[-*]\s+/.test(trimmed)) {
+      closeParagraph(paragraph)
+      const items: string[] = []
+      while (index < lines.length && /^[-*]\s+/.test(lines[index].trim())) {
+        items.push(`<li>${renderInlineMarkdown(lines[index].trim().replace(/^[-*]\s+/, ''))}</li>`)
+        index += 1
+      }
+      html.push(`<ul>${items.join('')}</ul>`)
+      continue
+    }
+
+    if (/^\d+\.\s+/.test(trimmed)) {
+      closeParagraph(paragraph)
+      const items: string[] = []
+      while (index < lines.length && /^\d+\.\s+/.test(lines[index].trim())) {
+        items.push(`<li>${renderInlineMarkdown(lines[index].trim().replace(/^\d+\.\s+/, ''))}</li>`)
+        index += 1
+      }
+      html.push(`<ol>${items.join('')}</ol>`)
+      continue
+    }
+
+    paragraph.push(trimmed)
+    index += 1
+  }
+  closeParagraph(paragraph)
+  return html.join('')
+}
+
+function isMarkdownTableStart(lines: string[], index: number) {
+  return (
+    lines[index]?.trim().startsWith('|')
+    && /^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?$/.test(lines[index + 1]?.trim() || '')
+  )
+}
+
+function renderMarkdownTable(lines: string[]) {
+  const rows = lines
+    .filter((_, index) => index !== 1)
+    .map((line) => line.replace(/^\||\|$/g, '').split('|').map((cell) => cell.trim()))
+  const [head = [], ...body] = rows
+  return `<div class="markdown-table-wrap"><table><thead><tr>${head.map((cell) => `<th>${renderInlineMarkdown(cell)}</th>`).join('')}</tr></thead><tbody>${body.map((row) => `<tr>${row.map((cell) => `<td>${renderInlineMarkdown(cell)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`
+}
+
+function renderInlineMarkdown(text: string) {
+  return escapeHtml(text)
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+}
+
+function escapeHtml(text: string) {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 export async function requestAgentCancel(sessionId: string, runId: string) {
   return cancelAgentRun(sessionId, runId)
 }
@@ -474,6 +660,18 @@ export async function requestAgentExport(
   return {
     ...response,
     downloadUrl: getAgentExportDownloadUrl(response.downloadUrl),
+  }
+}
+
+export function exportMessageFromEvent(event: AgentEvent) {
+  const downloadUrl = String(event.payload?.downloadUrl ?? event.payload?.download_url ?? '')
+  if (!downloadUrl) {
+    return undefined
+  }
+
+  return {
+    text: `${String(event.payload?.fileName ?? event.payload?.file_name ?? '导出文件')} 已生成`,
+    url: getAgentExportDownloadUrl(downloadUrl),
   }
 }
 
@@ -494,12 +692,12 @@ export function normalizeRecommendation(payload: Record<string, unknown> | undef
 
   const recommendedActions = payload.recommended_actions ?? payload.recommendedActions ?? payload.actions
   const missingInformation = payload.missing_information ?? payload.missingInformation
-  const riskLevel = String(payload.risk_level ?? payload.riskLevel ?? 'medium')
+  const riskLevel = String(payload.risk_level ?? payload.riskLevel ?? '')
 
   return {
-    summary: String(payload.summary ?? payload.conclusion ?? ''),
-    riskLevel: isRiskLevel(riskLevel) ? riskLevel : 'medium',
-    judgment: String(payload.judgment ?? payload.conclusion ?? payload.summary ?? ''),
+    summary: String(payload.summary ?? payload.conclusion ?? payload.final_answer ?? ''),
+    riskLevel: isRiskLevel(riskLevel) ? riskLevel : undefined,
+    judgment: String(payload.judgment ?? payload.conclusion ?? payload.final_answer ?? payload.summary ?? ''),
     recommendedActions: Array.isArray(recommendedActions) ? recommendedActions.map(String) : [],
     missingInformation: Array.isArray(missingInformation) ? missingInformation.map(String) : [],
     humanConfirmationRequired: Boolean(
@@ -775,7 +973,7 @@ function normalizeRetrievalEvidence(event: AgentEvent): AgentEvidenceItem[] {
   })
 }
 
-function isRiskLevel(value: string): value is AgentRecommendation['riskLevel'] {
+function isRiskLevel(value: string): value is NonNullable<AgentRecommendation['riskLevel']> {
   return ['low', 'medium', 'high', 'critical'].includes(value)
 }
 

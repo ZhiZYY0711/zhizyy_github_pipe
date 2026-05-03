@@ -3,10 +3,14 @@ package com.gxa.pipe.virtualExpert.agent;
 import com.gxa.pipe.dataManagement.equipment.EquipmentQueryRequest;
 import com.gxa.pipe.dataManagement.equipment.EquipmentResponse;
 import com.gxa.pipe.dataManagement.equipment.EquipmentService;
+import com.gxa.pipe.common.area.AreaResponse;
+import com.gxa.pipe.common.area.AreaService;
 import com.gxa.pipe.dataManagement.monitoring.MonitoringDataIndicatorResponse;
 import com.gxa.pipe.dataManagement.monitoring.MonitoringDataQueryRequest;
 import com.gxa.pipe.dataManagement.monitoring.MonitoringDataQueryResponse;
 import com.gxa.pipe.dataManagement.monitoring.MonitoringDataService;
+import com.gxa.pipe.dataVsualization.dataMonitoring.AreaDetailRequest;
+import com.gxa.pipe.dataVsualization.dataMonitoring.AreaDetailResponse;
 import com.gxa.pipe.dataManagement.task.TaskQueryRequest;
 import com.gxa.pipe.dataManagement.task.TaskResponse;
 import com.gxa.pipe.dataManagement.task.TaskService;
@@ -34,6 +38,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -55,6 +60,7 @@ public class VirtualExpertToolService {
     private final LogService logService;
     private final ManoeuvreService manoeuvreService;
     private final VirtualExpertExportService exportService;
+    private final AreaService areaService;
 
     public ToolQueryResponse queryMonitoringTrend(String objectId, String metric) {
         String resolvedMetric = valueOrDefault(metric, "overview");
@@ -168,6 +174,89 @@ public class VirtualExpertToolService {
         );
     }
 
+    public ToolQueryResponse resolveAreaScope(String rawInput, String province, String city, String district) {
+        AreaScope scope = resolveArea(rawInput, province, city, district);
+        List<Map<String, Object>> records = scope == null ? List.of() : List.of(areaScopeRecord(scope));
+        Map<String, Object> context = scope == null
+                ? mapOf("raw_input", valueOrDefault(rawInput, "unknown"), "resolved", false)
+                : mapOf(
+                        "resolved", true,
+                        "resolved_scope_id", scope.areaId(),
+                        "resolved_scope_type", scope.scopeType(),
+                        "province_code", scope.provinceCode(),
+                        "city_code", scope.cityCode(),
+                        "district_code", scope.districtCode()
+                );
+        return response(
+                "area_scope",
+                "current",
+                List.of(),
+                scope == null ? "未定位到匹配区域。" : "已定位到" + scope.displayName(),
+                context,
+                records,
+                Map.of("source", "server-web", "capability_status", "area_scope_resolved")
+        );
+    }
+
+    public ToolQueryResponse queryAreaDataCatalog(String areaId, String scopeType, String includeSamples) {
+        String resolvedAreaId = valueOrDefault(areaId, "");
+        MonitoringFilterOptionsResponse options = monitoringOptionsForArea(resolvedAreaId, scopeType);
+        List<Map<String, Object>> candidates = scopeCandidateRecords(options);
+        List<Map<String, Object>> records = new ArrayList<>();
+        records.add(mapOf(
+                "record_type", "data_catalog",
+                "area_id", valueOrDefault(resolvedAreaId, "unknown"),
+                "scope_type", valueOrDefault(scopeType, "area"),
+                "pipeline_count", options.getPipes().size(),
+                "segment_count", options.getPipes().stream().mapToInt(pipe -> Optional.ofNullable(pipe.getSegments()).orElse(List.of()).size()).sum(),
+                "available_data", List.of("monitoring", "alarm", "inspection", "equipment", "task", "maintenance", "operation_log"),
+                "metrics", List.of("pressure", "flow", "temperature", "vibration")
+        ));
+        if (!"false".equalsIgnoreCase(valueOrDefault(includeSamples, "true"))) {
+            records.addAll(candidates.stream().limit(10).toList());
+        }
+        return response(
+                "area_data_catalog",
+                "current",
+                List.of(),
+                "区域可查数据目录已生成。",
+                mapOf("area_id", valueOrDefault(resolvedAreaId, "unknown"), "scope_level", valueOrDefault(options.getScopeLevel(), "unknown")),
+                records,
+                Map.of("source", "server-web", "capability_status", "area_data_catalog")
+        );
+    }
+
+    public ToolQueryResponse queryAreaOperationalOverview(String areaId, String scopeType, String timeRange) {
+        String resolvedAreaId = valueOrDefault(areaId, "");
+        AreaDetailRequest request = new AreaDetailRequest();
+        request.setAreaId(parseLongOrNull(extractNumericId(resolvedAreaId)));
+        TimeRange range = parseTimeRange(timeRange);
+        request.setStartTime(epochMillis(range.start()));
+        request.setEndTime(epochMillis(range.end()));
+        List<AreaDetailResponse> areaDetails = Optional.ofNullable(dataMonitoringService.getAreaDetails(request)).orElse(List.of());
+        MonitoringFilterOptionsResponse options = monitoringOptionsForArea(resolvedAreaId, scopeType);
+        List<Map<String, Object>> records = new ArrayList<>();
+        records.add(mapOf(
+                "record_type", "area_overview",
+                "area_id", valueOrDefault(resolvedAreaId, "unknown"),
+                "scope_type", valueOrDefault(scopeType, "area"),
+                "sample_count", areaDetails.size(),
+                "pipeline_count", options.getPipes().size(),
+                "segment_count", options.getPipes().stream().mapToInt(pipe -> Optional.ofNullable(pipe.getSegments()).orElse(List.of()).size()).sum()
+        ));
+        records.addAll(areaDetails.stream().limit(12).map(this::areaDetailRecord).toList());
+        records.addAll(scopeCandidateRecords(options).stream().limit(5).toList());
+        return response(
+                "area_operational_overview",
+                valueOrDefault(timeRange, "current"),
+                List.of(),
+                "区域运行总览查询完成。",
+                mapOf("area_id", valueOrDefault(resolvedAreaId, "unknown"), "scope_type", valueOrDefault(scopeType, "area")),
+                records,
+                Map.of("source", "server-web", "capability_status", "area_operational_overview")
+        );
+    }
+
     public ToolQueryResponse queryMonitoringAggregate(
             String scopeType,
             String scopeId,
@@ -273,6 +362,107 @@ public class VirtualExpertToolService {
         );
     }
 
+    public ToolQueryResponse queryAreaAlarmSummary(String areaId, String scopeType, String timeRange) {
+        MonitoringDataQueryRequest request = monitoringRequest(valueOrDefault(scopeType, "area"), areaId, null, null);
+        applyTimeRange(request, timeRange);
+        request.setPage(1);
+        request.setPageSize(100);
+        PageResult<MonitoringDataQueryResponse> page = monitoringDataService.getByPage(request);
+        List<Map<String, Object>> records = monitoringRecords(page.getRecords());
+        long warning = records.stream().filter(record -> Objects.equals(String.valueOf(record.get("data_status")), "2")).count();
+        long critical = records.stream().filter(record -> Objects.equals(String.valueOf(record.get("data_status")), "3")).count();
+        Map<String, Object> summary = mapOf(
+                "record_type", "area_alarm_summary",
+                "area_id", valueOrDefault(areaId, "unknown"),
+                "warning_count", warning,
+                "critical_count", critical,
+                "unclosed_count", warning + critical,
+                "total", Optional.ofNullable(page.getTotal()).orElse(0L)
+        );
+        List<Map<String, Object>> output = new ArrayList<>();
+        output.add(summary);
+        output.addAll(records.stream().filter(this::isAnomalyRecord).limit(10).toList());
+        return response(
+                "area_alarm_summary",
+                valueOrDefault(timeRange, "current"),
+                List.of(),
+                "Area alarm summary read-only query completed.",
+                mapOf("area_id", valueOrDefault(areaId, "unknown"), "scope_type", valueOrDefault(scopeType, "area")),
+                output,
+                Map.of("source", "server-web", "capability_status", "area_alarm_summary")
+        );
+    }
+
+    public ToolQueryResponse findRecentAnomalies(String scope, String timeRange, String limit) {
+        MonitoringDataQueryRequest request = monitoringRequest(scopeTypeFromScope(scope), scope, null, null);
+        applyTimeRange(request, timeRange);
+        request.setPage(1);
+        request.setPageSize((int) parseLongOrDefault(valueOrDefault(limit, "20"), 20));
+        PageResult<MonitoringDataQueryResponse> page = monitoringDataService.getByPage(request);
+        List<Map<String, Object>> records = monitoringRecords(page.getRecords()).stream()
+                .filter(this::isAnomalyRecord)
+                .limit(parseLongOrDefault(valueOrDefault(limit, "10"), 10))
+                .toList();
+        return response(
+                "recent_anomalies",
+                valueOrDefault(timeRange, "24h"),
+                List.of(),
+                "Recent anomalies read-only query completed.",
+                mapOf("scope", valueOrDefault(scope, "unknown"), "total", records.size()),
+                records,
+                Map.of("source", "server-web", "capability_status", "recent_anomalies")
+        );
+    }
+
+    public ToolQueryResponse findTopRiskSegments(String scope, String timeRange, String limit) {
+        MonitoringDataQueryRequest request = monitoringRequest(scopeTypeFromScope(scope), scope, null, null);
+        applyTimeRange(request, timeRange);
+        request.setPage(1);
+        request.setPageSize(100);
+        PageResult<MonitoringDataQueryResponse> page = monitoringDataService.getByPage(request);
+        Map<String, Map<String, Object>> grouped = new LinkedHashMap<>();
+        for (Map<String, Object> record : monitoringRecords(page.getRecords())) {
+            String segmentId = valueOrDefault(String.valueOf(record.get("pipe_segment_id")), "unknown");
+            Map<String, Object> risk = grouped.computeIfAbsent(segmentId, key -> mapOf(
+                    "record_type", "risk_segment",
+                    "pipe_segment_id", key,
+                    "pipe_segment_name", record.get("pipe_segment_name"),
+                    "pipeline_name", record.get("pipeline_name"),
+                    "sample_count", 0,
+                    "warning_count", 0,
+                    "critical_count", 0,
+                    "risk_score", 0
+            ));
+            int sampleCount = ((Number) risk.get("sample_count")).intValue() + 1;
+            int warningCount = ((Number) risk.get("warning_count")).intValue();
+            int criticalCount = ((Number) risk.get("critical_count")).intValue();
+            String status = String.valueOf(record.get("data_status"));
+            if ("2".equals(status)) {
+                warningCount += 1;
+            }
+            if ("3".equals(status)) {
+                criticalCount += 1;
+            }
+            risk.put("sample_count", sampleCount);
+            risk.put("warning_count", warningCount);
+            risk.put("critical_count", criticalCount);
+            risk.put("risk_score", criticalCount * 3 + warningCount);
+        }
+        List<Map<String, Object>> records = grouped.values().stream()
+                .sorted(Comparator.comparingInt(record -> -((Number) record.get("risk_score")).intValue()))
+                .limit(parseLongOrDefault(valueOrDefault(limit, "10"), 10))
+                .toList();
+        return response(
+                "top_risk_segments",
+                valueOrDefault(timeRange, "current"),
+                List.of(),
+                "Top risk segments read-only query completed.",
+                mapOf("scope", valueOrDefault(scope, "unknown")),
+                records,
+                Map.of("source", "server-web", "capability_status", "top_risk_segments")
+        );
+    }
+
     public ToolQueryResponse queryAlarmEvents(String scope, String timeRange, String severity) {
         MonitoringDataQueryRequest request = monitoringRequest(scopeTypeFromScope(scope), scope, null, null);
         applyTimeRange(request, timeRange);
@@ -292,6 +482,102 @@ public class VirtualExpertToolService {
         );
     }
 
+    public ToolQueryResponse findUnclosedAlarms(String scope, String timeRange, String severity) {
+        ToolQueryResponse alarms = queryAlarmEvents(scope, timeRange, severity);
+        List<Map<String, Object>> records = alarms.records().stream()
+                .filter(this::isAnomalyRecord)
+                .map(record -> {
+                    Map<String, Object> next = new LinkedHashMap<>(record);
+                    next.put("record_type", "unclosed_alarm");
+                    next.put("closure_status", "unclosed");
+                    return next;
+                })
+                .toList();
+        return response(
+                "unclosed_alarms",
+                valueOrDefault(timeRange, "current"),
+                List.of(),
+                "Unclosed alarms read-only query completed.",
+                mapOf("scope", valueOrDefault(scope, "unknown"), "severity", valueOrDefault(severity, "unknown")),
+                records,
+                Map.of("source", "server-web", "capability_status", "unclosed_alarms")
+        );
+    }
+
+    public ToolQueryResponse findStaleInspections(String scope, String staleDays, String limit) {
+        EquipmentQueryRequest request = new EquipmentQueryRequest();
+        request.setPipeSegmentId(extractNumericId(scope));
+        request.setPage("1");
+        request.setPageSize(String.valueOf(parseLongOrDefault(valueOrDefault(limit, "20"), 20)));
+        List<Map<String, Object>> records = Optional.ofNullable(equipmentService.findEquipmentByConditions(request)).orElse(List.of()).stream()
+                .map(equipment -> {
+                    Map<String, Object> record = new LinkedHashMap<>(equipmentRecord(equipment));
+                    record.put("record_type", "stale_inspection_candidate");
+                    record.put("last_check", equipment.getLastCheck());
+                    record.put("stale_days_threshold", valueOrDefault(staleDays, "30"));
+                    return record;
+                })
+                .limit(parseLongOrDefault(valueOrDefault(limit, "10"), 10))
+                .toList();
+        return response(
+                "stale_inspections",
+                "current",
+                List.of(),
+                "Stale inspections read-only query completed.",
+                mapOf("scope", valueOrDefault(scope, "unknown"), "stale_days", valueOrDefault(staleDays, "30")),
+                records,
+                Map.of("source", "server-web", "capability_status", "stale_inspection_candidates")
+        );
+    }
+
+    public ToolQueryResponse queryAreaTaskSummary(String areaId, String timeRange) {
+        TaskQueryRequest request = new TaskQueryRequest();
+        request.setAreaId(parseLongOrNull(extractNumericId(areaId)));
+        request.setPage(1);
+        request.setPageSize(100);
+        applyTaskTimeRange(request, timeRange);
+        PageResult<TaskResponse> page = taskService.getByPage(request);
+        List<Map<String, Object>> tasks = Optional.ofNullable(page.getRecords()).orElse(List.of()).stream().map(this::taskRecord).toList();
+        long pending = tasks.stream().filter(task -> String.valueOf(task.get("status")).contains("待")).count();
+        long running = tasks.stream().filter(task -> String.valueOf(task.get("status")).contains("进行")).count();
+        long completed = tasks.stream().filter(task -> String.valueOf(task.get("status")).contains("完成")).count();
+        List<Map<String, Object>> records = new ArrayList<>();
+        records.add(mapOf(
+                "record_type", "area_task_summary",
+                "area_id", valueOrDefault(areaId, "unknown"),
+                "pending_count", pending,
+                "running_count", running,
+                "completed_count", completed,
+                "total", Optional.ofNullable(page.getTotal()).orElse(0L)
+        ));
+        records.addAll(tasks.stream().limit(20).toList());
+        return response(
+                "area_task_summary",
+                valueOrDefault(timeRange, "current"),
+                List.of(),
+                "Area task summary read-only query completed.",
+                mapOf("area_id", valueOrDefault(areaId, "unknown")),
+                records,
+                Map.of("source", "server-web", "capability_status", "area_task_summary")
+        );
+    }
+
+    public ToolQueryResponse traceOperationChain(String scope, String timeRange, String incidentId) {
+        List<Map<String, Object>> records = new ArrayList<>();
+        records.addAll(queryAlarmEvents(scope, timeRange, null).records().stream().limit(5).map(record -> chainRecord("alarm", record)).toList());
+        records.addAll(queryRelatedTasks(scope).records().stream().limit(5).map(record -> chainRecord("task", record)).toList());
+        records.addAll(queryOperationLogs(null, scope, timeRange, null).records().stream().limit(5).map(record -> chainRecord("operation_log", record)).toList());
+        return response(
+                "operation_chain",
+                valueOrDefault(timeRange, "current"),
+                List.of(),
+                "Operation chain read-only query completed.",
+                mapOf("scope", valueOrDefault(scope, "unknown"), "incident_id", valueOrDefault(incidentId, "unknown")),
+                records,
+                Map.of("source", "server-web", "capability_status", "operation_chain")
+        );
+    }
+
     public ToolQueryResponse queryInspectionHistory(String scope, String timeRange) {
         MonitoringDataQueryRequest request = monitoringRequest(scopeTypeFromScope(scope), scope, null, null);
         applyTimeRange(request, timeRange);
@@ -307,6 +593,102 @@ public class VirtualExpertToolService {
                 mapOf("scope", valueOrDefault(scope, "unknown"), "total", Optional.ofNullable(page.getTotal()).orElse(0L)),
                 records,
                 Map.of("source", "server-web", "capability_status", "monitoring_history_records")
+        );
+    }
+
+    public ToolQueryResponse resolveAssetScope(String rawInput, String assetHint, String objectType) {
+        String hint = firstNonBlank(assetHint, rawInput, "");
+        MonitoringFilterOptionsResponse options = monitoringOptions(null, null, null);
+        List<Map<String, Object>> records = scopeCandidateRecords(options).stream()
+                .filter(record -> matchesHint(record.get("scope_name"), hint) || matchesHint(record.get("scope_id"), hint))
+                .limit(10)
+                .toList();
+        if (records.isEmpty()) {
+            records = scopeCandidateRecords(options).stream().limit(10).toList();
+        }
+        return response(
+                "asset_scope",
+                "current",
+                List.of(),
+                "Asset scope candidates read-only query completed.",
+                mapOf(
+                        "raw_input", valueOrDefault(rawInput, "unknown"),
+                        "asset_hint", valueOrDefault(assetHint, "unknown"),
+                        "object_type", valueOrDefault(objectType, "unknown")
+                ),
+                records,
+                Map.of("source", "server-web", "capability_status", "asset_scope_candidates")
+        );
+    }
+
+    public ToolQueryResponse queryAreaAssetSummary(String areaId, String scopeType) {
+        MonitoringFilterOptionsResponse options = monitoringOptionsForArea(valueOrDefault(areaId, ""), scopeType);
+        EquipmentQueryRequest equipmentRequest = new EquipmentQueryRequest();
+        equipmentRequest.setPage("1");
+        equipmentRequest.setPageSize("100");
+        List<EquipmentResponse> equipment = Optional.ofNullable(equipmentService.findEquipmentByConditions(equipmentRequest)).orElse(List.of());
+        long abnormalEquipment = equipment.stream()
+                .filter(item -> !valueOrDefault(item.getStatus(), "正常").contains("正常"))
+                .count();
+        List<Map<String, Object>> records = new ArrayList<>();
+        records.add(mapOf(
+                "record_type", "area_asset_summary",
+                "area_id", valueOrDefault(areaId, "unknown"),
+                "scope_type", valueOrDefault(scopeType, "area"),
+                "pipeline_count", options.getPipes().size(),
+                "segment_count", options.getPipes().stream().mapToInt(pipe -> Optional.ofNullable(pipe.getSegments()).orElse(List.of()).size()).sum(),
+                "equipment_count", equipment.size(),
+                "abnormal_equipment_count", abnormalEquipment
+        ));
+        records.addAll(scopeCandidateRecords(options).stream().limit(10).toList());
+        records.addAll(equipment.stream().limit(10).map(this::equipmentRecord).toList());
+        return response(
+                "area_asset_summary",
+                "current",
+                List.of(),
+                "Area asset summary read-only query completed.",
+                mapOf("area_id", valueOrDefault(areaId, "unknown"), "scope_level", valueOrDefault(options.getScopeLevel(), "unknown")),
+                records,
+                Map.of("source", "server-web", "capability_status", "area_asset_summary")
+        );
+    }
+
+    public ToolQueryResponse queryAssetRelationships(String objectType, String objectId, String includeEquipment) {
+        MonitoringFilterOptionsResponse options = monitoringOptions(null, null, null);
+        String numericId = extractNumericId(objectId);
+        List<Map<String, Object>> records = new ArrayList<>();
+        for (MonitoringPipeOption pipe : options.getPipes()) {
+            boolean pipeMatched = numericId == null || Objects.equals(String.valueOf(pipe.getId()), numericId);
+            for (MonitoringSegmentOption segment : Optional.ofNullable(pipe.getSegments()).orElse(List.of())) {
+                boolean segmentMatched = numericId == null || Objects.equals(String.valueOf(segment.getId()), numericId);
+                if (pipeMatched || segmentMatched) {
+                    Map<String, Object> relationship = new LinkedHashMap<>(segmentRecord(pipe, segment));
+                    relationship.put("record_type", "asset_relationship");
+                    relationship.put("relationship", "pipeline_segment");
+                    records.add(relationship);
+                }
+            }
+        }
+        if (!"false".equalsIgnoreCase(valueOrDefault(includeEquipment, "true"))) {
+            EquipmentQueryRequest request = new EquipmentQueryRequest();
+            request.setPipeSegmentId(numericId);
+            request.setPage("1");
+            request.setPageSize("20");
+            records.addAll(Optional.ofNullable(equipmentService.findEquipmentByConditions(request)).orElse(List.of()).stream().map(equipment -> {
+                Map<String, Object> record = new LinkedHashMap<>(equipmentRecord(equipment));
+                record.put("record_type", "asset_relationship");
+                record.put("relationship", "segment_equipment");
+                return record;
+            }).toList());
+        }
+        return response(
+                "asset_relationships",
+                "current",
+                List.of(),
+                "Asset relationships read-only query completed.",
+                mapOf("object_type", valueOrDefault(objectType, "unknown"), "object_id", valueOrDefault(objectId, "unknown")),
+                records.stream().limit(30).toList(),
+                Map.of("source", "server-web", "capability_status", "asset_relationships")
         );
     }
 
@@ -387,6 +769,54 @@ public class VirtualExpertToolService {
         );
     }
 
+    public ToolQueryResponse queryCaseLibrary(String scenario, String metric, String scope, String limit) {
+        List<Map<String, Object>> records = List.of(
+                mapOf(
+                        "record_type", "case",
+                        "title", "压力异常先复核传感器再判断停输",
+                        "scenario", "pressure_anomaly",
+                        "trigger", "压力高危或连续波动",
+                        "action", "复核传感器、检查上游阀室、确认现场压力表",
+                        "similarity", matchesHint(scenario, "压力") || matchesHint(metric, "pressure") ? 0.92 : 0.72
+                ),
+                mapOf(
+                        "record_type", "case",
+                        "title", "未闭环告警复盘要求同步任务责任人",
+                        "scenario", "unclosed_alarm",
+                        "trigger", "告警恢复但工单未关闭",
+                        "action", "核对工单状态、通知责任班组、补充复盘记录",
+                        "similarity", matchesHint(scenario, "告警") ? 0.9 : 0.7
+                )
+        );
+        return response(
+                "case_library",
+                "all",
+                List.of(),
+                "Case library read-only query completed.",
+                mapOf("scenario", valueOrDefault(scenario, "unknown"), "metric", valueOrDefault(metric, "unknown"), "scope", valueOrDefault(scope, "unknown")),
+                records.stream().limit(parseLongOrDefault(valueOrDefault(limit, "5"), 5)).toList(),
+                Map.of("source", "server-web", "capability_status", "case_library_seed")
+        );
+    }
+
+    public ToolQueryResponse querySopByScenario(String scenario, String severity) {
+        String normalizedScenario = valueOrDefault(scenario, "通用异常");
+        List<Map<String, Object>> records = List.of(
+                mapOf("record_type", "sop_step", "order", 1, "scenario", normalizedScenario, "action", "确认监测值是否连续异常，排除单点采样或传感器离线。"),
+                mapOf("record_type", "sop_step", "order", 2, "scenario", normalizedScenario, "action", "核对上下游管段、设备状态、近期巡检和未闭环任务。"),
+                mapOf("record_type", "sop_step", "order", 3, "scenario", normalizedScenario, "action", "高危时通知现场复核并准备隔离、降压或应急预案。")
+        );
+        return response(
+                "sop_by_scenario",
+                "current",
+                List.of(),
+                "SOP by scenario read-only query completed.",
+                mapOf("scenario", normalizedScenario, "severity", valueOrDefault(severity, "unknown")),
+                records,
+                Map.of("source", "server-web", "capability_status", "sop_seed")
+        );
+    }
+
     public ToolQueryResponse queryOperationLogs(String user, String object, String timeRange, String operation) {
         LogQueryRequest request = new LogQueryRequest();
         request.setPage(1);
@@ -424,6 +854,40 @@ public class VirtualExpertToolService {
                 Map.of("session_id", valueOrDefault(sessionId, "unknown"), "format", valueOrDefault(format, "unknown")),
                 records,
                 Map.of("source", "server-web", "capability_status", "export_inventory")
+        );
+    }
+
+    public ToolQueryResponse createExport(Map<String, Object> request) {
+        Map<String, Object> exportRequest = new LinkedHashMap<>(request);
+        if (!exportRequest.containsKey("sessionId")) {
+            exportRequest.put("sessionId", request.get("session_id"));
+        }
+        if (!exportRequest.containsKey("runId")) {
+            exportRequest.put("runId", request.get("run_id"));
+        }
+        if (!exportRequest.containsKey("exportPlan")) {
+            exportRequest.put("exportPlan", request.get("export_plan"));
+        }
+        ExportFile file = exportService.createExport(exportRequest);
+        Map<String, Object> context = mapOf(
+                "exportId", file.exportId(),
+                "export_id", file.exportId(),
+                "fileName", file.fileName(),
+                "file_name", file.fileName(),
+                "contentType", file.contentType(),
+                "content_type", file.contentType(),
+                "size", file.size(),
+                "downloadUrl", "/manager/virtual-expert/agent/exports/" + file.exportId() + "/download",
+                "download_url", "/manager/virtual-expert/agent/exports/" + file.exportId() + "/download"
+        );
+        return response(
+                "export_report",
+                "current",
+                List.of(),
+                "Export file generated.",
+                context,
+                List.of(exportRecord(file)),
+                Map.of("source", "server-web", "capability_status", "export_created")
         );
     }
 
@@ -481,6 +945,89 @@ public class VirtualExpertToolService {
         request.setPage(1);
         request.setPageSize(20);
         return request;
+    }
+
+    private MonitoringFilterOptionsResponse monitoringOptionsForArea(String areaId, String scopeType) {
+        String normalizedScope = valueOrDefault(scopeType, "area").toLowerCase();
+        return switch (normalizedScope) {
+            case "province" -> monitoringOptions(areaId, null, null);
+            case "city" -> monitoringOptions(null, areaId, null);
+            case "district" -> monitoringOptions(null, null, areaId);
+            default -> monitoringOptions(null, areaId, null);
+        };
+    }
+
+    private AreaScope resolveArea(String rawInput, String province, String city, String district) {
+        String searchable = String.join(" ", valueOrDefault(rawInput, ""), valueOrDefault(province, ""), valueOrDefault(city, ""), valueOrDefault(district, ""));
+        AreaResponse matchedProvince = findArea(areaService.getProvinces(), firstNonBlank(province, searchable));
+        if (matchedProvince == null) {
+            return null;
+        }
+        AreaResponse matchedCity = findArea(areaService.getCitiesByProvinceCode(matchedProvince.getCode()), firstNonBlank(city, searchable));
+        AreaResponse matchedDistrict = matchedCity == null
+                ? null
+                : findArea(areaService.getDistrictsByCityCode(matchedCity.getCode()), firstNonBlank(district, searchable));
+        String scopeType = matchedDistrict != null ? "district" : matchedCity != null ? "city" : "province";
+        String areaId = switch (scopeType) {
+            case "district" -> matchedDistrict.getCode();
+            case "city" -> matchedCity.getCode();
+            default -> matchedProvince.getCode();
+        };
+        return new AreaScope(
+                scopeType,
+                areaId,
+                matchedProvince.getCode(),
+                matchedProvince.getName(),
+                matchedCity == null ? "" : matchedCity.getCode(),
+                matchedCity == null ? "" : matchedCity.getName(),
+                matchedDistrict == null ? "" : matchedDistrict.getCode(),
+                matchedDistrict == null ? "" : matchedDistrict.getName()
+        );
+    }
+
+    private AreaResponse findArea(List<AreaResponse> areas, String hint) {
+        String normalizedHint = normalizeName(hint);
+        return Optional.ofNullable(areas).orElse(List.of()).stream()
+                .filter(area -> {
+                    String name = normalizeName(area.getName());
+                    return !name.isBlank() && (normalizedHint.contains(name) || name.contains(normalizedHint));
+                })
+                .findFirst()
+                .orElse(null);
+    }
+
+    private String normalizeName(String value) {
+        return valueOrDefault(value, "")
+                .replace("省", "")
+                .replace("市", "")
+                .replace("区", "")
+                .replace("县", "")
+                .replace(" ", "");
+    }
+
+    private Map<String, Object> areaScopeRecord(AreaScope scope) {
+        return mapOf(
+                "scope_type", scope.scopeType(),
+                "area_id", scope.areaId(),
+                "province_code", scope.provinceCode(),
+                "province_name", scope.provinceName(),
+                "city_code", scope.cityCode(),
+                "city_name", scope.cityName(),
+                "district_code", scope.districtCode(),
+                "district_name", scope.districtName(),
+                "scope_name", scope.displayName()
+        );
+    }
+
+    private Map<String, Object> areaDetailRecord(AreaDetailResponse detail) {
+        return mapOf(
+                "record_type", "area_metric",
+                "ave_flow", detail.getAveFlow(),
+                "ave_pressure", detail.getAvePressure(),
+                "ave_temperature", detail.getAveTemperature(),
+                "ave_vibration", detail.getAveVibration(),
+                "time", detail.getTime()
+        );
     }
 
     private String scopeTypeFromScope(String scope) {
@@ -636,7 +1183,7 @@ public class VirtualExpertToolService {
 
     private List<EquipmentResponse> queryEquipmentForMaintenance(String equipmentId, String scope, String timeRange) {
         if (StringUtils.hasText(extractNumericId(equipmentId))) {
-            return equipmentService.findEquipmentById(extractNumericId(equipmentId));
+            return Optional.ofNullable(equipmentService.findEquipmentById(extractNumericId(equipmentId))).orElse(List.of());
         }
         EquipmentQueryRequest request = new EquipmentQueryRequest();
         request.setPipeSegmentId(extractNumericId(scope));
@@ -645,7 +1192,7 @@ public class VirtualExpertToolService {
         request.setLastCheckEnd(range.end());
         request.setPage("1");
         request.setPageSize("20");
-        return equipmentService.findEquipmentByConditions(request);
+        return Optional.ofNullable(equipmentService.findEquipmentByConditions(request)).orElse(List.of());
     }
 
     private Map<String, Object> manoeuvreRecord(ManoeuvreQueryResponse manoeuvre) {
@@ -692,6 +1239,30 @@ public class VirtualExpertToolService {
         );
     }
 
+    private boolean isAnomalyRecord(Map<String, Object> record) {
+        String status = String.valueOf(record.get("data_status"));
+        String statusText = String.valueOf(record.get("status_text"));
+        return "2".equals(status)
+                || "3".equals(status)
+                || statusText.contains("危险")
+                || statusText.contains("高危")
+                || statusText.contains("异常");
+    }
+
+    private Map<String, Object> chainRecord(String chainType, Map<String, Object> record) {
+        Map<String, Object> chained = new LinkedHashMap<>(record);
+        chained.put("record_type", "operation_chain");
+        chained.put("chain_type", chainType);
+        return chained;
+    }
+
+    private boolean matchesHint(Object value, String hint) {
+        String normalizedHint = normalizeName(hint);
+        String normalizedValue = normalizeName(String.valueOf(value == null ? "" : value));
+        return normalizedHint.isBlank()
+                || (!normalizedValue.isBlank() && (normalizedHint.contains(normalizedValue) || normalizedValue.contains(normalizedHint)));
+    }
+
     private Map<String, Object> mapOf(Object... values) {
         Map<String, Object> map = new LinkedHashMap<>();
         for (int index = 0; index + 1 < values.length; index += 2) {
@@ -706,6 +1277,15 @@ public class VirtualExpertToolService {
 
     private String valueOrDefault(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value;
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (StringUtils.hasText(value)) {
+                return value;
+            }
+        }
+        return "";
     }
 
     private String extractNumericId(String value) {
@@ -838,5 +1418,20 @@ public class VirtualExpertToolService {
     }
 
     private record TimeRange(String start, String end) {
+    }
+
+    private record AreaScope(
+            String scopeType,
+            String areaId,
+            String provinceCode,
+            String provinceName,
+            String cityCode,
+            String cityName,
+            String districtCode,
+            String districtName
+    ) {
+        String displayName() {
+            return String.join("", List.of(provinceName, cityName, districtName).stream().filter(value -> value != null && !value.isBlank()).toList());
+        }
     }
 }

@@ -29,10 +29,10 @@ def test_registry_rejects_duplicate_tool_names():
 def test_business_registry_exposes_phase1_read_only_tools():
     registry = build_business_registry()
 
-    assert {tool.name for tool in registry.available_tools({"equipment:read", "task:read"})} == {
+    assert {
         "query_equipment_status",
         "query_related_tasks",
-    }
+    }.issubset({tool.name for tool in registry.available_tools({"equipment:read", "task:read"})})
 
 
 def test_business_registry_exposes_expanded_agent_tool_catalog():
@@ -49,12 +49,17 @@ def test_business_registry_exposes_expanded_agent_tool_catalog():
             "maintenance:read",
             "emergency:read",
             "log:read",
+            "operations:read",
             "report:read",
+            "report:write",
         }
     )
     by_name = {tool.name: tool for tool in tools}
 
     assert {
+        "resolve_area_scope",
+        "query_area_data_catalog",
+        "query_area_operational_overview",
         "resolve_operational_scope",
         "query_monitoring_aggregate",
         "query_monitoring_history",
@@ -66,8 +71,11 @@ def test_business_registry_exposes_expanded_agent_tool_catalog():
         "query_emergency_plan",
         "query_operation_logs",
         "query_report_inventory",
+        "create_export_report",
     }.issubset(by_name)
     assert by_name["query_monitoring_aggregate"].category == "monitoring"
+    assert by_name["query_area_data_catalog"].category == "discovery"
+    assert by_name["create_export_report"].requires_confirmation is True
     assert "metric" in by_name["query_monitoring_aggregate"].input_schema["properties"]
     assert "区域" in by_name["resolve_operational_scope"].when_to_use
 

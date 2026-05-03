@@ -16,7 +16,7 @@ class FakeQdrantSeedClient:
 async def test_build_seed_points_marks_demo_payloads_and_vectors() -> None:
     points = await build_seed_points("domain_knowledge")
 
-    assert len(points) >= 5
+    assert len(points) >= 10
     first = points[0]
     assert first.vector
     assert first.payload["seeded_demo"] is True
@@ -29,7 +29,7 @@ async def test_seed_qdrant_collections_creates_domain_and_case_data() -> None:
 
     result = await seed_qdrant_collections(client=client)
 
-    assert result["domain_knowledge"] >= 5
-    assert result["case_knowledge"] >= 5
+    assert result["domain_knowledge"] >= 10
+    assert result["case_knowledge"] >= 10
     assert {item["name"] for item in client.collections} == {"domain_knowledge", "case_knowledge"}
     assert {item["name"] for item in client.upserts} == {"domain_knowledge", "case_knowledge"}

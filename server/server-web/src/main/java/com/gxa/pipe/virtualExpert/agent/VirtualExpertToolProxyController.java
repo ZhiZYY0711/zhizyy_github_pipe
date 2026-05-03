@@ -3,9 +3,13 @@ package com.gxa.pipe.virtualExpert.agent;
 import com.gxa.pipe.virtualExpert.agent.dto.ToolQueryResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
@@ -53,6 +57,31 @@ public class VirtualExpertToolProxyController {
         return toolService.resolveOperationalScope(rawInput, scopeHint, objectId);
     }
 
+    @GetMapping("/resolve-area-scope")
+    public ToolQueryResponse resolveAreaScope(
+            @RequestParam(value = "raw_input", required = false) String rawInput,
+            @RequestParam(value = "province", required = false) String province,
+            @RequestParam(value = "city", required = false) String city,
+            @RequestParam(value = "district", required = false) String district) {
+        return toolService.resolveAreaScope(rawInput, province, city, district);
+    }
+
+    @GetMapping("/area-data-catalog")
+    public ToolQueryResponse queryAreaDataCatalog(
+            @RequestParam(value = "area_id", required = false) String areaId,
+            @RequestParam(value = "scope_type", required = false) String scopeType,
+            @RequestParam(value = "include_samples", required = false) String includeSamples) {
+        return toolService.queryAreaDataCatalog(areaId, scopeType, includeSamples);
+    }
+
+    @GetMapping("/area-operational-overview")
+    public ToolQueryResponse queryAreaOperationalOverview(
+            @RequestParam(value = "area_id", required = false) String areaId,
+            @RequestParam(value = "scope_type", required = false) String scopeType,
+            @RequestParam(value = "time_range", required = false) String timeRange) {
+        return toolService.queryAreaOperationalOverview(areaId, scopeType, timeRange);
+    }
+
     @GetMapping("/monitoring-aggregate")
     public ToolQueryResponse queryMonitoringAggregate(
             @RequestParam(value = "scope_type", required = false) String scopeType,
@@ -84,12 +113,67 @@ public class VirtualExpertToolProxyController {
         return toolService.queryAreaMonitoringSummary(areaId, metric, window, aggregation);
     }
 
+    @GetMapping("/area-alarm-summary")
+    public ToolQueryResponse queryAreaAlarmSummary(
+            @RequestParam(value = "area_id", required = false) String areaId,
+            @RequestParam(value = "scope_type", required = false) String scopeType,
+            @RequestParam(value = "time_range", required = false) String timeRange) {
+        return toolService.queryAreaAlarmSummary(areaId, scopeType, timeRange);
+    }
+
+    @GetMapping("/recent-anomalies")
+    public ToolQueryResponse findRecentAnomalies(
+            @RequestParam(value = "scope", required = false) String scope,
+            @RequestParam(value = "time_range", required = false) String timeRange,
+            @RequestParam(value = "limit", required = false) String limit) {
+        return toolService.findRecentAnomalies(scope, timeRange, limit);
+    }
+
+    @GetMapping("/top-risk-segments")
+    public ToolQueryResponse findTopRiskSegments(
+            @RequestParam(value = "scope", required = false) String scope,
+            @RequestParam(value = "time_range", required = false) String timeRange,
+            @RequestParam(value = "limit", required = false) String limit) {
+        return toolService.findTopRiskSegments(scope, timeRange, limit);
+    }
+
     @GetMapping("/alarm-events")
     public ToolQueryResponse queryAlarmEvents(
             @RequestParam(value = "scope", required = false) String scope,
             @RequestParam(value = "time_range", required = false) String timeRange,
             @RequestParam(value = "severity", required = false) String severity) {
         return toolService.queryAlarmEvents(scope, timeRange, severity);
+    }
+
+    @GetMapping("/unclosed-alarms")
+    public ToolQueryResponse findUnclosedAlarms(
+            @RequestParam(value = "scope", required = false) String scope,
+            @RequestParam(value = "time_range", required = false) String timeRange,
+            @RequestParam(value = "severity", required = false) String severity) {
+        return toolService.findUnclosedAlarms(scope, timeRange, severity);
+    }
+
+    @GetMapping("/stale-inspections")
+    public ToolQueryResponse findStaleInspections(
+            @RequestParam(value = "scope", required = false) String scope,
+            @RequestParam(value = "stale_days", required = false) String staleDays,
+            @RequestParam(value = "limit", required = false) String limit) {
+        return toolService.findStaleInspections(scope, staleDays, limit);
+    }
+
+    @GetMapping("/area-task-summary")
+    public ToolQueryResponse queryAreaTaskSummary(
+            @RequestParam(value = "area_id", required = false) String areaId,
+            @RequestParam(value = "time_range", required = false) String timeRange) {
+        return toolService.queryAreaTaskSummary(areaId, timeRange);
+    }
+
+    @GetMapping("/operation-chain")
+    public ToolQueryResponse traceOperationChain(
+            @RequestParam(value = "scope", required = false) String scope,
+            @RequestParam(value = "time_range", required = false) String timeRange,
+            @RequestParam(value = "incident_id", required = false) String incidentId) {
+        return toolService.traceOperationChain(scope, timeRange, incidentId);
     }
 
     @GetMapping("/inspection-history")
@@ -107,6 +191,29 @@ public class VirtualExpertToolProxyController {
         return toolService.queryMaintenanceHistory(equipmentId, scope, timeRange);
     }
 
+    @GetMapping("/resolve-asset-scope")
+    public ToolQueryResponse resolveAssetScope(
+            @RequestParam(value = "raw_input", required = false) String rawInput,
+            @RequestParam(value = "asset_hint", required = false) String assetHint,
+            @RequestParam(value = "object_type", required = false) String objectType) {
+        return toolService.resolveAssetScope(rawInput, assetHint, objectType);
+    }
+
+    @GetMapping("/area-asset-summary")
+    public ToolQueryResponse queryAreaAssetSummary(
+            @RequestParam(value = "area_id", required = false) String areaId,
+            @RequestParam(value = "scope_type", required = false) String scopeType) {
+        return toolService.queryAreaAssetSummary(areaId, scopeType);
+    }
+
+    @GetMapping("/asset-relationships")
+    public ToolQueryResponse queryAssetRelationships(
+            @RequestParam(value = "object_type", required = false) String objectType,
+            @RequestParam(value = "object_id", required = false) String objectId,
+            @RequestParam(value = "include_equipment", required = false) String includeEquipment) {
+        return toolService.queryAssetRelationships(objectType, objectId, includeEquipment);
+    }
+
     @GetMapping("/topology-impact")
     public ToolQueryResponse queryTopologyImpact(
             @RequestParam(value = "object_type", required = false) String objectType,
@@ -120,6 +227,22 @@ public class VirtualExpertToolProxyController {
             @RequestParam(value = "scope", required = false) String scope,
             @RequestParam(value = "severity", required = false) String severity) {
         return toolService.queryEmergencyPlan(incidentType, scope, severity);
+    }
+
+    @GetMapping("/case-library")
+    public ToolQueryResponse queryCaseLibrary(
+            @RequestParam(value = "scenario", required = false) String scenario,
+            @RequestParam(value = "metric", required = false) String metric,
+            @RequestParam(value = "scope", required = false) String scope,
+            @RequestParam(value = "limit", required = false) String limit) {
+        return toolService.queryCaseLibrary(scenario, metric, scope, limit);
+    }
+
+    @GetMapping("/sop-by-scenario")
+    public ToolQueryResponse querySopByScenario(
+            @RequestParam(value = "scenario", required = false) String scenario,
+            @RequestParam(value = "severity", required = false) String severity) {
+        return toolService.querySopByScenario(scenario, severity);
     }
 
     @GetMapping("/operation-logs")
@@ -137,5 +260,10 @@ public class VirtualExpertToolProxyController {
             @RequestParam(value = "time_range", required = false) String timeRange,
             @RequestParam(value = "format", required = false) String format) {
         return toolService.queryReportInventory(sessionId, timeRange, format);
+    }
+
+    @PostMapping("/create-export")
+    public ToolQueryResponse createExport(@RequestBody Map<String, Object> request) {
+        return toolService.createExport(request);
     }
 }

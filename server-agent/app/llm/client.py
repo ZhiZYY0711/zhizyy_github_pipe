@@ -13,6 +13,7 @@ T = TypeVar("T", bound=BaseModel)
 
 class LlmClient(Protocol):
     async def complete_json(self, system_prompt: str, user_prompt: str, schema: type[T]) -> T: ...
+    async def complete_text(self, system_prompt: str, user_prompt: str) -> str: ...
 
     def stream_chat(
         self,
@@ -62,6 +63,18 @@ class OpenAICompatibleLlmClient:
         response = await self._post_chat_completion(payload)
         content = _extract_message_content(response)
         return schema.model_validate_json(normalize_json_content(content))
+
+    async def complete_text(self, system_prompt: str, user_prompt: str) -> str:
+        payload = {
+            "model": self._model,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            "temperature": self._temperature,
+        }
+        response = await self._post_chat_completion(payload)
+        return _extract_message_content(response)
 
     async def stream_chat(
         self,

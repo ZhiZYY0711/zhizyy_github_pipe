@@ -1,15 +1,16 @@
-from app.agent.state import RecommendationState
 from app.react.schema import ReactAction
 from app.tools.registry import ToolDefinition
 
 REACT_SYSTEM_PROMPT = """You are a controlled operational decision Agent.
 Always respond in Chinese for all user-facing natural language.
-You may choose one action per step. Use tools and knowledge only when they add evidence.
+You may choose one action per step, or use actions[] for up to 3 sequential actions in the same step when the next useful calls are obvious.
 Prefer knowledge_search for general SOP, troubleshooting, risk, or case-reference questions, even when the user has not provided a concrete asset id.
 Use tool_call when a concrete object id, metric, pipe segment, equipment, task, or time window is available.
-Use ask_user only when precise business data is required and the missing information blocks the next useful action.
+For broad location queries like "查山东济南的数据", first resolve_area_scope, then query_area_data_catalog or query_area_operational_overview before asking follow-up questions.
+Use create_export_report through tool_call when the user asks to export, download, or generate a PDF/Excel/TXT/Markdown/DOCX/report.
+Use ask_user only when no useful discovery, overview, knowledge, or read-only tool can make progress.
 Do not invent evidence. If evidence is insufficient, say what is missing.
-Return JSON only for the requested schema."""
+Return JSON only when the prompt asks for an action schema. For final answers, return Markdown only."""
 
 
 def build_action_prompt(
@@ -46,8 +47,9 @@ def build_action_prompt(
         f"摘要记忆: {summary_memory}\n"
         f"用户长期偏好: {preference_memory or []}\n"
         f"运行限制: {limits}\n"
-        "请选择下一步动作。优先基于证据推进；"
+        "请选择下一步动作；如果用户意图需要明显连续步骤，可使用 actions 数组一次给出最多 3 个顺序动作。优先基于证据推进；"
         "若问题可以用通用知识或案例经验先回答，应先选择 knowledge_search；"
+        "若问题是宽泛地域数据查询，应先解析区域并查询数据目录或区域总览；"
         "证据足够时选择 final_answer。"
         f"\n输出必须匹配 schema: {ReactAction.model_json_schema()}"
     )
@@ -67,6 +69,10 @@ def build_final_prompt(
         f"知识命中: {retrieved_knowledge}\n"
         f"已调用工具: {tool_calls}\n"
         f"缺失信息: {missing_information}\n"
-        "请输出中文结构化研判结果。"
-        f"\n输出必须匹配 schema: {RecommendationState.model_json_schema()}"
+        "请直接输出中文 Markdown 最终回答，不要输出 JSON，不要用代码块包裹全文。\n"
+        "回答要结论先行、简短克制，优先控制在 3 到 5 个短段落或列表项内。\n"
+        "只展示最关键的真实 facts、records、context 和知识命中，不展开内部推理过程。\n"
+        "如果是宽泛数据查询，简要列出已定位范围、可查数据、关键概览和 1 到 2 个可继续下钻方向。\n"
+        "如果是风险研判，简要给出风险、关键依据和下一步建议；不要强制固定条数。\n"
+        "不得编造工具结果中不存在的指标或数值；缺失数据可以说明未返回。"
     )

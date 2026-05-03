@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 class AgentEventType(StrEnum):
     RUN_STARTED = "run_started"
+    RUN_PREPARATION_COMPLETED = "run_preparation_completed"
     CONTEXT_BUILT = "context_built"
     LLM_STEP_STARTED = "llm_step_started"
     LLM_THINKING_STARTED = "llm_thinking_started"
@@ -34,6 +35,8 @@ class AgentEventType(StrEnum):
     FINAL_ANSWER_DELTA = "final_answer_delta"
     FINAL_ANSWER_COMPLETED = "final_answer_completed"
     RECOMMENDATION_GENERATED = "recommendation_generated"
+    EXPORT_CREATED = "export_created"
+    EXPORT_FAILED = "export_failed"
     AWAITING_USER = "awaiting_user"
     RUN_COMPLETED = "run_completed"
     RUN_FAILED = "run_failed"

@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from datetime import datetime
+from datetime import UTC, datetime
 import re
 from typing import Any
 
@@ -457,7 +457,7 @@ class AgentRepository:
                 return None
             candidate.status = status
             candidate.reviewed_by = reviewed_by
-            candidate.reviewed_at = func.now()
+            candidate.reviewed_at = datetime.now(UTC)
             await db.commit()
             return _memory_candidate_to_dict(candidate)
 
@@ -467,7 +467,7 @@ class AgentRepository:
             if memory is None or memory.user_id != user_id:
                 return None
             memory.status = "deleted"
-            memory.updated_at = func.now()
+            memory.updated_at = datetime.now(UTC)
             await db.commit()
             return _user_memory_to_dict(memory)
 

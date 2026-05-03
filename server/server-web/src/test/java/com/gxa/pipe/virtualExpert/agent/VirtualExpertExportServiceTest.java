@@ -1,6 +1,7 @@
 package com.gxa.pipe.virtualExpert.agent;
 
 import org.junit.jupiter.api.Test;
+import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 
@@ -47,10 +48,32 @@ class VirtualExpertExportServiceTest {
     }
 
     @Test
+    void createTextMarkdownAndDocxExports() throws Exception {
+        ExportFile txt = service.createExport(Map.of("format", "txt", "sessionId", "ana_001"));
+        ExportFile md = service.createExport(Map.of("format", "md", "sessionId", "ana_001"));
+        ExportFile docx = service.createExport(Map.of("format", "docx", "sessionId", "ana_001"));
+
+        assertThat(txt.fileName()).endsWith(".txt");
+        assertThat(txt.contentType()).isEqualTo("text/plain;charset=UTF-8");
+        assertThat(Files.readString(txt.path())).contains("一、用户问题");
+
+        assertThat(md.fileName()).endsWith(".md");
+        assertThat(md.contentType()).isEqualTo("text/markdown;charset=UTF-8");
+        assertThat(Files.readString(md.path())).contains("## 一、用户问题");
+
+        assertThat(docx.fileName()).endsWith(".docx");
+        assertThat(docx.contentType()).contains("wordprocessingml");
+        try (XWPFDocument document = new XWPFDocument(Files.newInputStream(docx.path()))) {
+            assertThat(document.getParagraphs().stream().map(paragraph -> paragraph.getText()).toList())
+                    .anySatisfy(text -> assertThat(text).contains("用户问题"));
+        }
+    }
+
+    @Test
     void createExportRejectsUnsupportedPlanFormat() {
         assertThatThrownBy(() -> service.createExport(Map.of(
                 "sessionId", "ana_001",
-                "exportPlan", Map.of("format", "docx")
+                "exportPlan", Map.of("format", "html")
         )))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Unsupported export format");

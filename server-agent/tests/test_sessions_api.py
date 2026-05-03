@@ -40,39 +40,6 @@ class FastCompletedService:
         )
 
 
-class FakeExportPlannerLlm:
-    def __init__(self, intent: dict[str, Any]) -> None:
-        self.intent = intent
-        self.calls: list[dict[str, str]] = []
-
-    async def complete_json(self, system_prompt: str, user_prompt: str, schema: type) -> Any:
-        self.calls.append({"system": system_prompt, "user": user_prompt})
-        return schema.model_validate(self.intent)
-
-
-def _planner_intent(**overrides: Any) -> dict[str, Any]:
-    intent: dict[str, Any] = {
-        "should_export": True,
-        "format": "pdf",
-        "scope": "agent_selected",
-        "title": "虚拟专家研判报告",
-        "style": "standard_report",
-        "audience": "现场处置人员",
-        "purpose": "研判归档",
-        "tone": "清晰直接",
-        "detail_level": "standard",
-        "sections": [{"type": "summary", "title": "研判摘要", "content_policy": "concise"}],
-        "tables": [{"type": "risk_list", "title": "风险清单"}],
-        "evidence_policy": "include_key_evidence",
-        "include_evidence": True,
-        "include_timeline": True,
-        "requires_confirmation": False,
-        "reason": "LLM 识别到用户需要导出。",
-    }
-    intent.update(overrides)
-    return intent
-
-
 def test_create_session_returns_session_id():
     client = TestClient(app)
     response = client.post(
@@ -176,6 +143,42 @@ def test_stream_run_session_returns_sse_events(monkeypatch):
     assert "event: agent_event" in body
     assert '"type":"run_started"' in body
     assert '"type":"run_completed"' in body
+
+
+def test_stream_run_session_emits_preparation_progress_before_runtime_events(monkeypatch):
+    class FakeService:
+        def __init__(self, tool_registry) -> None:
+            self.tool_registry = tool_registry
+
+        async def run_analysis(self, session_id: str, run_id: str, raw_input: str, permissions: set[str]):
+            yield AgentEvent(
+                id="evt_runtime_001",
+                session_id=session_id,
+                run_id=run_id,
+                seq=1,
+                type=AgentEventType.RUN_STARTED,
+            )
+            yield AgentEvent(
+                id="evt_runtime_002",
+                session_id=session_id,
+                run_id=run_id,
+                seq=2,
+                type=AgentEventType.RUN_COMPLETED,
+            )
+
+    monkeypatch.setattr(sessions_module, "AgentRuntimeService", FakeService)
+
+    client = TestClient(app)
+    created = client.post("/api/agent/sessions", json={"raw_input": "压力波动"}).json()
+
+    with client.stream("GET", f"/api/agent/sessions/{created['session_id']}/runs/stream") as response:
+        body = response.read().decode("utf-8")
+
+    assert '"type":"run_preparation_completed"' in body
+    assert body.index('"type":"run_preparation_completed"') < body.index('"type":"run_started"')
+    assert '"step":"stream_connected"' in body
+    assert '"step":"memory_recall"' in body
+    assert '"step":"runtime_ready"' in body
 
 
 def test_post_message_creates_run_and_run_specific_stream_persists_summary(monkeypatch):
@@ -287,6 +290,79 @@ def test_completed_in_memory_run_stream_replays_events(monkeypatch):
     assert '"status":"completed"' in body
 
 
+def test_react_export_tool_creates_export_event_after_run_summary(monkeypatch):
+    class ExportService:
+        def __init__(self, tool_registry) -> None:
+            self.tool_registry = tool_registry
+
+        async def run_analysis(self, session_id: str, run_id: str, raw_input: str, permissions: set[str]):
+            yield AgentEvent(
+                id=f"evt_{run_id}_001",
+                session_id=session_id,
+                run_id=run_id,
+                seq=1,
+                type=AgentEventType.TOOL_COMPLETED,
+                payload={
+                    "tool_name": "create_export_report",
+                    "context": {
+                        "export_plan": {
+                            "format": "pdf",
+                            "scope": "latest_turn",
+                            "title": "压力异常研判报告",
+                        }
+                    },
+                    "raw": {"export_plan": {"format": "pdf", "scope": "latest_turn", "title": "压力异常研判报告"}},
+                    "summary": "已准备 PDF 导出计划。",
+                },
+            )
+            yield AgentEvent(
+                id=f"evt_{run_id}_002",
+                session_id=session_id,
+                run_id=run_id,
+                seq=2,
+                type=AgentEventType.RECOMMENDATION_GENERATED,
+                payload={
+                    "summary": "压力异常需要复核",
+                    "risk_level": "medium",
+                    "recommended_actions": ["复核压力趋势"],
+                },
+            )
+            yield AgentEvent(
+                id=f"evt_{run_id}_003",
+                session_id=session_id,
+                run_id=run_id,
+                seq=3,
+                type=AgentEventType.RUN_COMPLETED,
+            )
+
+    async def fake_create_export_file(session_id: str, run_id: str, export_plan: dict[str, Any]):
+        return {
+            "exportId": "exp_test",
+            "fileName": "pressure-report.pdf",
+            "downloadUrl": "/manager/virtual-expert/agent/exports/exp_test/download",
+        }
+
+    monkeypatch.setattr(sessions_module, "AgentRuntimeService", ExportService)
+    monkeypatch.setattr(sessions_module, "_create_export_file", fake_create_export_file)
+
+    client = TestClient(app)
+    created = client.post("/api/agent/sessions", json={"title": "导出会话"}).json()
+    message = client.post(
+        f"/api/agent/sessions/{created['session_id']}/messages",
+        json={"content": "分析压力异常并导出 PDF"},
+    ).json()
+
+    with client.stream(
+        "GET",
+        f"/api/agent/sessions/{created['session_id']}/runs/{message['run']['id']}/stream",
+    ) as response:
+        body = response.read().decode("utf-8")
+
+    assert '"type":"export_created"' in body
+    assert "pressure-report.pdf" in body
+    assert body.index('"type":"run_completed"') < body.index('"type":"export_created"')
+
+
 def test_post_message_rejects_second_message_while_run_active():
     client = TestClient(app)
     created = client.post("/api/agent/sessions", json={"title": "运行中会话"}).json()
@@ -305,53 +381,13 @@ def test_post_message_rejects_second_message_while_run_active():
     assert second.json()["code"] == "SESSION_RUN_IN_PROGRESS"
 
 
-def test_post_message_uses_llm_export_plan_without_run(monkeypatch):
-    planner = FakeExportPlannerLlm(
-        _planner_intent(
-            format="excel",
-            scope="all_conversations",
-            title="全量会话复盘表",
-            style="freeform_workbook",
-            audience="调度中心",
-            purpose="复盘分析",
-            tone="专业克制",
-            detail_level="detailed",
-            tables=[{"type": "dialogue_timeline", "title": "对话时间线"}],
-            requires_confirmation=True,
-            reason="用户要求把上述全部内容导出，LLM 决定生成全量 Excel。",
-        )
-    )
-    monkeypatch.setattr(sessions_module, "build_llm_client", lambda: planner)
-
+def test_post_message_always_creates_run_for_plain_analysis():
     client = TestClient(app)
-    created = client.post("/api/agent/sessions", json={"title": "导出会话"}).json()
+    created = client.post("/api/agent/sessions", json={"title": "普通研判"}).json()
 
     response = client.post(
         f"/api/agent/sessions/{created['session_id']}/messages",
-        json={"content": "把上述全部内容导出"},
-    )
-
-    assert response.status_code == 200
-    body = response.json()
-    assert body["run"] is None
-    assert body["export_plan"]["format"] == "excel"
-    assert body["export_plan"]["scope"] == "all_conversations"
-    assert body["export_plan"]["title"] == "全量会话复盘表"
-    assert body["export_plan"]["tables"] == [{"type": "dialogue_timeline", "title": "对话时间线"}]
-    assert planner.calls
-    assert "把上述全部内容导出" in planner.calls[0]["user"]
-
-
-def test_export_words_do_not_trigger_plan_when_llm_declines(monkeypatch):
-    planner = FakeExportPlannerLlm({"should_export": False, "reason": "这是业务研判，不是导出任务。"})
-    monkeypatch.setattr(sessions_module, "build_llm_client", lambda: planner)
-
-    client = TestClient(app)
-    created = client.post("/api/agent/sessions", json={"title": "导出会话"}).json()
-
-    response = client.post(
-        f"/api/agent/sessions/{created['session_id']}/messages",
-        json={"content": "请导出 PDF，但先分析一下这是不是异常"},
+        json={"content": "先分析压力异常"},
     )
 
     assert response.status_code == 200
@@ -360,152 +396,20 @@ def test_export_words_do_not_trigger_plan_when_llm_declines(monkeypatch):
     assert body["run"]["status"] == "created"
 
 
-def test_simple_export_plan_includes_scope_and_does_not_require_confirmation(monkeypatch):
-    monkeypatch.setattr(
-        sessions_module,
-        "build_llm_client",
-        lambda: FakeExportPlannerLlm(_planner_intent(scope="latest_turn")),
-    )
+def test_post_message_export_words_still_enter_react_run():
     client = TestClient(app)
     created = client.post("/api/agent/sessions", json={"title": "导出会话"}).json()
 
     response = client.post(
         f"/api/agent/sessions/{created['session_id']}/messages",
-        json={"content": "把这次研判导出 PDF"},
-    )
-
-    assert response.status_code == 200
-    plan = response.json()["export_plan"]
-    assert response.json()["run"] is None
-    assert plan["format"] == "pdf"
-    assert plan["scope"] == "latest_turn"
-    assert plan["style"] == "standard_report"
-    assert plan["requiresConfirmation"] is False
-    assert plan["sections"]
-    assert plan["tables"]
-
-
-def test_post_message_marks_complex_export_plan_for_confirmation(monkeypatch):
-    monkeypatch.setattr(
-        sessions_module,
-        "build_llm_client",
-        lambda: FakeExportPlannerLlm(
-            _planner_intent(
-                audience="领导汇报",
-                purpose="管理汇报",
-                include_evidence=False,
-                evidence_policy="exclude_evidence",
-                requires_confirmation=True,
-            )
-        ),
-    )
-    client = TestClient(app)
-    created = client.post("/api/agent/sessions", json={"title": "导出会话"}).json()
-
-    response = client.post(
-        f"/api/agent/sessions/{created['session_id']}/messages",
-        json={"content": "给领导整理一份正式汇报 PDF，删掉证据链"},
-    )
-
-    assert response.status_code == 200
-    plan = response.json()["export_plan"]
-    assert plan["audience"] == "领导汇报"
-    assert plan["includeEvidence"] is False
-    assert plan["requiresConfirmation"] is True
-
-
-def test_complex_excel_export_plan_captures_sheet_intent(monkeypatch):
-    monkeypatch.setattr(
-        sessions_module,
-        "build_llm_client",
-        lambda: FakeExportPlannerLlm(
-            _planner_intent(
-                format="excel",
-                audience="领导汇报",
-                requires_confirmation=True,
-                tables=[
-                    {"type": "risk_list", "title": "风险清单"},
-                    {"type": "action_list", "title": "处置建议"},
-                ],
-            )
-        ),
-    )
-    client = TestClient(app)
-    created = client.post("/api/agent/sessions", json={"title": "导出会话"}).json()
-
-    response = client.post(
-        f"/api/agent/sessions/{created['session_id']}/messages",
-        json={"content": "Excel 分 sheet 展示风险清单和处置建议，给领导看"},
-    )
-
-    assert response.status_code == 200
-    plan = response.json()["export_plan"]
-    assert plan["format"] == "excel"
-    assert plan["audience"] == "领导汇报"
-    assert plan["requiresConfirmation"] is True
-    assert [table["type"] for table in plan["tables"]] == ["risk_list", "action_list"]
-
-
-def test_all_conversations_export_plan_uses_global_scope(monkeypatch):
-    monkeypatch.setattr(
-        sessions_module,
-        "build_llm_client",
-        lambda: FakeExportPlannerLlm(_planner_intent(scope="all_conversations", requires_confirmation=True)),
-    )
-    client = TestClient(app)
-    created = client.post("/api/agent/sessions", json={"title": "导出会话"}).json()
-
-    response = client.post(
-        f"/api/agent/sessions/{created['session_id']}/messages",
-        json={"content": "请导出全部对话的 PDF"},
-    )
-
-    assert response.status_code == 200
-    plan = response.json()["export_plan"]
-    assert plan["format"] == "pdf"
-    assert plan["scope"] == "all_conversations"
-    assert plan["requiresConfirmation"] is True
-
-
-def test_full_session_export_plan_keeps_current_session_scope(monkeypatch):
-    monkeypatch.setattr(
-        sessions_module,
-        "build_llm_client",
-        lambda: FakeExportPlannerLlm(_planner_intent(scope="full_session")),
-    )
-    client = TestClient(app)
-    created = client.post("/api/agent/sessions", json={"title": "导出会话"}).json()
-
-    response = client.post(
-        f"/api/agent/sessions/{created['session_id']}/messages",
-        json={"content": "请导出整个会话 PDF"},
-    )
-
-    assert response.status_code == 200
-    assert response.json()["export_plan"]["scope"] == "full_session"
-
-
-def test_export_all_above_content_defaults_to_full_session_pdf(monkeypatch):
-    monkeypatch.setattr(
-        sessions_module,
-        "build_llm_client",
-        lambda: FakeExportPlannerLlm(_planner_intent(scope="full_session", requires_confirmation=True)),
-    )
-    client = TestClient(app)
-    created = client.post("/api/agent/sessions", json={"title": "导出会话"}).json()
-
-    response = client.post(
-        f"/api/agent/sessions/{created['session_id']}/messages",
-        json={"content": "把上述全部内容导出"},
+        json={"content": "请先分析压力异常，并把这次研判导出 PDF"},
     )
 
     assert response.status_code == 200
     body = response.json()
-    assert body["run"] is None
-    plan = body["export_plan"]
-    assert plan["format"] == "pdf"
-    assert plan["scope"] == "full_session"
-    assert plan["requiresConfirmation"] is True
+    assert "export_plan" not in body
+    assert body["run"]["status"] == "created"
+    assert body["run"]["streamUrl"].endswith(f"/runs/{body['run']['id']}/stream")
 
 
 def test_timeline_pages_backwards_from_latest_turn(monkeypatch):
@@ -976,6 +880,14 @@ async def test_persistent_stream_session_starts_existing_created_run(monkeypatch
         async def complete_run(self, session_id: str, run_id: str, status: str) -> None:
             self.completed_status = status
             self.run["status"] = status
+
+        async def create_run_summary(self, **kwargs) -> dict[str, Any]:
+            self.summary = kwargs
+            return kwargs
+
+        async def create_message(self, **kwargs) -> dict[str, Any]:
+            self.message = kwargs
+            return kwargs
 
     repository = FakeRepository()
     async def recall_memories(user_id: str, query: str):

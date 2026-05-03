@@ -157,6 +157,7 @@ export type AgentRunStreamState = {
   finalText: string
   finalSeq?: number
   finalizing?: boolean
+  finalAnswerPending?: boolean
 }
 
 export type AgentConversationTurn =
@@ -236,7 +237,7 @@ export type AgentReactRound = {
 
 export type AgentRecommendation = {
   summary: string
-  riskLevel: 'low' | 'medium' | 'high' | 'critical'
+  riskLevel?: 'low' | 'medium' | 'high' | 'critical'
   judgment: string
   recommendedActions: string[]
   missingInformation: string[]
@@ -323,7 +324,7 @@ export type AgentDeleteSessionResponse = {
   status: 'deleted'
 }
 
-export type AgentExportFormat = 'pdf' | 'excel'
+export type AgentExportFormat = 'pdf' | 'excel' | 'txt' | 'md' | 'docx'
 
 export type AgentExportPlan = {
   format: AgentExportFormat

@@ -1,9 +1,12 @@
 package com.gxa.pipe.virtualExpert.agent;
 
 import com.gxa.pipe.dataManagement.equipment.EquipmentService;
+import com.gxa.pipe.common.area.AreaResponse;
+import com.gxa.pipe.common.area.AreaService;
 import com.gxa.pipe.dataManagement.monitoring.MonitoringDataQueryResponse;
 import com.gxa.pipe.dataManagement.monitoring.MonitoringDataService;
 import com.gxa.pipe.dataManagement.task.TaskService;
+import com.gxa.pipe.dataVsualization.dataMonitoring.AreaDetailResponse;
 import com.gxa.pipe.dataVsualization.dataMonitoring.DataMonitoringService;
 import com.gxa.pipe.dataVsualization.dataMonitoring.PipeIndicatorResponse;
 import com.gxa.pipe.log.LogQueryResponse;
@@ -68,6 +71,46 @@ class VirtualExpertToolProxyControllerTest {
         assertThat(response.records()).hasSize(2);
         assertThat(response.records().get(0)).containsEntry("scope_type", "pipeline");
         assertThat(response.metadata()).containsEntry("capability_status", "candidate_lookup");
+    }
+
+    @Test
+    void areaDiscoveryToolsResolveCatalogAndOverview() {
+        DataMonitoringService dataMonitoringService = mock(DataMonitoringService.class);
+        MonitoringDataService monitoringDataService = mock(MonitoringDataService.class);
+        PipelineTopologyService pipelineTopologyService = mock(PipelineTopologyService.class);
+        AreaService areaService = mock(AreaService.class);
+        MonitoringSegmentOption segment = new MonitoringSegmentOption(3L, "三号管段", 1, 370100L, 370200L, "city");
+        MonitoringPipeOption pipe = new MonitoringPipeOption(1L, "山东干线", "province", "city", List.of(segment));
+
+        when(areaService.getProvinces()).thenReturn(List.of(new AreaResponse("370000", "山东省")));
+        when(areaService.getCitiesByProvinceCode("370000")).thenReturn(List.of(new AreaResponse("370100", "济南市")));
+        when(areaService.getDistrictsByCityCode("370100")).thenReturn(List.of());
+        when(pipelineTopologyService.getMonitoringFilterOptions(isNull(), eq("370100"), isNull()))
+                .thenReturn(new MonitoringFilterOptionsResponse("CITY", List.of(pipe)));
+        when(dataMonitoringService.getAreaDetails(any())).thenReturn(List.of(
+                new AreaDetailResponse(120.0, 1.8, 23.5, 0.02, 1714200000000L)
+        ));
+
+        VirtualExpertToolProxyController controller = newController(
+                dataMonitoringService,
+                monitoringDataService,
+                pipelineTopologyService,
+                mock(EquipmentService.class),
+                mock(TaskService.class),
+                mock(LogService.class),
+                mock(ManoeuvreService.class),
+                mock(VirtualExpertExportService.class),
+                areaService);
+
+        ToolQueryResponse scope = controller.resolveAreaScope("帮我查一下山东济南的一些数据", "山东", "济南", null);
+        ToolQueryResponse catalog = controller.queryAreaDataCatalog("370100", "city", "true");
+        ToolQueryResponse overview = controller.queryAreaOperationalOverview("370100", "city", "24h");
+
+        assertThat(scope.records().get(0)).containsEntry("area_id", "370100");
+        assertThat(catalog.records().get(0)).containsEntry("record_type", "data_catalog");
+        assertThat(catalog.records().get(0)).containsEntry("segment_count", 1);
+        assertThat(overview.records().get(0)).containsEntry("record_type", "area_overview");
+        assertThat(overview.records()).anySatisfy(record -> assertThat(record).containsEntry("record_type", "area_metric"));
     }
 
     @Test
@@ -207,6 +250,28 @@ class VirtualExpertToolProxyControllerTest {
             LogService logService,
             ManoeuvreService manoeuvreService,
             VirtualExpertExportService exportService) {
+        return newController(
+                dataMonitoringService,
+                monitoringDataService,
+                pipelineTopologyService,
+                equipmentService,
+                taskService,
+                logService,
+                manoeuvreService,
+                exportService,
+                mock(AreaService.class));
+    }
+
+    private VirtualExpertToolProxyController newController(
+            DataMonitoringService dataMonitoringService,
+            MonitoringDataService monitoringDataService,
+            PipelineTopologyService pipelineTopologyService,
+            EquipmentService equipmentService,
+            TaskService taskService,
+            LogService logService,
+            ManoeuvreService manoeuvreService,
+            VirtualExpertExportService exportService,
+            AreaService areaService) {
         return new VirtualExpertToolProxyController(
                 new VirtualExpertToolService(
                         dataMonitoringService,
@@ -216,6 +281,7 @@ class VirtualExpertToolProxyControllerTest {
                         taskService,
                         logService,
                         manoeuvreService,
-                        exportService));
+                        exportService,
+                        areaService));
     }
 }

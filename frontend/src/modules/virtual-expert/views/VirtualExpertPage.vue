@@ -186,6 +186,7 @@ const sessionSearch = ref('')
 const archivedSessions = ref<AgentSession[]>([])
 const archivedOpen = ref(false)
 const sessionMenuOpenId = ref<string | null>(null)
+const searchExpanded = ref(false)
 const shareNotice = ref('')
 
 const streamBlockRenderIntervalMs = 280
@@ -1727,21 +1728,81 @@ function scrollConversationToBottom() {
         <div class="session-toolbar">
           <button
             type="button"
+            class="toolbar-btn"
             :title="sidebarCollapsed ? '展开列表' : '收起列表'"
             @click="sidebarCollapsed = !sidebarCollapsed"
           >
-            {{ sidebarCollapsed ? '展开' : '收起' }}
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="2" width="12" height="12" rx="0"/>
+              <line x1="6" y1="2" x2="6" y2="14"/>
+            </svg>
+            <span>{{ sidebarCollapsed ? '展开列表' : '收起列表' }}</span>
           </button>
-          <button type="button" title="隐藏列表" @click="sidebarHidden = true">隐藏</button>
-          <button type="button" title="开启新对话" :disabled="isRunning" @click="startNewConversation">新对话</button>
-          <button type="button" title="搜索历史记录" @click="sidebarCollapsed = false">搜索</button>
-          <button type="button" title="归档聊天" @click="archivedOpen = !archivedOpen">归档</button>
-          <button type="button" title="我的偏好" @click="memoryPanelOpen = true">偏好</button>
+          <button
+            type="button"
+            class="toolbar-btn"
+            title="开启新对话"
+            :disabled="isRunning"
+            @click="startNewConversation"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="8" y1="3" x2="8" y2="13"/>
+              <line x1="3" y1="8" x2="13" y2="8"/>
+            </svg>
+            <span>新对话</span>
+          </button>
+          <button
+            type="button"
+            class="toolbar-btn"
+            :class="{ 'is-active': searchExpanded }"
+            title="搜索历史记录"
+            @click="searchExpanded = !searchExpanded"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="7" cy="7" r="4"/>
+              <line x1="10" y1="10" x2="14" y2="14"/>
+            </svg>
+            <span>搜索</span>
+          </button>
+          <button
+            type="button"
+            class="toolbar-btn"
+            title="归档聊天"
+            @click="archivedOpen = !archivedOpen"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="3" width="12" height="3" rx="0"/>
+              <path d="M3 6v7a1 1 0 001 1h8a1 1 0 001-1V6"/>
+              <line x1="6" y1="9" x2="10" y2="9"/>
+            </svg>
+            <span>归档</span>
+          </button>
+          <button
+            type="button"
+            class="toolbar-btn"
+            title="我的偏好"
+            @click="memoryPanelOpen = true"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="4" y1="5" x2="12" y2="5"/>
+              <line x1="4" y1="8" x2="12" y2="8"/>
+              <line x1="4" y1="11" x2="12" y2="11"/>
+              <circle cx="6" cy="5" r="1.5" fill="currentColor" stroke="none"/>
+              <circle cx="10" cy="8" r="1.5" fill="currentColor" stroke="none"/>
+            </svg>
+            <span>偏好</span>
+          </button>
         </div>
 
         <template v-if="!sidebarCollapsed">
-          <div class="session-search">
-            <input v-model="sessionSearch" type="search" placeholder="搜索历史记录" aria-label="搜索历史记录">
+          <div v-if="searchExpanded" class="session-search">
+            <input
+              v-model="sessionSearch"
+              type="search"
+              placeholder="搜索历史记录"
+              aria-label="搜索历史记录"
+              @keydown.esc="searchExpanded = false"
+            >
           </div>
 
           <div class="session-list">
@@ -2201,8 +2262,8 @@ function scrollConversationToBottom() {
           </article>
         </div>
 
-        <div class="composer">
-          <div class="composer__field">
+        <div class="composer-shell">
+          <div class="composer">
             <div v-if="imageAttachments.length" class="attachment-list" aria-label="图片附件">
               <article v-for="attachment in imageAttachments" :key="attachment.id" class="attachment-chip">
                 <img :src="attachment.previewUrl" :alt="attachment.name">
@@ -2218,34 +2279,19 @@ function scrollConversationToBottom() {
               @keydown="handleComposerKeydown"
             />
             <div class="composer__tools">
-              <label class="model-select" :title="isRunning ? '将在下一次提问生效' : '选择本轮模型'">
-                <span>{{ isRunning && activeRunModelLabel ? activeRunModelLabel : selectedModelLabel }}</span>
-                <select v-model="selectedModelTier" aria-label="选择模型挡位">
-                  <option v-for="option in modelTierOptions" :key="option.tier" :value="option.tier">
-                    {{ option.label }} · {{ option.model }}
-                  </option>
-                </select>
-              </label>
               <button
                 type="button"
-                class="icon-chip"
-                :class="{ 'is-live': isListening }"
-                :disabled="isRunning || isExporting || !speechSupported"
-                :title="isListening ? '停止语音' : '语音输入'"
-                :aria-label="isListening ? '停止语音' : '语音输入'"
-                @click="toggleVoiceInput"
-              >
-                {{ isListening ? '停止语音' : '语音' }}
-              </button>
-              <button
-                type="button"
-                class="icon-chip"
+                class="tool-icon-btn"
                 :disabled="isRunning || isExporting || imageAttachments.length >= 4"
                 title="上传图片"
                 aria-label="上传图片"
                 @click="triggerImageUpload"
               >
-                图片
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="2" y="3" width="12" height="10" rx="0"/>
+                  <circle cx="5.5" cy="6.5" r="1.5"/>
+                  <path d="M14 11l-3-3-4 4-2-2-3 3"/>
+                </svg>
               </button>
               <input
                 ref="fileInput"
@@ -2255,12 +2301,63 @@ function scrollConversationToBottom() {
                 multiple
                 @change="handleImageUpload"
               >
+              <button
+                type="button"
+                class="tool-icon-btn"
+                :class="{ 'is-live': isListening }"
+                :disabled="isRunning || isExporting || !speechSupported"
+                :title="isListening ? '停止语音' : '语音输入'"
+                :aria-label="isListening ? '停止语音' : '语音输入'"
+                @click="toggleVoiceInput"
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="5.5" y="2" width="5" height="8" rx="0"/>
+                  <path d="M3 7v1a5 5 0 0010 0V7"/>
+                  <line x1="8" y1="12" x2="8" y2="14"/>
+                </svg>
+              </button>
+              <label class="model-select" :title="isRunning ? '将在下一次提问生效' : '选择本轮模型'">
+                <span>{{ isRunning && activeRunModelLabel ? activeRunModelLabel : selectedModelLabel }}</span>
+                <select v-model="selectedModelTier" aria-label="选择模型挡位">
+                  <option v-for="option in modelTierOptions" :key="option.tier" :value="option.tier">
+                    {{ option.label }} · {{ option.model }}
+                  </option>
+                </select>
+              </label>
+              <div class="composer-spacer"></div>
+              <button
+                v-if="isRunning"
+                type="button"
+                class="tool-icon-btn is-stop"
+                :disabled="!activeRunId"
+                title="停止运行"
+                aria-label="停止运行"
+                @click="cancelRun"
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" stroke="none">
+                  <rect x="3" y="3" width="10" height="10"/>
+                </svg>
+              </button>
+              <button
+                v-else
+                type="button"
+                class="tool-icon-btn is-send"
+                :disabled="isRunning"
+                title="发送"
+                aria-label="发送"
+                @click="submitAnalysis"
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="8" y1="14" x2="8" y2="3"/>
+                  <polyline points="4 7 8 3 12 7"/>
+                </svg>
+              </button>
             </div>
-            <div class="composer__samples">
+            <div class="composer__exports">
               <button
                 v-for="item in quickExportFormats"
                 :key="item.format"
-                class="icon-chip is-export"
+                class="tool-icon-btn is-export"
                 :disabled="isRunning || isExporting || !selectedSessionId || selectedSessionId.startsWith('ana_demo')"
                 :title="item.label"
                 :aria-label="item.label"
@@ -2269,12 +2366,6 @@ function scrollConversationToBottom() {
                 {{ exportFormatLabel(item.format) }}
               </button>
             </div>
-          </div>
-          <div class="composer__actions">
-            <button class="control-button is-primary composer-send" :disabled="isRunning" title="发送" aria-label="发送" @click="submitAnalysis">
-              发送
-            </button>
-            <button class="ghost-action composer-stop" :disabled="!activeRunId || !isRunning" title="停止运行" aria-label="停止运行" @click="cancelRun">停止</button>
           </div>
         </div>
       </section>
@@ -2364,16 +2455,51 @@ function scrollConversationToBottom() {
 .session-list {
   display: grid;
   align-content: start;
-  gap: 4px;
+  gap: 8px;
 }
 
 .session-toolbar {
-  display: flex;
-  gap: 4px;
+  display: grid;
+  gap: 2px;
   margin-bottom: 8px;
 }
 
-.session-toolbar button,
+.toolbar-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  inline-size: 100%;
+  block-size: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--color-line);
+  color: var(--color-text-muted);
+  background: transparent;
+  font-size: var(--text-meta);
+  text-align: left;
+  transition: background 80ms step-end, border-color 80ms step-end;
+}
+
+.toolbar-btn:hover {
+  background: var(--color-panel-3);
+  border-color: rgba(110, 202, 212, 0.2);
+}
+
+.toolbar-btn:active,
+.toolbar-btn.is-active {
+  background: rgba(110, 202, 212, 0.12);
+}
+
+.toolbar-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.toolbar-btn svg {
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+}
+
 .sidebar-reveal {
   display: inline-grid;
   place-items: center;
@@ -2400,12 +2526,19 @@ function scrollConversationToBottom() {
 
 .session-search input {
   inline-size: 100%;
-  min-height: 30px;
-  border: 1px solid rgba(110, 202, 212, 0.18);
+  min-height: 32px;
+  border: 1px solid var(--color-line);
   color: var(--color-text);
-  background: rgba(5, 12, 18, 0.72);
+  background: var(--color-bg-elevated);
   padding: 0 9px;
   font-size: var(--text-meta);
+  transition: border-color 80ms step-end, box-shadow 80ms step-end;
+}
+
+.session-search input:focus {
+  border-color: var(--color-accent-cyan);
+  box-shadow: 0 0 6px rgba(110, 202, 212, 0.25);
+  outline: none;
 }
 
 .session-item {
@@ -2415,22 +2548,20 @@ function scrollConversationToBottom() {
   inline-size: 100%;
   border: 1px solid var(--color-line);
   color: var(--color-text);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.028), rgba(255, 255, 255, 0.01)),
-    rgba(4, 9, 14, 0.8);
-  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+  background: rgba(4, 9, 14, 0.8);
+  transition: background 80ms step-end, border-color 80ms step-end;
 }
 
 .session-item:hover {
-  border-color: rgba(110, 202, 212, 0.34);
-  transform: translateY(-1px);
+  background: var(--color-panel-3);
+  border-color: rgba(110, 202, 212, 0.2);
 }
 
 .session-item.is-active {
-  border-color: rgba(231, 104, 45, 0.52);
-  background:
-    linear-gradient(180deg, rgba(231, 104, 45, 0.12), rgba(255, 255, 255, 0.01)),
-    rgba(8, 10, 13, 0.92);
+  border-left: 2px solid var(--color-accent-orange);
+  background: var(--color-panel-2);
+  border-color: var(--color-line);
+  border-left-color: var(--color-accent-orange);
 }
 
 .session-open {
@@ -2458,6 +2589,17 @@ function scrollConversationToBottom() {
   color: var(--color-text-muted);
   background: transparent;
   font-size: var(--text-micro);
+  opacity: 0;
+  transition: opacity 80ms step-end, background 80ms step-end;
+}
+
+.session-item:hover .session-more {
+  opacity: 1;
+}
+
+.session-more:hover {
+  background: var(--color-panel-3);
+  border-color: var(--color-line);
 }
 
 .session-menu {
@@ -2466,25 +2608,28 @@ function scrollConversationToBottom() {
   inset-inline-end: 4px;
   z-index: 10;
   display: grid;
+  gap: 8px;
   min-inline-size: 116px;
-  padding: 4px;
-  border: 1px solid rgba(110, 202, 212, 0.22);
-  background: rgba(4, 9, 14, 0.98);
-  box-shadow: var(--shadow-panel);
+  padding: 6px;
+  border: 1px solid var(--color-line);
+  background: var(--color-panel-3);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
 }
 
 .session-menu button {
   min-height: 28px;
+  padding: 0 8px;
   border: 0;
   color: var(--color-text-muted);
   background: transparent;
   text-align: left;
   font-size: var(--text-meta);
+  transition: background 80ms step-end, color 80ms step-end;
 }
 
 .session-menu button:hover {
   color: var(--color-text);
-  background: rgba(110, 202, 212, 0.08);
+  background: var(--color-panel-2);
 }
 
 .session-pin {
@@ -2493,7 +2638,7 @@ function scrollConversationToBottom() {
 
 .archive-section {
   display: grid;
-  gap: 4px;
+  gap: 8px;
   margin-top: 8px;
 }
 
@@ -2501,16 +2646,23 @@ function scrollConversationToBottom() {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  min-height: 30px;
-  border: 1px solid rgba(110, 202, 212, 0.16);
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--color-line);
   color: var(--color-text-muted);
-  background: rgba(255, 255, 255, 0.014);
+  background: transparent;
   font-size: var(--text-meta);
+  transition: background 80ms step-end, border-color 80ms step-end;
+}
+
+.archive-toggle:hover {
+  background: var(--color-panel-3);
+  border-color: rgba(110, 202, 212, 0.2);
 }
 
 .archive-list {
   display: grid;
-  gap: 4px;
+  gap: 8px;
 }
 
 .session-item__head,
@@ -3162,25 +3314,30 @@ function scrollConversationToBottom() {
   text-overflow: ellipsis;
 }
 
-.composer {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 128px;
-  gap: var(--space-3);
+.composer-shell {
   padding-top: var(--space-2);
   border-top: 1px solid var(--color-line);
 }
 
-.composer__field {
+.composer {
   display: grid;
-  gap: 10px;
-  min-width: 0;
+  gap: 8px;
+  padding: 12px;
+  background: var(--color-panel-2);
+  border: 1px solid var(--color-line);
 }
 
-.attachment-list,
-.composer__tools {
+.attachment-list {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  min-width: 0;
+}
+
+.composer__tools {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   min-width: 0;
 }
 
@@ -3192,15 +3349,15 @@ function scrollConversationToBottom() {
   max-width: min(280px, 100%);
   min-height: 42px;
   padding: 4px 6px 4px 4px;
-  border: 1px solid rgba(110, 202, 212, 0.18);
-  background: rgba(255, 255, 255, 0.018);
+  border: 1px solid var(--color-line);
+  background: var(--color-bg-elevated);
 }
 
 .attachment-chip img {
   width: 34px;
   height: 34px;
   object-fit: cover;
-  border: 1px solid rgba(110, 202, 212, 0.18);
+  border: 1px solid var(--color-line);
 }
 
 .attachment-chip span {
@@ -3227,9 +3384,16 @@ function scrollConversationToBottom() {
   max-height: 128px;
   resize: vertical;
   padding: 12px;
-  border: 1px solid rgba(110, 202, 212, 0.2);
+  border: 1px solid var(--color-line);
   color: var(--color-text);
-  background: rgba(5, 10, 15, 0.82);
+  background: var(--color-bg-elevated);
+  transition: border-color 80ms step-end, box-shadow 80ms step-end;
+}
+
+.composer textarea:focus {
+  border-color: var(--color-accent-cyan);
+  box-shadow: 0 0 6px rgba(110, 202, 212, 0.25);
+  outline: none;
 }
 
 .composer textarea::placeholder {
@@ -3244,11 +3408,11 @@ function scrollConversationToBottom() {
   position: relative;
   display: inline-flex;
   align-items: center;
-  min-height: 28px;
-  max-width: 220px;
-  border: 1px solid rgba(110, 202, 212, 0.18);
+  min-height: 32px;
+  max-width: 160px;
+  border: 1px solid var(--color-line);
   color: var(--color-text-muted);
-  background: rgba(255, 255, 255, 0.018);
+  background: var(--color-bg-elevated);
   padding: 0 10px;
   font-size: var(--text-micro);
 }
@@ -3267,63 +3431,76 @@ function scrollConversationToBottom() {
   cursor: pointer;
 }
 
-.composer__samples {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+.composer-spacer {
+  flex: 1;
 }
 
-.sample-chip,
-.icon-chip,
-.ghost-action {
-  min-height: 34px;
-  border: 1px solid rgba(110, 202, 212, 0.18);
-  color: var(--color-text-muted);
-  background: rgba(255, 255, 255, 0.018);
-  padding: 0 12px;
-}
-
-.sample-chip {
-  min-height: 28px;
-  padding: 0 10px;
-  font-size: var(--text-micro);
-  letter-spacing: 0.02em;
-  text-align: left;
-}
-
-.icon-chip {
+.tool-icon-btn {
   display: inline-grid;
   place-items: center;
-  min-width: 30px;
-  min-height: 28px;
+  min-width: 32px;
+  height: 32px;
   padding: 0 8px;
+  border: 1px solid var(--color-line);
+  color: var(--color-text-muted);
+  background: transparent;
   font-size: var(--text-micro);
+  transition: background 80ms step-end, border-color 80ms step-end, color 80ms step-end;
 }
 
-.sample-chip.is-export,
-.icon-chip.is-export {
-  border-color: rgba(231, 104, 45, 0.32);
+.tool-icon-btn:hover {
+  background: var(--color-panel-3);
+  border-color: rgba(110, 202, 212, 0.2);
+}
+
+.tool-icon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.tool-icon-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.tool-icon-btn.is-send {
+  background: var(--color-accent-orange);
+  border-color: var(--color-accent-orange);
   color: var(--color-text);
-  background: rgba(231, 104, 45, 0.08);
 }
 
-.sample-chip.is-live,
-.icon-chip.is-live {
+.tool-icon-btn.is-send:hover {
+  box-shadow: 0 0 8px rgba(231, 104, 45, 0.4);
+}
+
+.tool-icon-btn.is-stop {
+  border-color: rgba(221, 176, 84, 0.34);
+  color: var(--color-warning);
+  background: rgba(221, 176, 84, 0.08);
+  animation: pulse-stop 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse-stop {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
+.tool-icon-btn.is-live {
   border-color: rgba(34, 197, 94, 0.34);
   color: var(--color-text);
   background: rgba(34, 197, 94, 0.1);
 }
 
-.composer__actions {
-  display: grid;
-  gap: 10px;
-  align-content: start;
+.tool-icon-btn.is-export {
+  border-color: rgba(231, 104, 45, 0.32);
+  color: var(--color-text);
+  background: rgba(231, 104, 45, 0.08);
 }
 
-.composer-send,
-.composer-stop {
-  min-height: 42px;
-  font-size: var(--text-body);
+.composer__exports {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
 }
 
 .error-banner {
@@ -3472,8 +3649,8 @@ function scrollConversationToBottom() {
 }
 
 @media (max-width: 819px) {
-  .composer {
-    grid-template-columns: 1fr;
+  .composer__tools {
+    flex-wrap: wrap;
   }
 
   .timeline-card {

@@ -40,19 +40,22 @@ test('virtual expert sidebar and composer use text controls', async ({ page }) =
 
   await page.goto(`${process.env.PW_BASE_URL || 'http://127.0.0.1:5173'}/virtual-expert`)
 
-  await expect(page.getByRole('button', { name: '收起' })).toBeVisible()
-  await expect(page.getByRole('button', { name: '隐藏' })).toBeVisible()
+  // Sidebar toolbar buttons (icon+text)
+  await expect(page.getByRole('button', { name: /收起列表|展开列表/ })).toBeVisible()
   await expect(page.getByRole('button', { name: '新对话' })).toBeVisible()
   await expect(page.getByRole('button', { name: '搜索' })).toBeVisible()
   await expect(page.getByRole('button', { name: '归档' })).toBeVisible()
   await expect(page.getByRole('button', { name: '偏好' })).toBeVisible()
+
+  // Session card
   await expect(page.getByText('置顶')).toBeVisible()
   await expect(page.getByRole('button', { name: /打开会话菜单/ })).toHaveText('更多')
 
+  // Composer — icon buttons with aria-labels
   await expect(page.getByLabel('选择模型挡位')).toBeAttached()
-  await expect(page.getByRole('button', { name: '语音输入' })).toHaveText('语音')
-  await expect(page.getByRole('button', { name: '上传图片' })).toHaveText('图片')
-  await expect(page.getByRole('button', { name: '发送' })).toHaveText('发送')
+  await expect(page.getByLabel('语音输入')).toBeAttached()
+  await expect(page.getByLabel('上传图片')).toBeAttached()
+  await expect(page.getByLabel('发送')).toBeAttached()
 
   const pageText = await page.locator('.agent-sidebar').innerText()
   expect(pageText).not.toMatch(/[☰‹›＋⌕▤⚙⌃⋯↩]/)

@@ -646,6 +646,8 @@ async def list_timeline(
         return _timeline_response(await _get_repository().list_timeline(session_id, before_cursor, limit))
 
     session = _get_session(session_id)
+    if not before_cursor:
+        before_cursor = None
     return _timeline_response(_list_in_memory_timeline(session, before_cursor, limit))
 
 
@@ -1777,13 +1779,15 @@ def _list_in_memory_timeline(session: dict[str, Any], before_cursor: str | None,
     user_messages = [message for message in session.get("messages", []) if message["role"] == "user"]
     user_messages.sort(key=lambda message: session["messages"].index(message), reverse=True)
     if before_cursor:
-        _, cursor_id = before_cursor.split("|", 1)
-        cursor_index = next(
-            (index for index, message in enumerate(user_messages) if message["id"] == cursor_id),
-            None,
-        )
-        if cursor_index is not None:
-            user_messages = user_messages[cursor_index + 1:]
+        parts = before_cursor.split("|", 1)
+        if len(parts) == 2:
+            _, cursor_id = parts
+            cursor_index = next(
+                (index for index, message in enumerate(user_messages) if message["id"] == cursor_id),
+                None,
+            )
+            if cursor_index is not None:
+                user_messages = user_messages[cursor_index + 1:]
     selected_desc = user_messages[: limit + 1]
     has_more = len(selected_desc) > limit
     selected = selected_desc[:limit]

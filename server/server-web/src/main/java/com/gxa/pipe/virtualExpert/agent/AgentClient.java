@@ -276,9 +276,11 @@ public class AgentClient {
     }
 
     public Map<String, Object> listTimeline(String sessionId, String beforeCursor, Integer limit) {
-        URI target = URI.create(url("/api/agent/sessions/" + sessionId
-                + "/timeline?beforeCursor=" + encodeQueryValue(beforeCursor == null ? "" : beforeCursor)
-                + "&limit=" + (limit == null ? 1 : limit)));
+        StringBuilder query = new StringBuilder("/api/agent/sessions/" + sessionId + "/timeline?limit=" + (limit == null ? 1 : limit));
+        if (beforeCursor != null && !beforeCursor.isEmpty()) {
+            query.append("&beforeCursor=").append(encodeQueryValue(beforeCursor));
+        }
+        URI target = URI.create(url(query.toString()));
         Map<String, Object> response = restTemplate.exchange(
                 target,
                 HttpMethod.GET,

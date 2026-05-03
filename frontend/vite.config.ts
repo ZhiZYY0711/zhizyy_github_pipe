@@ -1,13 +1,16 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { appendFileSync, mkdirSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
+import { resolve } from 'node:path'
 
-const clientLogFile = resolve(__dirname, '../.logs/frontend-client.log')
+const logBaseDir = resolve(__dirname, '../.logs')
 
 function writeClientLog(rawBody: string) {
-  mkdirSync(dirname(clientLogFile), { recursive: true })
-  appendFileSync(clientLogFile, `${new Date().toISOString()} ${rawBody}\n`, 'utf-8')
+  const today = new Date().toISOString().slice(0, 10)
+  const logDir = resolve(logBaseDir, today)
+  mkdirSync(logDir, { recursive: true })
+  const logFile = resolve(logDir, 'frontend-client.log')
+  appendFileSync(logFile, `${new Date().toISOString()} ${rawBody}\n`, 'utf-8')
 }
 
 // https://vite.dev/config/

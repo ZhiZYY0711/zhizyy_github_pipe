@@ -182,3 +182,35 @@ export type MapTooltipData = {
   abnormalSensorNumbers: number
   warnings: number
 }
+
+export type DashboardMapLayerKey = 'regions' | 'pipelines' | 'nodes' | 'alarms'
+
+export type PipelineStatus = 'normal' | 'warning' | 'critical'
+
+export type PipelineNodeType = 'hub' | 'station' | 'valve' | 'offtake'
+
+export type PipelineNode = {
+  id: string
+  name: string
+  type: PipelineNodeType
+  status: PipelineStatus
+  coord: [number, number]
+  priority: number
+  provinceCode: string
+}
+
+export type TrunkPipeline = {
+  id: string
+  name: string
+  status: PipelineStatus
+  pressure: number
+  flow: number
+  riskCount: number
+  coords: Array<[number, number]>
+  nodes: PipelineNode[]
+}
+
+export type DashboardMapFocus =
+  | { type: 'region'; code: string; name: string }
+  | { type: 'pipeline'; pipeline: TrunkPipeline }
+  | null

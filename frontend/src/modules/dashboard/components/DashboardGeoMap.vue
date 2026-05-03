@@ -1,14 +1,23 @@
 <script setup lang="ts">
-import { MapChart } from 'echarts/charts'
+import { EffectScatterChart, LinesChart, MapChart } from 'echarts/charts'
 import { GeoComponent, TooltipComponent } from 'echarts/components'
 import { init, registerMap, use, type ECharts } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { getFeatureBounds, getFeatureCenter, readLayer, rememberLayer, type FeatureBounds } from '../mapLayerCache'
 import { resolveGeoAssetPath } from '../service'
-import type { GeoIndex, GeoIndexEntry, MapRegion, MapTooltipData } from '../types'
+import type {
+  DashboardMapLayerKey,
+  GeoIndex,
+  GeoIndexEntry,
+  MapRegion,
+  MapTooltipData,
+  PipelineNode,
+  PipelineStatus,
+  TrunkPipeline,
+} from '../types'
 
-use([MapChart, GeoComponent, TooltipComponent, CanvasRenderer])
+use([MapChart, LinesChart, EffectScatterChart, GeoComponent, TooltipComponent, CanvasRenderer])
 
 const props = defineProps<{
   region: MapRegion
@@ -16,11 +25,15 @@ const props = defineProps<{
   geoIndex: GeoIndex | null
   tooltipData: MapTooltipData | null
   loading: boolean
+  pipelines: readonly TrunkPipeline[]
+  visibleLayers: Record<DashboardMapLayerKey, boolean>
+  selectedPipelineId?: string
 }>()
 
 const emit = defineEmits<{
   regionClick: [payload: { code: string; name: string }]
   regionHover: [payload: { code: string; name: string }]
+  pipelineClick: [pipeline: TrunkPipeline]
   resetView: []
 }>()
 
@@ -48,6 +61,20 @@ type MapSeriesDataItem = {
   showLabel: boolean
 }
 
+type PipelineLineDataItem = {
+  name: string
+  pipelineId: string
+  coords: Array<[number, number]>
+}
+
+type PipelineNodeDataItem = {
+  name: string
+  pipelineId: string
+  nodeId: string
+  status: PipelineStatus
+  value: [number, number, number]
+}
+
 const chartEl = ref<HTMLDivElement | null>(null)
 const zoomRatio = ref(100)
 let chart: ECharts | null = null
@@ -56,6 +83,7 @@ let currentZoom = 1
 let baseGeoJson: GeoJsonLike | null = null
 let activeMapName = ''
 let detailTimer: number | undefined
+let renderRetryTimer: number | undefined
 let renderVersion = 0
 let wheelTarget: HTMLDivElement | null = null
 let wheelFrame: number | undefined
@@ -67,7 +95,7 @@ let visibleLabelNames = new Set<string>()
 const geoJsonCache = new Map<string, GeoJsonLike>()
 const minZoom = 1
 const maxZoom = 140
-const wheelZoomStep = 1.18
+const wheelZoomStep = 1.07
 
 watch(
   () => [props.region.code, props.region.path, props.focusCode, props.geoIndex],
@@ -85,8 +113,17 @@ watch(
   },
 )
 
+watch(
+  () => [props.visibleLayers, props.selectedPipelineId, props.pipelines],
+  () => {
+    refreshCurrentMapOption()
+  },
+  { deep: true },
+)
+
 onBeforeUnmount(() => {
   clearDetailTimer()
+  clearRenderRetryTimer()
   clearWheelFrame()
   detachWheelZoom()
   resizeObserver?.disconnect()
@@ -95,6 +132,11 @@ onBeforeUnmount(() => {
 
 async function renderBaseMap() {
   if (!chartEl.value || !props.region.path) {
+    return
+  }
+
+  if (!hasUsableChartBox()) {
+    scheduleRenderRetry()
     return
   }
 
@@ -117,6 +159,7 @@ async function renderBaseMap() {
   detailLayerSignature = ''
   syncZoomRatio()
   registerMap(activeMapName, toMapInput(geoJson))
+  hideTooltip()
   chart?.setOption(buildMapOption(activeMapName, markFeatures(geoJson.features ?? [], baseFeatureLayer()), view.center), true, true)
   scheduleDetailUpdate()
 }
@@ -126,8 +169,25 @@ function ensureChart() {
     return
   }
 
+  if (!hasUsableChartBox()) {
+    scheduleRenderRetry()
+    return
+  }
+
   chart = init(chartEl.value, undefined, { renderer: 'canvas' })
   chart.on('click', (params) => {
+    const pipelineId = readPipelineId(params.data)
+
+    if (pipelineId) {
+      const pipeline = props.pipelines.find((item) => item.id === pipelineId)
+
+      if (pipeline) {
+        emit('pipelineClick', pipeline)
+      }
+
+      return
+    }
+
     const code = readRegionCode(params.data, params.name)
 
     if (code) {
@@ -155,6 +215,20 @@ function ensureChart() {
   attachWheelZoom(chartEl.value)
 }
 
+function hasUsableChartBox() {
+  const box = chartEl.value?.getBoundingClientRect()
+
+  return Boolean(box && box.width > 80 && box.height > 80)
+}
+
+function scheduleRenderRetry() {
+  clearRenderRetryTimer()
+  renderRetryTimer = window.setTimeout(() => {
+    renderRetryTimer = undefined
+    void renderBaseMap()
+  }, 80)
+}
+
 async function fetchGeoJson(path: string): Promise<GeoJsonLike> {
   const cached = geoJsonCache.get(path)
 
@@ -178,6 +252,40 @@ function buildMapOption(mapName: string, features: GeoFeature[], center?: number
 
   syncVisibleLabelKeys(seriesData)
 
+  const regionVisible = props.visibleLayers.regions
+  const series = [
+    {
+      type: 'map',
+      map: mapName,
+      geoIndex: 0,
+      selectedMode: false,
+      silent: !regionVisible,
+      label: {
+        show: regionVisible,
+        formatter: formatRegionLabel,
+        color: 'rgba(230, 241, 244, 0.76)',
+        fontSize: 11,
+        textBorderColor: 'rgba(5, 10, 16, 0.82)',
+        textBorderWidth: 2,
+      },
+      emphasis: {
+        label: {
+          show: regionVisible,
+          formatter: formatRegionLabel,
+          color: '#e9f7f8',
+        },
+      },
+      itemStyle: regionVisible
+        ? undefined
+        : {
+            areaColor: 'rgba(5, 10, 16, 0)',
+            borderColor: 'rgba(110, 202, 212, 0.08)',
+          },
+      data: regionVisible ? seriesData : [],
+    },
+    ...buildPipelineSeries(),
+  ]
+
   return {
     animation: false,
     backgroundColor: 'transparent',
@@ -194,8 +302,8 @@ function buildMapOption(mapName: string, features: GeoFeature[], center?: number
       layoutCenter: ['50%', '51%'],
       layoutSize: props.region.level === 'country' ? '104%' : '96%',
       itemStyle: {
-        areaColor: '#0b1a24',
-        borderColor: 'rgba(110, 202, 212, 0.44)',
+        areaColor: regionVisible ? '#0b1a24' : 'rgba(5, 10, 16, 0.1)',
+        borderColor: regionVisible ? 'rgba(110, 202, 212, 0.44)' : 'rgba(110, 202, 212, 0.08)',
         borderWidth: 1,
         shadowBlur: 18,
         shadowColor: 'rgba(110, 202, 212, 0.18)',
@@ -215,7 +323,7 @@ function buildMapOption(mapName: string, features: GeoFeature[], center?: number
         },
       },
       label: {
-        show: true,
+        show: regionVisible,
         formatter: formatRegionLabel,
         color: 'rgba(230, 241, 244, 0.76)',
         fontSize: 11,
@@ -223,30 +331,7 @@ function buildMapOption(mapName: string, features: GeoFeature[], center?: number
         textBorderWidth: 2,
       },
     },
-    series: [
-      {
-        type: 'map',
-        map: mapName,
-        geoIndex: 0,
-        selectedMode: false,
-        label: {
-          show: true,
-          formatter: formatRegionLabel,
-          color: 'rgba(230, 241, 244, 0.76)',
-          fontSize: 11,
-          textBorderColor: 'rgba(5, 10, 16, 0.82)',
-          textBorderWidth: 2,
-        },
-        emphasis: {
-          label: {
-            show: true,
-            formatter: formatRegionLabel,
-            color: '#e9f7f8',
-          },
-        },
-        data: seriesData,
-      },
-    ],
+    series,
   }
 }
 
@@ -263,7 +348,34 @@ function buildTooltipOption() {
       fontSize: 12,
     },
     extraCssText: 'box-shadow:0 16px 36px rgba(0,0,0,.38);',
-    formatter: (params: { name?: string; data?: { code?: string } }) => {
+    formatter: (params: { name?: string; seriesType?: string; data?: { code?: string; pipelineId?: string; nodeId?: string } }) => {
+      if (params.data?.nodeId) {
+        const nodeInfo = findNodeById(params.data.nodeId)
+
+        if (nodeInfo) {
+          return [
+            `<strong>${nodeInfo.node.name}</strong>`,
+            `所属管线：${nodeInfo.pipeline.name}`,
+            `节点类型：${formatNodeType(nodeInfo.node.type)}`,
+            `状态：${formatPipelineStatus(nodeInfo.node.status)}`,
+          ].join('<br/>')
+        }
+      }
+
+      if (params.data?.pipelineId) {
+        const pipeline = props.pipelines.find((item) => item.id === params.data?.pipelineId)
+
+        if (pipeline) {
+          return [
+            `<strong>${pipeline.name}</strong>`,
+            `状态：${formatPipelineStatus(pipeline.status)}`,
+            `压力：${pipeline.pressure.toFixed(2)} MPa`,
+            `流量：${pipeline.flow.toLocaleString('zh-CN')} m3/h`,
+            `风险点：${pipeline.riskCount}`,
+          ].join('<br/>')
+        }
+      }
+
       const data = props.tooltipData
       const name = String(params.name ?? '')
 
@@ -287,6 +399,236 @@ function buildTooltipOption() {
       ].join('<br/>')
     },
   }
+}
+
+function buildPipelineSeries() {
+  const nodeSeries = props.visibleLayers.nodes ? [buildPipelineNodeSeries()] : []
+  const alarmSeries = props.visibleLayers.alarms ? [buildAlarmNodeSeries()] : []
+
+  if (!props.visibleLayers.pipelines) {
+    return [...nodeSeries, ...alarmSeries]
+  }
+
+  return [buildPipelineLineSeries(), buildPipelineFlowSeries(), ...nodeSeries, ...alarmSeries]
+}
+
+function buildPipelineLineSeries() {
+  return {
+    name: '主干线',
+    type: 'lines',
+    coordinateSystem: 'geo',
+    zlevel: 4,
+    polyline: true,
+    symbol: ['none', 'none'],
+    lineStyle: {
+      width: 2.2,
+      opacity: 0.78,
+      curveness: 0.18,
+    },
+    emphasis: {
+      lineStyle: {
+        width: 4,
+        opacity: 1,
+      },
+    },
+    data: props.pipelines.map((pipeline) => ({
+      name: pipeline.name,
+      pipelineId: pipeline.id,
+      coords: pipeline.coords,
+      lineStyle: {
+        color: pipelineColor(pipeline.status, props.selectedPipelineId === pipeline.id),
+        width: props.selectedPipelineId === pipeline.id ? 4 : pipeline.status === 'critical' ? 3 : 2.2,
+        shadowBlur: props.selectedPipelineId === pipeline.id ? 22 : 14,
+        shadowColor: pipelineColor(pipeline.status, true),
+      },
+    } satisfies PipelineLineDataItem & { lineStyle: Record<string, unknown> })),
+  }
+}
+
+function buildPipelineFlowSeries() {
+  return {
+    name: '输送流向',
+    type: 'lines',
+    coordinateSystem: 'geo',
+    zlevel: 5,
+    polyline: true,
+    symbol: ['none', 'arrow'],
+    symbolSize: 7,
+    effect: {
+      show: true,
+      period: 6,
+      trailLength: 0.32,
+      symbol: 'circle',
+      symbolSize: 4,
+    },
+    lineStyle: {
+      width: 0,
+      opacity: 0,
+    },
+    data: props.pipelines.map((pipeline) => ({
+      name: pipeline.name,
+      pipelineId: pipeline.id,
+      coords: pipeline.coords,
+      lineStyle: {
+        color: pipelineColor(pipeline.status, props.selectedPipelineId === pipeline.id),
+      },
+      effect: {
+        color: pipelineColor(pipeline.status, true),
+        period: props.selectedPipelineId === pipeline.id ? 3.2 : pipeline.status === 'critical' ? 4 : 6,
+        symbolSize: props.selectedPipelineId === pipeline.id ? 6 : 4,
+      },
+    } satisfies PipelineLineDataItem & { lineStyle: Record<string, unknown>; effect: Record<string, unknown> })),
+  }
+}
+
+function buildPipelineNodeSeries() {
+  const data = props.pipelines.flatMap((pipeline) => pipeline.nodes
+    .filter((node) => shouldShowNode(node, pipeline))
+    .map((node) => ({
+      name: node.name,
+      pipelineId: pipeline.id,
+      nodeId: node.id,
+      status: node.status,
+      value: [node.coord[0], node.coord[1], node.priority],
+      itemStyle: {
+        color: nodeColor(node.status),
+        shadowBlur: props.selectedPipelineId === pipeline.id ? 20 : 12,
+        shadowColor: nodeColor(node.status),
+      },
+    } satisfies PipelineNodeDataItem & { itemStyle: Record<string, unknown> })))
+
+  return {
+    name: '管网节点',
+    type: 'effectScatter',
+    coordinateSystem: 'geo',
+    zlevel: 6,
+    rippleEffect: {
+      scale: 3.4,
+      brushType: 'stroke',
+    },
+    symbolSize: (value: [number, number, number]) => Math.max(5, 12 - value[2] * 1.2),
+    label: {
+      show: currentZoom >= nodeLabelZoom(),
+      formatter: '{b}',
+      position: 'right',
+      color: 'rgba(233, 247, 248, 0.86)',
+      fontSize: 10,
+      textBorderColor: 'rgba(5, 10, 16, 0.92)',
+      textBorderWidth: 2,
+    },
+    emphasis: {
+      scale: 1.7,
+      label: {
+        show: true,
+      },
+    },
+    data,
+  }
+}
+
+function buildAlarmNodeSeries() {
+  const data = props.pipelines.flatMap((pipeline) => pipeline.nodes
+    .filter((node) => node.status !== 'normal')
+    .map((node) => ({
+      name: node.name,
+      pipelineId: pipeline.id,
+      nodeId: node.id,
+      status: node.status,
+      value: [node.coord[0], node.coord[1], node.priority],
+      itemStyle: {
+        color: node.status === 'critical' ? '#ff7a35' : '#ffd166',
+        shadowBlur: 24,
+        shadowColor: node.status === 'critical' ? 'rgba(255, 122, 53, 0.9)' : 'rgba(255, 209, 102, 0.76)',
+      },
+    } satisfies PipelineNodeDataItem & { itemStyle: Record<string, unknown> })))
+
+  return {
+    name: '告警扩散',
+    type: 'effectScatter',
+    coordinateSystem: 'geo',
+    zlevel: 7,
+    rippleEffect: {
+      scale: 5,
+      period: 3,
+      brushType: 'stroke',
+    },
+    symbolSize: (value: [number, number, number]) => Math.max(10, 18 - value[2] * 1.4),
+    label: {
+      show: false,
+    },
+    emphasis: {
+      scale: 1.3,
+      label: {
+        show: true,
+        formatter: '{b}',
+        position: 'top',
+        color: '#fff2df',
+        fontSize: 10,
+        textBorderColor: 'rgba(5, 10, 16, 0.92)',
+        textBorderWidth: 2,
+      },
+    },
+    data,
+  }
+}
+
+function shouldShowNode(node: PipelineNode, pipeline: TrunkPipeline) {
+  if (node.status !== 'normal') {
+    return true
+  }
+
+  if (props.selectedPipelineId === pipeline.id) {
+    return node.priority <= (currentZoom >= 3 ? 3 : 2)
+  }
+
+  if (props.region.level === 'country') {
+    if (currentZoom < 1.8) {
+      return node.priority <= 1
+    }
+
+    if (currentZoom < 3.2) {
+      return node.priority <= 2
+    }
+
+    return node.priority <= 3
+  }
+
+  const regionProvince = props.region.code.slice(0, 2)
+  const nodeProvince = node.provinceCode.slice(0, 2)
+
+  if (regionProvince !== nodeProvince && !props.focusCode?.startsWith(nodeProvince)) {
+    return false
+  }
+
+  if (props.region.level === 'province') {
+    return node.priority <= (currentZoom >= 2.6 ? 3 : 2)
+  }
+
+  return currentZoom >= 1.4 || node.priority <= 2
+}
+
+function pipelineColor(status: PipelineStatus, active = false) {
+  if (status === 'critical') {
+    return active ? '#ff7a35' : '#e7682d'
+  }
+
+  if (status === 'warning') {
+    return active ? '#ffd166' : '#f3a83b'
+  }
+
+  return active ? '#e9f7f8' : '#6ecad4'
+}
+
+function nodeColor(status: PipelineStatus) {
+  if (status === 'critical') {
+    return '#ff7a35'
+  }
+
+  if (status === 'warning') {
+    return '#ffd166'
+  }
+
+  return '#8fe8f0'
 }
 
 function buildSeriesData(features: GeoFeature[]) {
@@ -346,6 +688,23 @@ function scheduleDetailUpdate() {
   detailTimer = window.setTimeout(() => {
     void updateDetailLayer()
   }, 120)
+}
+
+function refreshCurrentMapOption() {
+  if (!chart || !activeMapName || !baseGeoJson) {
+    return
+  }
+
+  hideTooltip()
+  chart.setOption(
+    buildMapOption(
+      activeMapName,
+      markFeatures(baseGeoJson.features ?? [], baseFeatureLayer()),
+      readChartCenter(),
+    ),
+    false,
+    true,
+  )
 }
 
 function attachWheelZoom(target: HTMLDivElement) {
@@ -437,6 +796,7 @@ async function updateDetailLayer() {
     .sort()
     .join(',')
   const nextSignature = `${props.region.code}|${detailKey || 'base'}|${currentZoomStage()}|${currentLabelStage()}`
+    + `|${currentNodeStage()}|${props.selectedPipelineId ?? 'no-pipeline'}`
 
   if (nextSignature === detailLayerSignature) {
     return
@@ -451,6 +811,7 @@ async function updateDetailLayer() {
       registerMap(activeMapName, toMapInput(baseGeoJson))
       rememberLayer(nextSignature, activeMapName)
     }
+    hideTooltip()
     chart.setOption(buildMapOption(activeMapName, markFeatures(baseFeatures, baseFeatureLayer()), center), false, true)
     return
   }
@@ -466,6 +827,7 @@ async function updateDetailLayer() {
     registerMap(activeMapName, toMapInput(mergedGeoJson))
     rememberLayer(nextSignature, activeMapName)
   }
+  hideTooltip()
   chart.setOption(buildMapOption(activeMapName, mergedGeoJson.features, center), false, true)
 }
 
@@ -592,6 +954,12 @@ function currentZoomStage() {
   return 'base'
 }
 
+function currentNodeStage() {
+  if (currentZoom >= 3.2) return 'node-dense'
+  if (currentZoom >= 1.8) return 'node-medium'
+  return 'node-sparse'
+}
+
 function provinceLabelZoom() {
   return 2.15
 }
@@ -610,6 +978,10 @@ function districtBoundaryZoom() {
 
 function districtLabelZoom() {
   return props.region.level === 'country' ? 22 : props.region.level === 'province' ? 13 : 5.2
+}
+
+function nodeLabelZoom() {
+  return props.region.level === 'country' ? 3.4 : props.region.level === 'province' ? 2.7 : 1.6
 }
 
 function maxVisibleParents(layer: FeatureLayer) {
@@ -738,6 +1110,58 @@ function readChartZoom() {
   return Number(option?.geo?.[0]?.zoom ?? currentZoom)
 }
 
+function hideTooltip() {
+  chart?.dispatchAction({ type: 'hideTip' })
+}
+
+function readPipelineId(data: unknown) {
+  if (data && typeof data === 'object' && 'pipelineId' in data) {
+    return String((data as { pipelineId?: string }).pipelineId ?? '')
+  }
+
+  return ''
+}
+
+function findNodeById(nodeId: string) {
+  for (const pipeline of props.pipelines) {
+    const node = pipeline.nodes.find((item) => item.id === nodeId)
+
+    if (node) {
+      return { pipeline, node }
+    }
+  }
+
+  return null
+}
+
+function formatPipelineStatus(status: PipelineStatus) {
+  if (status === 'critical') {
+    return '严重异常'
+  }
+
+  if (status === 'warning') {
+    return '风险关注'
+  }
+
+  return '运行正常'
+}
+
+function formatNodeType(type: PipelineNode['type']) {
+  if (type === 'hub') {
+    return '枢纽'
+  }
+
+  if (type === 'valve') {
+    return '阀室'
+  }
+
+  if (type === 'offtake') {
+    return '分输'
+  }
+
+  return '站场'
+}
+
 function clampZoom(value: number) {
   return Math.min(maxZoom, Math.max(minZoom, value))
 }
@@ -753,6 +1177,13 @@ function clearDetailTimer() {
   if (detailTimer) {
     window.clearTimeout(detailTimer)
     detailTimer = undefined
+  }
+}
+
+function clearRenderRetryTimer() {
+  if (renderRetryTimer) {
+    window.clearTimeout(renderRetryTimer)
+    renderRetryTimer = undefined
   }
 }
 
@@ -806,9 +1237,15 @@ function toMapInput(geoJson: GeoJsonLike) {
       <div class="geo-map-panel__grid"></div>
       <div ref="chartEl" class="geo-map-panel__chart"></div>
       <div class="geo-map-panel__toolbar" aria-label="地图工具">
-        <button type="button" title="放大地图" @click="zoomIn">+</button>
-        <button type="button" title="缩小地图" @click="zoomOut">-</button>
-        <button type="button" title="归位到全国视图" @click="emit('resetView')">归位</button>
+        <button type="button" title="放大地图" aria-label="放大地图" @click="zoomIn">
+          <span class="geo-map-panel__icon geo-map-panel__icon--plus"></span>
+        </button>
+        <button type="button" title="缩小地图" aria-label="缩小地图" @click="zoomOut">
+          <span class="geo-map-panel__icon geo-map-panel__icon--minus"></span>
+        </button>
+        <button type="button" title="归位到全国视图" aria-label="归位到全国视图" @click="emit('resetView')">
+          <span class="geo-map-panel__icon geo-map-panel__icon--target"></span>
+        </button>
       </div>
       <div class="geo-map-panel__scale" aria-label="地图比例尺">
         <span>{{ zoomRatio }}%</span>
@@ -821,16 +1258,43 @@ function toMapInput(geoJson: GeoJsonLike) {
 
 <style scoped>
 .geo-map-panel {
+  position: absolute;
+  inset: 0;
   display: grid;
-  grid-template-rows: 48px minmax(0, 1fr);
+  grid-template-rows: 0 minmax(0, 1fr);
+  border: 0;
   background:
-    radial-gradient(circle at center, rgba(110, 202, 212, 0.07), transparent 34%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.015), transparent),
-    var(--color-panel-2);
+    radial-gradient(circle at 50% 46%, rgba(110, 202, 212, 0.13), transparent 34%),
+    radial-gradient(circle at 72% 32%, rgba(231, 104, 45, 0.1), transparent 20%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.018), transparent),
+    #050a10;
+  box-shadow: none;
+}
+
+.geo-map-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    linear-gradient(105deg, transparent 0%, transparent 44%, rgba(110, 202, 212, 0.08) 50%, transparent 56%, transparent 100%),
+    repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.018) 0, rgba(255, 255, 255, 0.018) 1px, transparent 1px, transparent 5px);
+  mix-blend-mode: screen;
+  opacity: 0.72;
+  animation: map-scan-beam 8s steps(30) infinite;
+}
+
+.geo-map-panel .panel-head {
+  position: absolute;
+  block-size: 0;
+  overflow: hidden;
+  opacity: 0;
 }
 
 .geo-map-panel__body {
   position: relative;
+  grid-row: 1 / -1;
   min-height: 0;
   overflow: hidden;
 }
@@ -839,8 +1303,8 @@ function toMapInput(geoJson: GeoJsonLike) {
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(rgba(110, 202, 212, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(110, 202, 212, 0.04) 1px, transparent 1px);
+    linear-gradient(rgba(110, 202, 212, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(110, 202, 212, 0.055) 1px, transparent 1px);
   background-size: 32px 32px;
   mask-image: radial-gradient(circle at center, rgba(0, 0, 0, 0.9), transparent 92%);
   animation: map-grid-drift 18s linear infinite;
@@ -848,7 +1312,8 @@ function toMapInput(geoJson: GeoJsonLike) {
 
 .geo-map-panel__chart {
   position: absolute;
-  inset: 12px;
+  inset: 6px;
+  z-index: 0;
   min-width: 0;
   min-height: 0;
 }
@@ -870,15 +1335,19 @@ function toMapInput(geoJson: GeoJsonLike) {
 .geo-map-panel__toolbar {
   position: absolute;
   inset: 18px 20px auto auto;
-  z-index: 3;
+  z-index: 4;
   display: flex;
   gap: 6px;
+  padding: 6px;
+  border: 1px solid rgba(110, 202, 212, 0.22);
+  background: rgba(6, 11, 17, 0.66);
+  backdrop-filter: blur(16px);
 }
 
 .geo-map-panel__toolbar button {
   min-height: 34px;
-  min-width: 34px;
-  padding: 0 10px;
+  inline-size: 34px;
+  padding: 0;
   border: 1px solid rgba(110, 202, 212, 0.28);
   color: var(--color-text);
   background: rgba(8, 13, 19, 0.82);
@@ -888,6 +1357,54 @@ function toMapInput(geoJson: GeoJsonLike) {
 .geo-map-panel__toolbar button:hover {
   border-color: var(--color-line-strong);
   background: rgba(110, 202, 212, 0.12);
+}
+
+.geo-map-panel__icon {
+  position: relative;
+  display: inline-block;
+  inline-size: 16px;
+  block-size: 16px;
+}
+
+.geo-map-panel__icon--plus::before,
+.geo-map-panel__icon--plus::after,
+.geo-map-panel__icon--minus::before {
+  content: '';
+  position: absolute;
+  background: currentColor;
+}
+
+.geo-map-panel__icon--plus::before,
+.geo-map-panel__icon--minus::before {
+  inset: 7px 2px auto;
+  block-size: 2px;
+}
+
+.geo-map-panel__icon--plus::after {
+  inset: 2px auto 2px 7px;
+  inline-size: 2px;
+}
+
+.geo-map-panel__icon--target {
+  border: 2px solid currentColor;
+  border-radius: 50%;
+}
+
+.geo-map-panel__icon--target::before,
+.geo-map-panel__icon--target::after {
+  content: '';
+  position: absolute;
+  background: currentColor;
+}
+
+.geo-map-panel__icon--target::before {
+  inset: 6px -4px auto;
+  block-size: 2px;
+}
+
+.geo-map-panel__icon--target::after {
+  inset: -4px auto -4px 6px;
+  inline-size: 2px;
 }
 
 .geo-map-panel__scale span,
@@ -919,7 +1436,22 @@ function toMapInput(geoJson: GeoJsonLike) {
   }
 }
 
+@keyframes map-scan-beam {
+  from {
+    background-position: -90vw 0, 0 0;
+  }
+
+  to {
+    background-position: 90vw 0, 0 0;
+  }
+}
+
 @media (max-width: 719px) {
+  .geo-map-panel {
+    position: relative;
+    min-block-size: 420px;
+  }
+
   .geo-map-panel__chart {
     position: relative;
     inset: auto;

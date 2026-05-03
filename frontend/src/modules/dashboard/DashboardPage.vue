@@ -7,6 +7,7 @@ import { dashboardPageModel } from '../../data/mockShell'
 import AreaFilterPanel from './components/AreaFilterPanel.vue'
 import DashboardAlarmPanel from './components/DashboardAlarmPanel.vue'
 import DashboardGeoMap from './components/DashboardGeoMap.vue'
+import { trunkPipelines } from './pipelineOverlayData'
 import {
   loadCities,
   loadDashboardAlarms,
@@ -20,12 +21,14 @@ import type {
   AreaOption,
   DashboardAlarm,
   DashboardKpi,
+  DashboardMapLayerKey,
   DashboardKpiItem,
   GeoIndex,
   MapTimePreset,
   MapTimeRange,
   MapRegion,
   MapTooltipData,
+  TrunkPipeline,
 } from './types'
 
 const provinces = ref<AreaOption[]>([])
@@ -61,6 +64,13 @@ const tooltipDebounceMs = 260
 const tooltipCacheTtlMs = 5 * 60 * 1000
 const timeRange = ref<MapTimeRange>(createDefaultTimeRange())
 const activeTimePreset = ref<MapTimePreset>('all')
+const visibleMapLayers = ref<Record<DashboardMapLayerKey, boolean>>({
+  regions: true,
+  pipelines: true,
+  nodes: true,
+  alarms: true,
+})
+const selectedPipeline = ref<TrunkPipeline | null>(null)
 
 const hotRegions: AreaOption[] = [
   { code: '130000', name: '河北省' },
@@ -74,6 +84,36 @@ const hotRegions: AreaOption[] = [
 const activeAreaId = computed(() => selectedDistrict.value || selectedCity.value || selectedProvince.value || undefined)
 const activeAreaName = computed(() => focusRegion.value?.name ?? '全国')
 const tooltipQueryRange = computed(() => toTimestampRange(timeRange.value))
+const selectedPipelineStatusText = computed(() => {
+  if (!selectedPipeline.value) {
+    return '行政区域监控态势'
+  }
+
+  if (selectedPipeline.value.status === 'critical') {
+    return '严重异常'
+  }
+
+  if (selectedPipeline.value.status === 'warning') {
+    return '风险关注'
+  }
+
+  return '运行正常'
+})
+const focusStats = computed(() => {
+  if (selectedPipeline.value) {
+    return [
+      { label: '压力', value: `${selectedPipeline.value.pressure.toFixed(2)} MPa` },
+      { label: '流量', value: `${formatCount(selectedPipeline.value.flow)} m3/h` },
+      { label: '风险点', value: formatCount(selectedPipeline.value.riskCount) },
+    ]
+  }
+
+  return [
+    { label: '传感器', value: formatCount(kpi.value.sensor_numbers) },
+    { label: '异常', value: formatCount(kpi.value.abnormal_sensor_numbers) },
+    { label: '告警', value: formatCount(kpi.value.warnings) },
+  ]
+})
 const kpiItems = computed<DashboardKpiItem[]>(() => [
   { label: '传感器总数', value: formatCount(kpi.value.sensor_numbers), tone: 'default' },
   { label: '异常传感器', value: formatCount(kpi.value.abnormal_sensor_numbers), tone: 'warn' },
@@ -104,6 +144,7 @@ onBeforeUnmount(() => {
 })
 
 async function resetRegion() {
+  selectedPipeline.value = null
   selectedProvince.value = ''
   selectedCity.value = ''
   selectedDistrict.value = ''
@@ -117,6 +158,7 @@ async function resetRegion() {
 }
 
 async function selectProvince(code: string) {
+  selectedPipeline.value = null
   selectedProvince.value = code
   selectedCity.value = ''
   selectedDistrict.value = ''
@@ -136,6 +178,7 @@ async function selectProvince(code: string) {
 }
 
 async function selectCity(code: string) {
+  selectedPipeline.value = null
   selectedCity.value = code
   selectedDistrict.value = ''
   tooltipData.value = null
@@ -154,6 +197,7 @@ async function selectCity(code: string) {
 }
 
 async function selectDistrict(code: string) {
+  selectedPipeline.value = null
   selectedDistrict.value = code
   tooltipData.value = null
   tooltipCache.clear()
@@ -169,6 +213,8 @@ async function selectDistrict(code: string) {
 }
 
 async function selectHotRegion(code: string) {
+  selectedPipeline.value = null
+
   if (isProvinceCode(code)) {
     await selectProvince(code)
     return
@@ -187,6 +233,7 @@ async function selectHotRegion(code: string) {
 }
 
 async function handleRegionClick(payload: { code: string }) {
+  selectedPipeline.value = null
   const code = payload.code
 
   if (isProvinceCode(code)) {
@@ -241,6 +288,17 @@ function selectTimePreset(preset: MapTimePreset) {
   tooltipData.value = null
   tooltipCache.clear()
   void refreshDashboardData()
+}
+
+function toggleMapLayer(layer: DashboardMapLayerKey) {
+  visibleMapLayers.value = {
+    ...visibleMapLayers.value,
+    [layer]: !visibleMapLayers.value[layer],
+  }
+}
+
+function handlePipelineClick(pipeline: TrunkPipeline) {
+  selectedPipeline.value = pipeline
 }
 
 async function refreshDashboardData() {
@@ -432,47 +490,95 @@ function formatDateInput(date: Date) {
         :nav-items="dashboardPageModel.navItems"
       />
 
-      <div class="dashboard-page-module__workspace">
-        <AreaFilterPanel
-          :provinces="provinces"
-          :cities="cities"
-          :districts="districts"
-          :selected-province="selectedProvince"
-          :selected-city="selectedCity"
-          :selected-district="selectedDistrict"
-          :hot-regions="hotRegions"
-          :active-area-name="activeAreaName"
-          :time-range="timeRange"
-          :active-time-preset="activeTimePreset"
-          @select-province="selectProvince"
-          @select-city="selectCity"
-          @select-district="selectDistrict"
-          @select-hot-region="selectHotRegion"
-          @update-time-range="updateTimeRange"
-          @select-time-preset="selectTimePreset"
+      <section class="dashboard-page-module__stage">
+        <DashboardGeoMap
+          :region="mapRegion"
+          :focus-code="activeAreaId"
+          :geo-index="geoIndex"
+          :tooltip-data="tooltipData"
+          :loading="tooltipLoading"
+          :pipelines="trunkPipelines"
+          :visible-layers="visibleMapLayers"
+          :selected-pipeline-id="selectedPipeline?.id"
+          @region-click="handleRegionClick"
+          @region-hover="handleRegionHover"
+          @pipeline-click="handlePipelineClick"
+          @reset-view="resetRegion"
         />
 
-        <section class="dashboard-page-module__main">
+        <div class="dashboard-page-module__hud dashboard-page-module__hud--kpis">
           <KpiStrip :items="kpiItems" />
+        </div>
 
-          <div class="dashboard-page-module__board">
-            <DashboardGeoMap
-              :region="mapRegion"
-              :focus-code="activeAreaId"
-              :geo-index="geoIndex"
-              :tooltip-data="tooltipData"
-              :loading="tooltipLoading"
-              @region-click="handleRegionClick"
-              @region-hover="handleRegionHover"
-              @reset-view="resetRegion"
-            />
-            <div class="dashboard-page-module__right-stack">
-              <SideStack :panels="[dashboardPageModel.sidePanels[0]]" />
-              <DashboardAlarmPanel :alarms="alarms" :loading="alarmLoading" />
-            </div>
+        <div class="dashboard-page-module__hud dashboard-page-module__hud--filters">
+          <AreaFilterPanel
+            :provinces="provinces"
+            :cities="cities"
+            :districts="districts"
+            :selected-province="selectedProvince"
+            :selected-city="selectedCity"
+            :selected-district="selectedDistrict"
+            :hot-regions="hotRegions"
+            :active-area-name="activeAreaName"
+            :time-range="timeRange"
+            :active-time-preset="activeTimePreset"
+            @select-province="selectProvince"
+            @select-city="selectCity"
+            @select-district="selectDistrict"
+            @select-hot-region="selectHotRegion"
+            @update-time-range="updateTimeRange"
+            @select-time-preset="selectTimePreset"
+          />
+        </div>
+
+        <div class="dashboard-page-module__hud dashboard-page-module__hud--events">
+          <SideStack :panels="[dashboardPageModel.sidePanels[0]]" />
+          <DashboardAlarmPanel :alarms="alarms" :loading="alarmLoading" />
+        </div>
+
+        <section class="dashboard-page-module__focus-card panel">
+          <span class="eyebrow">Current Focus</span>
+          <h2>{{ selectedPipeline?.name ?? activeAreaName }}</h2>
+          <p>{{ selectedPipelineStatusText }}</p>
+          <div class="dashboard-page-module__focus-stats">
+            <span v-for="item in focusStats" :key="item.label">
+              <small>{{ item.label }}</small>
+              <strong>{{ item.value }}</strong>
+            </span>
           </div>
         </section>
-      </div>
+
+        <section class="dashboard-page-module__layer-control panel" aria-label="地图图层控制">
+          <button
+            type="button"
+            :class="{ 'is-active': visibleMapLayers.regions }"
+            @click="toggleMapLayer('regions')"
+          >
+            行政区
+          </button>
+          <button
+            type="button"
+            :class="{ 'is-active': visibleMapLayers.pipelines }"
+            @click="toggleMapLayer('pipelines')"
+          >
+            主干线
+          </button>
+          <button
+            type="button"
+            :class="{ 'is-active': visibleMapLayers.nodes }"
+            @click="toggleMapLayer('nodes')"
+          >
+            节点
+          </button>
+          <button
+            type="button"
+            :class="{ 'is-active': visibleMapLayers.alarms }"
+            @click="toggleMapLayer('alarms')"
+          >
+            告警
+          </button>
+        </section>
+      </section>
     </div>
   </section>
 </template>
@@ -540,53 +646,140 @@ function formatDateInput(date: Date) {
   box-shadow: var(--shadow-shell);
 }
 
-.dashboard-page-module__workspace {
-  display: grid;
-  grid-template-columns: 284px minmax(0, 1fr);
-  min-block-size: 0;
-  overflow: hidden;
-}
-
-.dashboard-page-module__main {
+.dashboard-page-module__stage {
+  position: relative;
   min-width: 0;
   min-height: 0;
-  padding: var(--space-4);
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  gap: var(--space-3);
   overflow: hidden;
 }
 
-.dashboard-page-module__board {
-  min-height: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1.62fr) minmax(320px, 0.84fr);
-  gap: var(--space-3);
-  overflow: hidden;
+.dashboard-page-module__stage::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(5, 10, 16, 0.68), transparent 24%, transparent 64%, rgba(5, 10, 16, 0.72)),
+    linear-gradient(180deg, rgba(5, 10, 16, 0.28), transparent 42%, rgba(5, 10, 16, 0.48));
 }
 
-.dashboard-page-module__right-stack {
-  min-height: 0;
+.dashboard-page-module__hud,
+.dashboard-page-module__focus-card,
+.dashboard-page-module__layer-control {
+  position: absolute;
+  z-index: 2;
+}
+
+.dashboard-page-module__hud--kpis {
+  inset: var(--space-4) 360px auto 340px;
+}
+
+.dashboard-page-module__hud--filters {
+  inset: var(--space-4) auto var(--space-4) var(--space-4);
+  inline-size: 300px;
+}
+
+.dashboard-page-module__hud--events {
+  inset: var(--space-4) var(--space-4) var(--space-4) auto;
+  inline-size: 336px;
   display: grid;
   grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
   gap: var(--space-3);
-  overflow: hidden;
 }
 
-.dashboard-page-module :deep(.left-rail),
+.dashboard-page-module__focus-card {
+  inset: auto auto var(--space-4) 336px;
+  inline-size: min(420px, 34vw);
+  padding: var(--space-4);
+  border-color: rgba(110, 202, 212, 0.28);
+  background:
+    linear-gradient(135deg, rgba(110, 202, 212, 0.12), transparent 40%),
+    rgba(6, 11, 17, 0.72);
+  backdrop-filter: blur(18px);
+}
+
+.dashboard-page-module__focus-card h2 {
+  margin: var(--space-2) 0 var(--space-1);
+  color: var(--color-text);
+  font-size: clamp(1rem, 1.4vw, 1.45rem);
+  line-height: 1.1;
+}
+
+.dashboard-page-module__focus-card p {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.dashboard-page-module__focus-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin-block-start: var(--space-3);
+}
+
+.dashboard-page-module__focus-stats span {
+  min-width: 0;
+  padding-block-start: var(--space-2);
+  border-top: 1px solid rgba(110, 202, 212, 0.2);
+}
+
+.dashboard-page-module__focus-stats small,
+.dashboard-page-module__focus-stats strong {
+  display: block;
+}
+
+.dashboard-page-module__focus-stats small {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+.dashboard-page-module__focus-stats strong {
+  margin-block-start: 4px;
+  color: var(--color-text);
+  font-size: 0.94rem;
+  white-space: nowrap;
+}
+
+.dashboard-page-module__layer-control {
+  inset: auto var(--space-4) var(--space-4) auto;
+  display: flex;
+  gap: 6px;
+  padding: 8px;
+  border-color: rgba(110, 202, 212, 0.24);
+  background: rgba(6, 11, 17, 0.76);
+  backdrop-filter: blur(18px);
+}
+
+.dashboard-page-module__layer-control button {
+  min-block-size: 32px;
+  padding: 0 10px;
+  border: 1px solid rgba(143, 166, 182, 0.22);
+  color: var(--color-text-muted);
+  background: rgba(8, 13, 19, 0.62);
+}
+
+.dashboard-page-module__layer-control button.is-active {
+  border-color: rgba(110, 202, 212, 0.62);
+  color: var(--color-text);
+  background: rgba(110, 202, 212, 0.16);
+  box-shadow: 0 0 18px rgba(110, 202, 212, 0.12);
+}
+
 .dashboard-page-module :deep(.area-filter),
 .dashboard-page-module :deep(.side-stack),
 .dashboard-page-module :deep(.alarm-panel),
-.dashboard-page-module :deep(.map-panel),
 .dashboard-page-module :deep(.geo-map-panel),
 .dashboard-page-module :deep(.panel),
 .dashboard-page-module :deep(.map-body) {
   min-height: 0;
 }
 
-.dashboard-page-module :deep(.left-rail),
 .dashboard-page-module :deep(.area-filter) {
   block-size: 100%;
+  border: 1px solid rgba(110, 202, 212, 0.2);
+  background: rgba(6, 11, 17, 0.76);
+  backdrop-filter: blur(18px);
 }
 
 .dashboard-page-module :deep(.side-stack) {
@@ -595,12 +788,16 @@ function formatDateInput(date: Date) {
 }
 
 @media (max-width: 1439px) {
-  .dashboard-page-module__workspace {
-    grid-template-columns: 264px minmax(0, 1fr);
+  .dashboard-page-module__hud--kpis {
+    inset-inline: 320px 332px;
   }
 
-  .dashboard-page-module__board {
-    grid-template-columns: minmax(0, 1.5fr) minmax(300px, 0.88fr);
+  .dashboard-page-module__hud--filters {
+    inline-size: 282px;
+  }
+
+  .dashboard-page-module__hud--events {
+    inline-size: 310px;
   }
 }
 
@@ -617,19 +814,25 @@ function formatDateInput(date: Date) {
     grid-template-rows: auto minmax(0, 1fr);
   }
 
-  .dashboard-page-module__workspace,
-  .dashboard-page-module__board {
+  .dashboard-page-module__stage {
+    display: grid;
     grid-template-columns: 1fr;
-  }
-
-  .dashboard-page-module__main {
+    gap: var(--space-3);
+    padding: var(--space-3);
     overflow: visible;
   }
 
-  .dashboard-page-module :deep(.left-rail),
+  .dashboard-page-module__hud,
+  .dashboard-page-module__focus-card,
+  .dashboard-page-module__layer-control {
+    position: relative;
+    inset: auto;
+    inline-size: auto;
+    z-index: 2;
+  }
+
   .dashboard-page-module :deep(.area-filter) {
     border-right: 0;
-    border-bottom: 1px solid var(--color-line);
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -637,15 +840,23 @@ function formatDateInput(date: Date) {
     grid-template-rows: none;
   }
 
-  .dashboard-page-module__right-stack {
+  .dashboard-page-module__hud--events {
     grid-template-rows: none;
   }
 }
 
 @media (max-width: 719px) {
-  .dashboard-page-module :deep(.left-rail),
   .dashboard-page-module :deep(.area-filter) {
     grid-template-columns: 1fr;
+  }
+
+  .dashboard-page-module__focus-stats,
+  .dashboard-page-module__layer-control {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-page-module__layer-control {
+    display: grid;
   }
 }
 </style>

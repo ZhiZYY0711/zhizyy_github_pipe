@@ -18,8 +18,9 @@ class AgentRuntimeService:
         retriever: Retriever | None = None,
         summary_memory: list[str] | None = None,
         preference_memory: list[dict] | None = None,
+        llm_model: str | None = None,
     ) -> None:
-        llm_client = build_llm_client()
+        llm_client = build_llm_client(model_override=llm_model)
         preference_text = _format_preference_memory(preference_memory or [])
         if llm_client is not None:
             self.orchestrator = ReactRuntime(

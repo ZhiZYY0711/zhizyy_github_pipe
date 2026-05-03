@@ -7,6 +7,7 @@ from app.core.config import Settings
 from app.persistence.models import (
     AgentEventModel,
     AgentMessageModel,
+    AgentShareModel,
     MemoryCandidateModel,
     AgentRunModel,
     AgentRunSummaryModel,
@@ -30,13 +31,18 @@ def test_persistence_models_match_core_table_names_columns_and_status_checks():
     assert AgentRunModel.__tablename__ == "agent_run"
     assert AgentRunSummaryModel.__tablename__ == "agent_run_summary"
     assert AgentEventModel.__tablename__ == "agent_event"
+    assert AgentShareModel.__tablename__ == "agent_share"
     assert MemoryCandidateModel.__tablename__ == "memory_candidate"
 
     assert "raw_input" in AnalysisSessionModel.__table__.columns
     assert "current_run_id" in AnalysisSessionModel.__table__.columns
+    assert "pinned" in AnalysisSessionModel.__table__.columns
+    assert "archived_at" in AnalysisSessionModel.__table__.columns
     assert "triggering_message_id" in AgentRunModel.__table__.columns
     assert "input_text" in AgentRunModel.__table__.columns
+    assert "model_tier" in AgentRunModel.__table__.columns
     assert "state_snapshot" in AgentRunModel.__table__.columns
+    assert "snapshot" in AgentShareModel.__table__.columns
     assert "role" in AgentMessageModel.__table__.columns
     assert "final_answer" in AgentRunSummaryModel.__table__.columns
     assert "payload" in AgentEventModel.__table__.columns

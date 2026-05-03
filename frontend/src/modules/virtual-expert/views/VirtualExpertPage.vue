@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import ModuleShell from '../../../components/business/ModuleShell.vue'
+import { useRouter } from '../../../router'
 import { createAgentSession } from '../api'
 import type {
   AgentConversationTurn,
@@ -10,6 +11,7 @@ import type {
   AgentExportFormat,
   AgentExportPlan,
   AgentMemoryItem,
+  AgentModelTier,
   AgentRecommendation,
   AgentRunSummary,
   AgentRunStatus,
@@ -42,6 +44,8 @@ import {
   requestAgentCancel,
   requestAgentExport,
   requestAgentSessionDelete,
+  requestAgentSessionShare,
+  requestAgentSessionUpdate,
   renderMarkdownToHtml,
   sendAgentMessageStream,
   shouldQueueAgentEventForPacing,
@@ -173,19 +177,36 @@ const thinkingAutoFollow = ref<Record<string, boolean>>({})
 const pendingStreamEvents = ref<AgentEvent[]>([])
 const streamEventTimer = ref<number | undefined>()
 const lastStreamBlockRenderedAt = ref(0)
+const router = useRouter()
+const selectedModelTier = ref<AgentModelTier>('auto')
+const activeRunModelLabel = ref('')
+const sidebarCollapsed = ref(false)
+const sidebarHidden = ref(false)
+const sessionSearch = ref('')
+const archivedSessions = ref<AgentSession[]>([])
+const archivedOpen = ref(false)
+const sessionMenuOpenId = ref<string | null>(null)
+const shareNotice = ref('')
 
 const streamBlockRenderIntervalMs = 280
+
+const modelTierOptions: Array<{ tier: AgentModelTier; label: string; model: string }> = [
+  { tier: 'auto', label: 'Auto', model: 'moonshot-v1-auto' },
+  { tier: 'light', label: '轻量', model: 'moonshot-v1-8k' },
+  { tier: 'standard', label: '标准', model: 'moonshot-v1-32k' },
+  { tier: 'performance', label: '性能', model: 'kimi-k2.5' },
+  { tier: 'ultimate', label: '极致', model: 'kimi-k2.6' },
+]
 
 const selectedSession = computed(() =>
   sessions.value.find((session) => session.id === selectedSessionId.value),
 )
 const speechSupported = computed(() => Boolean(getSpeechRecognitionConstructor()))
-
-const samplePrompts = [
-  '3 号管段压力波动并伴随传感器告警，先判断是否需要停输',
-  '东区泵站流量突降，帮我判断故障范围和排查顺序',
-  '今日巡检发现阀室温度异常升高，请给出风险和处置建议',
-]
+const filteredSessions = computed(() => filterSessions(sessions.value))
+const filteredArchivedSessions = computed(() => filterSessions(archivedSessions.value))
+const selectedModelLabel = computed(() =>
+  modelTierOptions.find((item) => item.tier === selectedModelTier.value)?.label || 'Auto',
+)
 
 const quickExportFormats: Array<{ format: AgentExportFormat; label: string }> = [
   { format: 'pdf', label: '导出 PDF' },
@@ -222,11 +243,14 @@ onBeforeUnmount(() => {
 async function loadInitialSessions() {
   try {
     const loadedSessions = await loadAgentSessions(20)
+    archivedSessions.value = await loadAgentSessions(50, true)
     if (!loadedSessions.length) {
       return
     }
     sessions.value = loadedSessions
-    await selectSession(loadedSessions[0])
+    const routeSessionId = router.currentRoute.value.params.sessionId
+    const target = loadedSessions.find((session) => session.id === routeSessionId) || loadedSessions[0]
+    await selectSession(target, { updateRoute: false })
   } catch {
     // Keep the demo fallback available when the agent service is offline.
   }
@@ -282,6 +306,10 @@ async function removeMemory(item: AgentMemoryItem) {
 }
 
 function rememberNoticeFromEvent(event: AgentEvent) {
+  if (event.type === 'model_selected') {
+    activeRunModelLabel.value = `${String(event.payload?.label ?? 'Auto')} · ${String(event.payload?.model ?? '')}`
+    return
+  }
   if (event.type === 'memory_recalled') {
     const items = Array.isArray(event.payload?.items) ? event.payload.items : []
     recalledMemorySummary.value = summarizeRecalledMemoryItems(items)
@@ -382,11 +410,20 @@ function detailLabel(detailLevel?: AgentExportPlan['detailLevel']) {
   return labels[detailLevel || 'standard'] || '标准'
 }
 
+function filterSessions(items: AgentSession[]) {
+  const query = sessionSearch.value.trim().toLowerCase()
+  const filtered = query
+    ? items.filter((session) => session.title.toLowerCase().includes(query))
+    : items
+  return [...filtered].sort((left, right) => Number(Boolean(right.pinned)) - Number(Boolean(left.pinned)))
+}
+
 function eventLabel(type: string) {
   const labels: Record<string, string> = {
     run_started: '运行中',
     run_preparation_completed: '准备完成',
     context_built: '上下文',
+    model_selected: '模型',
     llm_step_started: '思考开始',
     llm_thinking_started: '开始思考',
     llm_thinking_delta: '思考中',
@@ -432,6 +469,9 @@ function eventCaption(event: AgentEvent) {
     const toolCount = Array.isArray(payload.available_tools) ? payload.available_tools.length : 0
     const memoryCount = Number(payload.summary_memory_count ?? 0) + Number(payload.preference_memory_count ?? 0)
     return `工具 ${toolCount} 个 · 记忆 ${memoryCount} 条`
+  }
+  if (event.type === 'model_selected') {
+    return `本轮使用 ${String(payload.label ?? '')} · ${String(payload.model ?? '')}`
   }
   if (event.type === 'plan_created') {
     const steps = Array.isArray(payload.steps) ? payload.steps.map(String).slice(0, 3).join('、') : ''
@@ -516,6 +556,9 @@ function eventDisplayTitle(event: AgentEvent, fallback: string) {
   }
   if (event.type === 'context_built') {
     return '上下文已准备'
+  }
+  if (event.type === 'model_selected') {
+    return '本轮模型已锁定'
   }
   if (event.type === 'run_started') {
     return '运行中'
@@ -1178,9 +1221,10 @@ async function toggleRun(turnId: string) {
   turn.collapsed = !turn.collapsed
 }
 
-async function selectSession(session: AgentSession) {
+async function selectSession(session: AgentSession, options: { updateRoute?: boolean } = {}) {
   resetStreamEventQueue()
   selectedSessionId.value = session.id
+  sessionMenuOpenId.value = null
   errorMessage.value = ''
   exportMessage.value = null
   pendingExportPlan.value = null
@@ -1193,6 +1237,9 @@ async function selectSession(session: AgentSession) {
   activeRunId.value = turns.value.find((turn) => turn.kind === 'agent_run')?.runId || ''
   await nextTick()
   scrollConversationToBottom()
+  if (options.updateRoute !== false && !session.id.startsWith('ana_demo')) {
+    router.push(`/virtual-expert/${encodeURIComponent(session.id)}`)
+  }
 }
 
 function startNewConversation() {
@@ -1207,6 +1254,8 @@ function startNewConversation() {
   pendingExportPlan.value = null
   memoryNotices.value = []
   recalledMemorySummary.value = ''
+  sessionMenuOpenId.value = null
+  router.push('/virtual-expert')
 }
 
 function getSpeechRecognitionConstructor() {
@@ -1322,6 +1371,79 @@ async function deleteSession(session: AgentSession) {
   } catch (error) {
     errorMessage.value = readableAgentError(error)
   }
+}
+
+async function renameSession(session: AgentSession) {
+  const title = window.prompt('重命名会话', session.title)?.trim()
+  if (!title || title === session.title) {
+    return
+  }
+  try {
+    const updated = await requestAgentSessionUpdate(session.id, { title })
+    applySessionUpdate(updated)
+  } catch (error) {
+    errorMessage.value = readableAgentError(error)
+  }
+}
+
+async function togglePinSession(session: AgentSession) {
+  try {
+    const updated = await requestAgentSessionUpdate(session.id, { pinned: !session.pinned })
+    applySessionUpdate(updated)
+  } catch (error) {
+    errorMessage.value = readableAgentError(error)
+  }
+}
+
+async function archiveSession(session: AgentSession) {
+  try {
+    const updated = await requestAgentSessionUpdate(session.id, { archived: true })
+    sessions.value = sessions.value.filter((item) => item.id !== session.id)
+    archivedSessions.value = [updated, ...archivedSessions.value.filter((item) => item.id !== updated.id)]
+    if (selectedSessionId.value === session.id) {
+      startNewConversation()
+    }
+  } catch (error) {
+    errorMessage.value = readableAgentError(error)
+  }
+}
+
+async function restoreSession(session: AgentSession) {
+  try {
+    const updated = await requestAgentSessionUpdate(session.id, { archived: false })
+    archivedSessions.value = archivedSessions.value.filter((item) => item.id !== session.id)
+    sessions.value = [updated, ...sessions.value.filter((item) => item.id !== updated.id)]
+  } catch (error) {
+    errorMessage.value = readableAgentError(error)
+  }
+}
+
+async function shareSession(session: AgentSession, type: 'link' | 'md') {
+  try {
+    const share = await requestAgentSessionShare(session.id, type)
+    if (type === 'link') {
+      const url = new URL(share.shareUrl, window.location.origin).toString()
+      await navigator.clipboard?.writeText(url)
+      shareNotice.value = '分享链接已生成'
+    } else {
+      const blob = new Blob([share.markdown || ''], { type: 'text/markdown;charset=utf-8' })
+      const url = URL.createObjectURL(blob)
+      exportMessage.value = {
+        text: `${share.title || session.title}.md 已生成`,
+        url,
+      }
+      shareNotice.value = 'Markdown 分享已生成'
+    }
+    sessionMenuOpenId.value = null
+  } catch (error) {
+    errorMessage.value = readableAgentError(error)
+  }
+}
+
+function applySessionUpdate(session: AgentSession) {
+  sessions.value = sessions.value.map((item) => item.id === session.id ? { ...item, ...session } : item)
+  archivedSessions.value = archivedSessions.value.map((item) => item.id === session.id ? { ...item, ...session } : item)
+  sessionMenuOpenId.value = null
 }
 
 async function exportSelectedSession(format: AgentExportFormat, exportPlan?: AgentExportPlan) {
@@ -1450,6 +1572,7 @@ async function submitAnalysis() {
       sessionId,
       rawInput,
       enqueueStreamEvent,
+      selectedModelTier.value,
     )
     await drainPendingStreamEvents()
 
@@ -1475,6 +1598,19 @@ async function submitAnalysis() {
     }
 
     if (!run) {
+      turns.value = turns.value.filter((turn) => turn.id !== runTurn.id)
+      activeRunId.value = ''
+      sessions.value = [
+        {
+          id: sessionId,
+          title: sessionTitle,
+          status: 'completed',
+          summary: '消息已保存',
+          updatedAt: new Date().toLocaleString(),
+        },
+        ...sessions.value.filter((session) => session.id !== sessionId),
+      ]
+      selectedSessionId.value = sessionId
       return
     }
 
@@ -1570,54 +1706,93 @@ function scrollConversationToBottom() {
 
 <template>
   <ModuleShell active-path="/virtual-expert" eyebrow="Virtual Expert" title="虚拟专家 Agent 工作台" ops-label="Agent" ops-value="ReAct stream" expert-mode>
-    <section class="agent-layout">
-      <aside class="agent-sidebar table-panel" aria-label="Agent sessions">
-        <div class="panel-header">
-          <div class="panel-title-stack">
-            <span class="eyebrow">SESSION QUEUE</span>
-            <h3 class="panel-title-text">研判会话</h3>
-          </div>
-          <span class="chip">{{ sessions.length }}</span>
+    <section class="agent-layout" :class="{ 'is-sidebar-hidden': sidebarHidden }">
+      <button
+        v-if="sidebarHidden"
+        class="sidebar-reveal"
+        type="button"
+        title="显示会话列表"
+        aria-label="展开会话列表"
+        @click="sidebarHidden = false"
+      >
+        显示会话
+      </button>
+
+      <aside
+        v-if="!sidebarHidden"
+        class="agent-sidebar table-panel"
+        :class="{ 'is-collapsed': sidebarCollapsed }"
+        aria-label="Agent sessions"
+      >
+        <div class="session-toolbar">
+          <button
+            type="button"
+            :title="sidebarCollapsed ? '展开列表' : '收起列表'"
+            @click="sidebarCollapsed = !sidebarCollapsed"
+          >
+            {{ sidebarCollapsed ? '展开' : '收起' }}
+          </button>
+          <button type="button" title="隐藏列表" @click="sidebarHidden = true">隐藏</button>
+          <button type="button" title="开启新对话" :disabled="isRunning" @click="startNewConversation">新对话</button>
+          <button type="button" title="搜索历史记录" @click="sidebarCollapsed = false">搜索</button>
+          <button type="button" title="归档聊天" @click="archivedOpen = !archivedOpen">归档</button>
+          <button type="button" title="我的偏好" @click="memoryPanelOpen = true">偏好</button>
         </div>
 
-        <button class="session-new" :disabled="isRunning" @click="startNewConversation">
-          开启新对话
-        </button>
+        <template v-if="!sidebarCollapsed">
+          <div class="session-search">
+            <input v-model="sessionSearch" type="search" placeholder="搜索历史记录" aria-label="搜索历史记录">
+          </div>
 
-        <button class="memory-entry" type="button" @click="memoryPanelOpen = true">
-          <span>我的偏好</span>
-          <strong>{{ activeMemories.length }}</strong>
-          <small v-if="pendingMemories.length">{{ pendingMemories.length }} 条待确认</small>
-        </button>
-
-        <div class="session-list">
+          <div class="session-list">
           <article
-            v-for="session in sessions"
+            v-for="session in filteredSessions"
             :key="session.id"
             class="session-item"
             :class="{ 'is-active': session.id === selectedSessionId }"
           >
             <button class="session-open" @click="selectSession(session)">
-              <div class="session-item__head">
-                <strong class="session-title">{{ session.title }}</strong>
-                <span class="chip" :class="statusClass(session.status)">{{ statusLabel(session.status) }}</span>
-              </div>
-              <div class="session-item__meta">
-                <span>{{ session.objectName || '手动输入' }}</span>
-                <span>{{ session.updatedAt || '刚刚更新' }}</span>
-              </div>
-              <p class="session-summary">{{ session.summary || '等待 Agent 生成分析结论' }}</p>
+              <span v-if="session.pinned" class="session-pin">置顶</span>
+              <strong class="session-title">{{ session.title }}</strong>
             </button>
             <button
-              class="session-delete"
-              :disabled="isRunning || session.id.startsWith('ana_demo')"
-              :aria-label="`删除会话 ${session.title}`"
-              @click="deleteSession(session)"
+              class="session-more"
+              type="button"
+              :aria-label="`打开会话菜单 ${session.title}`"
+              @click.stop="sessionMenuOpenId = sessionMenuOpenId === session.id ? null : session.id"
             >
-              删除
+              更多
             </button>
+            <div v-if="sessionMenuOpenId === session.id" class="session-menu">
+              <button type="button" @click="renameSession(session)">重命名</button>
+              <button type="button" @click="togglePinSession(session)">{{ session.pinned ? '取消置顶' : '置顶聊天' }}</button>
+              <button type="button" @click="archiveSession(session)">归档</button>
+              <button type="button" @click="shareSession(session, 'link')">分享链接</button>
+              <button type="button" @click="shareSession(session, 'md')">分享 Markdown</button>
+              <button type="button" :disabled="isRunning || session.id.startsWith('ana_demo')" @click="deleteSession(session)">删除</button>
+            </div>
           </article>
+
+          <section class="archive-section">
+            <button class="archive-toggle" type="button" @click="archivedOpen = !archivedOpen">
+              <span>归档聊天</span>
+              <strong>{{ archivedSessions.length }}</strong>
+            </button>
+            <div v-if="archivedOpen" class="archive-list">
+              <article
+                v-for="session in filteredArchivedSessions"
+                :key="session.id"
+                class="session-item is-archived"
+              >
+                <button class="session-open" @click="selectSession(session)">
+                  <strong class="session-title">{{ session.title }}</strong>
+                </button>
+                <button class="session-more" type="button" @click.stop="restoreSession(session)">恢复</button>
+              </article>
+            </div>
+          </section>
         </div>
+        </template>
       </aside>
 
       <section class="agent-main table-panel">
@@ -1975,6 +2150,7 @@ function scrollConversationToBottom() {
             {{ exportMessage.text }}
             <a :href="exportMessage.url" target="_blank" rel="noreferrer">下载</a>
           </p>
+          <p v-if="shareNotice" class="export-banner">{{ shareNotice }}</p>
           <article v-if="pendingExportPlan" class="export-plan">
             <div>
               <strong>{{ pendingExportPlan.title || '导出计划' }}</strong>
@@ -2031,7 +2207,7 @@ function scrollConversationToBottom() {
               <article v-for="attachment in imageAttachments" :key="attachment.id" class="attachment-chip">
                 <img :src="attachment.previewUrl" :alt="attachment.name">
                 <span>{{ attachment.name }}</span>
-                <button type="button" aria-label="移除图片" @click="removeImageAttachment(attachment)">×</button>
+                <button type="button" aria-label="移除图片" @click="removeImageAttachment(attachment)">移除</button>
               </article>
             </div>
             <textarea
@@ -2042,22 +2218,34 @@ function scrollConversationToBottom() {
               @keydown="handleComposerKeydown"
             />
             <div class="composer__tools">
+              <label class="model-select" :title="isRunning ? '将在下一次提问生效' : '选择本轮模型'">
+                <span>{{ isRunning && activeRunModelLabel ? activeRunModelLabel : selectedModelLabel }}</span>
+                <select v-model="selectedModelTier" aria-label="选择模型挡位">
+                  <option v-for="option in modelTierOptions" :key="option.tier" :value="option.tier">
+                    {{ option.label }} · {{ option.model }}
+                  </option>
+                </select>
+              </label>
               <button
                 type="button"
-                class="sample-chip"
+                class="icon-chip"
                 :class="{ 'is-live': isListening }"
                 :disabled="isRunning || isExporting || !speechSupported"
+                :title="isListening ? '停止语音' : '语音输入'"
+                :aria-label="isListening ? '停止语音' : '语音输入'"
                 @click="toggleVoiceInput"
               >
-                {{ isListening ? '停止语音' : '语音输入' }}
+                {{ isListening ? '停止语音' : '语音' }}
               </button>
               <button
                 type="button"
-                class="sample-chip"
+                class="icon-chip"
                 :disabled="isRunning || isExporting || imageAttachments.length >= 4"
+                title="上传图片"
+                aria-label="上传图片"
                 @click="triggerImageUpload"
               >
-                上传图片
+                图片
               </button>
               <input
                 ref="fileInput"
@@ -2070,30 +2258,23 @@ function scrollConversationToBottom() {
             </div>
             <div class="composer__samples">
               <button
-                v-for="sample in samplePrompts"
-                :key="sample"
-                class="sample-chip"
-                :disabled="isRunning || isExporting"
-                @click="input = sample"
-              >
-                {{ sample }}
-              </button>
-              <button
                 v-for="item in quickExportFormats"
                 :key="item.format"
-                class="sample-chip is-export"
+                class="icon-chip is-export"
                 :disabled="isRunning || isExporting || !selectedSessionId || selectedSessionId.startsWith('ana_demo')"
+                :title="item.label"
+                :aria-label="item.label"
                 @click="exportSelectedSession(item.format)"
               >
-                {{ isExporting ? '导出中' : item.label }}
+                {{ exportFormatLabel(item.format) }}
               </button>
             </div>
           </div>
           <div class="composer__actions">
-            <button class="control-button is-primary" :disabled="isRunning" @click="submitAnalysis">
-              {{ isRunning ? '分析中' : '发起研判' }}
+            <button class="control-button is-primary composer-send" :disabled="isRunning" title="发送" aria-label="发送" @click="submitAnalysis">
+              发送
             </button>
-            <button class="ghost-action" :disabled="!activeRunId || !isRunning" @click="cancelRun">停止运行</button>
+            <button class="ghost-action composer-stop" :disabled="!activeRunId || !isRunning" title="停止运行" aria-label="停止运行" @click="cancelRun">停止</button>
           </div>
         </div>
       </section>
@@ -2145,6 +2326,10 @@ function scrollConversationToBottom() {
   overflow: hidden;
 }
 
+.agent-layout.is-sidebar-hidden {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .agent-sidebar,
 .agent-main {
   display: grid;
@@ -2157,17 +2342,16 @@ function scrollConversationToBottom() {
   align-content: start;
 }
 
+.agent-sidebar.is-collapsed {
+  inline-size: auto;
+}
+
 .agent-main {
   grid-template-rows: minmax(0, 1fr) auto;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.018), rgba(255, 255, 255, 0.006)),
     linear-gradient(180deg, rgba(110, 202, 212, 0.04), transparent 30%),
     var(--color-panel-2);
-}
-
-.panel-title-stack {
-  display: grid;
-  gap: 4px;
 }
 
 .session-list,
@@ -2180,50 +2364,54 @@ function scrollConversationToBottom() {
 .session-list {
   display: grid;
   align-content: start;
-  gap: var(--space-2);
+  gap: 4px;
 }
 
-.session-new {
+.session-toolbar {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.session-toolbar button,
+.sidebar-reveal {
+  display: inline-grid;
+  place-items: center;
+  inline-size: auto;
+  min-inline-size: 42px;
+  block-size: 30px;
+  padding: 0 8px;
+  border: 1px solid rgba(110, 202, 212, 0.2);
+  color: var(--color-text-muted);
+  background: rgba(5, 12, 18, 0.72);
+  font-size: var(--text-meta);
+}
+
+.sidebar-reveal {
+  position: absolute;
+  inset-block-start: 14px;
+  inset-inline-start: 14px;
+  z-index: 5;
+}
+
+.session-search {
+  margin-bottom: 8px;
+}
+
+.session-search input {
   inline-size: 100%;
-  min-height: 38px;
-  margin-bottom: var(--space-2);
-  border: 1px solid rgba(231, 104, 45, 0.38);
+  min-height: 30px;
+  border: 1px solid rgba(110, 202, 212, 0.18);
   color: var(--color-text);
-  background:
-    linear-gradient(180deg, rgba(231, 104, 45, 0.14), rgba(255, 255, 255, 0.018)),
-    rgba(5, 10, 15, 0.86);
-  font-weight: 700;
-}
-
-.memory-entry {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 4px 10px;
-  align-items: center;
-  inline-size: 100%;
-  min-height: 52px;
-  margin-bottom: var(--space-2);
-  padding: 10px 12px;
-  border: 1px solid rgba(110, 202, 212, 0.24);
-  color: var(--color-text);
-  background: rgba(5, 12, 18, 0.74);
-  text-align: left;
-}
-
-.memory-entry strong {
-  color: var(--color-accent-cyan);
-  font-family: var(--font-mono);
-}
-
-.memory-entry small {
-  grid-column: 1 / -1;
-  color: var(--color-warning);
-  font-size: var(--text-micro);
+  background: rgba(5, 12, 18, 0.72);
+  padding: 0 9px;
+  font-size: var(--text-meta);
 }
 
 .session-item {
   position: relative;
-  display: grid;
+  display: flex;
+  align-items: center;
   inline-size: 100%;
   border: 1px solid var(--color-line);
   color: var(--color-text);
@@ -2246,31 +2434,83 @@ function scrollConversationToBottom() {
 }
 
 .session-open {
-  display: grid;
-  gap: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   inline-size: 100%;
   min-width: 0;
-  padding: 14px 54px 14px 14px;
+  min-height: 32px;
+  padding: 0 34px 0 9px;
   border: 0;
   color: inherit;
   background: transparent;
   text-align: left;
 }
 
-.session-delete {
+.session-more {
   position: absolute;
-  inset-block-start: 10px;
-  inset-inline-end: 10px;
-  min-height: 26px;
-  padding: 0 8px;
-  border: 1px solid rgba(231, 78, 45, 0.28);
-  color: var(--color-danger);
-  background: rgba(231, 78, 45, 0.08);
+  inset-block-start: 4px;
+  inset-inline-end: 4px;
+  min-inline-size: 34px;
+  block-size: 24px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  color: var(--color-text-muted);
+  background: transparent;
   font-size: var(--text-micro);
 }
 
-.session-delete:disabled {
-  opacity: 0.45;
+.session-menu {
+  position: absolute;
+  inset-block-start: 30px;
+  inset-inline-end: 4px;
+  z-index: 10;
+  display: grid;
+  min-inline-size: 116px;
+  padding: 4px;
+  border: 1px solid rgba(110, 202, 212, 0.22);
+  background: rgba(4, 9, 14, 0.98);
+  box-shadow: var(--shadow-panel);
+}
+
+.session-menu button {
+  min-height: 28px;
+  border: 0;
+  color: var(--color-text-muted);
+  background: transparent;
+  text-align: left;
+  font-size: var(--text-meta);
+}
+
+.session-menu button:hover {
+  color: var(--color-text);
+  background: rgba(110, 202, 212, 0.08);
+}
+
+.session-pin {
+  color: var(--color-accent-cyan);
+}
+
+.archive-section {
+  display: grid;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.archive-toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 30px;
+  border: 1px solid rgba(110, 202, 212, 0.16);
+  color: var(--color-text-muted);
+  background: rgba(255, 255, 255, 0.014);
+  font-size: var(--text-meta);
+}
+
+.archive-list {
+  display: grid;
+  gap: 4px;
 }
 
 .session-item__head,
@@ -2304,6 +2544,8 @@ function scrollConversationToBottom() {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: var(--text-meta);
+  font-weight: 600;
 }
 
 .session-summary,
@@ -2998,6 +3240,33 @@ function scrollConversationToBottom() {
   display: none;
 }
 
+.model-select {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  max-width: 220px;
+  border: 1px solid rgba(110, 202, 212, 0.18);
+  color: var(--color-text-muted);
+  background: rgba(255, 255, 255, 0.018);
+  padding: 0 10px;
+  font-size: var(--text-micro);
+}
+
+.model-select span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.model-select select {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
 .composer__samples {
   display: flex;
   flex-wrap: wrap;
@@ -3005,6 +3274,7 @@ function scrollConversationToBottom() {
 }
 
 .sample-chip,
+.icon-chip,
 .ghost-action {
   min-height: 34px;
   border: 1px solid rgba(110, 202, 212, 0.18);
@@ -3021,13 +3291,24 @@ function scrollConversationToBottom() {
   text-align: left;
 }
 
-.sample-chip.is-export {
+.icon-chip {
+  display: inline-grid;
+  place-items: center;
+  min-width: 30px;
+  min-height: 28px;
+  padding: 0 8px;
+  font-size: var(--text-micro);
+}
+
+.sample-chip.is-export,
+.icon-chip.is-export {
   border-color: rgba(231, 104, 45, 0.32);
   color: var(--color-text);
   background: rgba(231, 104, 45, 0.08);
 }
 
-.sample-chip.is-live {
+.sample-chip.is-live,
+.icon-chip.is-live {
   border-color: rgba(34, 197, 94, 0.34);
   color: var(--color-text);
   background: rgba(34, 197, 94, 0.1);
@@ -3037,6 +3318,12 @@ function scrollConversationToBottom() {
   display: grid;
   gap: 10px;
   align-content: start;
+}
+
+.composer-send,
+.composer-stop {
+  min-height: 42px;
+  font-size: var(--text-body);
 }
 
 .error-banner {

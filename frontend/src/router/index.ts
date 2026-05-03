@@ -40,13 +40,40 @@ function normalizePath(path: string) {
   return normalized || '/'
 }
 
+function matchRoutePath(routePath: string, path: string) {
+  const routeParts = routePath.split('/').filter(Boolean)
+  const pathParts = path.split('/').filter(Boolean)
+  if (routeParts.length !== pathParts.length) {
+    return null
+  }
+  const params: Record<string, string> = {}
+  for (let index = 0; index < routeParts.length; index += 1) {
+    const routePart = routeParts[index]
+    const pathPart = pathParts[index]
+    if (routePart.startsWith(':')) {
+      params[routePart.slice(1)] = decodeURIComponent(pathPart)
+      continue
+    }
+    if (routePart !== pathPart) {
+      return null
+    }
+  }
+  return params
+}
+
 function getMatchingRoute(path: string) {
-  return routes.find((route) => route.path === path) || fallbackRoute
+  for (const route of routes) {
+    const params = matchRoutePath(route.path, path)
+    if (params) {
+      return { route, params }
+    }
+  }
+  return { route: fallbackRoute, params: {} }
 }
 
 function resolveRoute(path: string, depth = 0): AppRouteLocation {
   const normalizedPath = normalizePath(path)
-  const matchedRoute = getMatchingRoute(normalizedPath)
+  const { route: matchedRoute, params } = getMatchingRoute(normalizedPath)
 
   if (matchedRoute.redirect) {
     if (depth > 10) {
@@ -81,6 +108,7 @@ function resolveRoute(path: string, depth = 0): AppRouteLocation {
     name: matchedRoute.name,
     component: markRaw(matchedRoute.component),
     meta: routeMeta,
+    params,
   }
 }
 

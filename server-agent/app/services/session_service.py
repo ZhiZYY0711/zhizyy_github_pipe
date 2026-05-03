@@ -53,8 +53,11 @@ async def list_sessions(
         return {"sessions": list(await get_repository().list_sessions(limit))}
 
     ordered = sorted(
-        sessions.values(),
-        key=lambda session: session.get("updated_at") or session.get("created_at") or "",
+        [session for session in sessions.values() if not session.get("archived_at")],
+        key=lambda session: (
+            1 if session.get("pinned") else 0,
+            session.get("updated_at") or session.get("created_at") or "",
+        ),
         reverse=True,
     )
     return {
@@ -69,6 +72,8 @@ async def list_sessions(
                 "object_type": session.get("request", {}).get("object_type"),
                 "object_id": session.get("request", {}).get("object_id"),
                 "object_name": session.get("request", {}).get("object_name"),
+                "pinned": bool(session.get("pinned")),
+                "archived_at": session.get("archived_at"),
                 "created_at": session.get("created_at"),
                 "updated_at": session.get("updated_at"),
             }

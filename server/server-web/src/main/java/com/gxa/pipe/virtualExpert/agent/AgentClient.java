@@ -60,15 +60,66 @@ public class AgentClient {
     }
 
     public Map<String, Object> listSessions(Integer limit) {
+        return listSessions(limit, false);
+    }
+
+    public Map<String, Object> listSessions(Integer limit, Boolean archived) {
         Map<String, Object> response = restTemplate.exchange(
-                url("/api/agent/sessions?limit={limit}"),
+                url("/api/agent/sessions?limit={limit}&archived={archived}"),
                 HttpMethod.GET,
                 new HttpEntity<>(headers()),
                 new ParameterizedTypeReference<Map<String, Object>>() {
                 },
-                limit == null ? 20 : limit
+                limit == null ? 20 : limit,
+                archived != null && archived
         ).getBody();
         return response == null ? Map.of("sessions", java.util.List.of()) : response;
+    }
+
+    public Map<String, Object> updateSession(String sessionId, Map<String, Object> request) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        if (request.containsKey("title")) {
+            payload.put("title", request.get("title"));
+        }
+        if (request.containsKey("pinned")) {
+            payload.put("pinned", request.get("pinned"));
+        }
+        if (request.containsKey("archived")) {
+            payload.put("archived", request.get("archived"));
+        }
+        Map<String, Object> response = restTemplate.exchange(
+                url("/api/agent/sessions/{sessionId}"),
+                HttpMethod.PATCH,
+                new HttpEntity<>(toJson(payload), headers()),
+                new ParameterizedTypeReference<Map<String, Object>>() {
+                },
+                sessionId
+        ).getBody();
+        return response == null ? Map.of() : response;
+    }
+
+    public Map<String, Object> shareSession(String sessionId, Map<String, Object> request) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("type", firstValue(request, "type", "share_type"));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> response = postJson(
+                url("/api/agent/sessions/" + sessionId + "/share"),
+                toJson(payload),
+                Map.class
+        );
+        return response == null ? Map.of() : response;
+    }
+
+    public Map<String, Object> getSharedSession(String shareId) {
+        Map<String, Object> response = restTemplate.exchange(
+                url("/api/agent/shared/{shareId}"),
+                HttpMethod.GET,
+                new HttpEntity<>(headers()),
+                new ParameterizedTypeReference<Map<String, Object>>() {
+                },
+                shareId
+        ).getBody();
+        return response == null ? Map.of() : response;
     }
 
     public Map<String, Object> deleteSession(String sessionId) {
@@ -98,6 +149,10 @@ public class AgentClient {
         payload.put("content", firstValue(request, "content", "content"));
         Object messageType = firstValue(request, "messageType", "message_type");
         payload.put("message_type", messageType == null ? "text" : messageType);
+        Object modelTier = firstValue(request, "modelTier", "model_tier");
+        if (modelTier != null) {
+            payload.put("model_tier", modelTier);
+        }
         @SuppressWarnings("unchecked")
         Map<String, Object> response = postJson(
                 url("/api/agent/sessions/" + sessionId + "/messages"),

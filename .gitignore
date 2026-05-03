@@ -101,6 +101,12 @@ ENV/
 .logs/
 
 database/
+!database/
+database/*
+!database/postgres/
+database/postgres/*
+!database/postgres/02-migrations/
+!database/postgres/02-migrations/*.sql
 frontend/public/geo/
 server/server-web/src/main/resources/application-dev.yml
 

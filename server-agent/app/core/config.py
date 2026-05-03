@@ -17,6 +17,13 @@ class Settings(BaseSettings):
     llm_base_url: str = "https://api.moonshot.cn/v1"
     llm_api_key: str = ""
     llm_model: str = "kimi-k2.6"
+    llm_default_tier: str = "auto"
+    llm_auto_model: str = "moonshot-v1-auto"
+    llm_light_model: str = "moonshot-v1-8k"
+    llm_standard_model: str = "moonshot-v1-32k"
+    llm_performance_model: str = "kimi-k2.5"
+    llm_ultimate_model: str = "kimi-k2.6"
+    llm_title_model: str = "moonshot-v1-8k"
     llm_timeout_seconds: float = 60.0
     llm_temperature: float = 1.0
 

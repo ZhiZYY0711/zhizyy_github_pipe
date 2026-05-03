@@ -35,6 +35,8 @@ class AnalysisSessionModel(Base):
     org_id: Mapped[str | None] = mapped_column(String(64))
     summary: Mapped[str | None] = mapped_column(Text)
     current_run_id: Mapped[str | None] = mapped_column(String(64))
+    pinned: Mapped[bool] = mapped_column(default=False, nullable=False)
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -58,6 +60,7 @@ class AgentRunModel(Base):
     status: Mapped[str] = mapped_column(String(32), default="created", nullable=False)
     model_provider: Mapped[str | None] = mapped_column(String(64))
     model_name: Mapped[str | None] = mapped_column(String(128))
+    model_tier: Mapped[str | None] = mapped_column(String(32))
     graph_version: Mapped[str | None] = mapped_column(String(64))
     prompt_version: Mapped[str | None] = mapped_column(String(64))
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -89,6 +92,28 @@ class AgentMessageModel(Base):
     triggered_run_id: Mapped[str | None] = mapped_column(String(64))
     metadata_json: Mapped[dict[str, Any] | None] = mapped_column("metadata", JSONB)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class AgentShareModel(Base):
+    __tablename__ = "agent_share"
+    __table_args__ = (
+        CheckConstraint(
+            "share_type IN ('link', 'md')",
+            name="ck_agent_share_type",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    session_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("analysis_session.id", ondelete="CASCADE")
+    )
+    created_by: Mapped[str] = mapped_column(String(64), default="system", nullable=False)
+    share_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    title: Mapped[str] = mapped_column(String(200))
+    snapshot: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class AgentRunSummaryModel(Base):

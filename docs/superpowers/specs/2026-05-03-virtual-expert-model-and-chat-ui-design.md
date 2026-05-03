@@ -12,7 +12,7 @@
 
 第二，左侧列表改成可展开和隐藏的会话导航。删除“研判对话”标题，压缩“开启新对话”和“我的偏好”的尺寸与间距，新增搜索历史记录和归档聊天入口。历史记录只展示标题，移除时间、内容摘要和现有删除按钮。
 
-第三，会话标题由低成本模型自动总结生成，支持菜单操作：重命名、删除、归档、置顶聊天、分享。分享支持生成 Markdown 文件或生成页面链接。本人访问会话链接进入正常 Web 端；他人访问分享链接进入同设计风格的只读分享页。
+第三，会话标题由低成本模型自动总结生成，支持菜单操作：重命名、删除、归档、置顶聊天、分享。分享支持生成 Markdown 文件或生成页面链接。Markdown 分享必须包含用户问题、ReAct 过程线、工具调用摘要、关键证据和最终答案，不能只导出问题与最终答案。本人访问会话链接进入正常 Web 端；他人访问分享链接进入同设计风格的只读分享页。
 
 第四，输入区参考提供的两张图，保留当前系统的暗色工业风设计变量，但重新组织语音、图片、导出、发送、停止、模型选择等操作。预设提示词删除，能用图标的操作使用图标按钮。
 
@@ -81,7 +81,7 @@ AGENT_LLM_TITLE_MODEL=moonshot-v1-8k
 
 新增低成本标题生成服务，触发点为“第一条用户消息成功创建且 session 还处于默认标题”。使用 `AGENT_LLM_TITLE_MODEL`，推荐 `moonshot-v1-8k`。
 
-标题 prompt 要求中文、8 到 18 字、不要标点堆叠、不要包含“请问/帮我/分析一下”等泛词。标题生成失败时回退原有 `sessionTitle = input.slice(0, 36)`。标题生成不阻塞 run，可以异步完成后更新 session title，并推送或由前端列表刷新感知。
+标题 prompt 要求中文、8 到 18 字、不要标点堆叠、不要包含“请问/帮我/分析一下”等泛词。标题生成失败时回退原有 `sessionTitle = input.slice(0, 36)`。标题生成不阻塞 run，可以异步完成后更新 session title，并推送或由前端列表刷新感知。自动标题一旦生成后不允许用户关闭该能力，但用户可以通过重命名覆盖具体标题。
 
 需要新增 repository 方法：`update_session_title(session_id, title)`。
 
@@ -101,7 +101,7 @@ GET /api/agent/shared/{share_id}
 
 `PATCH` 负责重命名、归档、取消归档、置顶和取消置顶。删除沿用现有 DELETE，但前端从列表卡片上移除独立删除按钮，放到菜单中。
 
-分享链接返回 `shareId`、`shareUrl`、`expiresAt?`、`markdownDownloadUrl?`。Markdown 分享可以复用现有导出能力的 `md` 格式，但入口从会话菜单发起，默认范围为当前会话。
+分享链接返回 `shareId`、`shareUrl`、`expiresAt?`、`markdownDownloadUrl?`。Markdown 分享可以复用现有导出能力的 `md` 格式，但入口从会话菜单发起，默认范围为当前会话。Markdown 内容必须包含完整 ReAct 过程线：每轮思考摘要、工具批次、工具名称、工具结果摘要、关键证据、风险判断、最终答案。内部原始 payload、权限、token 和未确认 memory 不写入 Markdown。
 
 ### 分享数据模型
 
@@ -119,7 +119,7 @@ expires_at timestamptz null
 revoked_at timestamptz null
 ```
 
-分享页读取 snapshot，避免原会话后续变化影响已分享内容。snapshot 包含 session、messages、run summaries、关键 events 和 final answer，不包含内部 token、权限、用户偏好详情和未确认 memory。
+分享页读取 snapshot，避免原会话后续变化影响已分享内容。snapshot 包含 session、messages、run summaries、ReAct 过程线、关键 events 和 final answer，不包含内部 token、权限、用户偏好详情和未确认 memory。
 
 ## 前端设计
 
@@ -149,7 +149,7 @@ revoked_at timestamptz null
 [折叠] [新建] [搜索] [归档] [偏好]
 ```
 
-“开启新对话”和“我的偏好”从大块按钮改为 30 到 34px 高的 icon + text 小按钮。历史记录 item 只展示标题，字号使用 `var(--text-meta)` 或更小一档，单行省略。置顶会话显示一个 pin 图标，不额外展示时间。归档列表默认隐藏，可通过“归档聊天”切换视图或打开弹层。
+“开启新对话”和“我的偏好”从大块按钮改为 30 到 34px 高的 icon + text 小按钮。历史记录 item 只展示标题，字号使用 `var(--text-meta)` 或更小一档，单行省略。置顶会话显示一个 pin 图标，不额外展示时间。归档聊天在左侧视图内呈现，默认折叠；点击“归档聊天”后展开归档分组，不打开单独弹层。
 
 搜索历史记录在左侧展开态下显示为紧凑输入框；收起态点击搜索图标打开浮层。搜索只匹配本地已加载 session title，后续可扩展后端 query。
 
@@ -162,7 +162,7 @@ revoked_at timestamptz null
 1. 生成本页链接：创建 share record，复制 `/virtual-expert/share/{shareId}`。
 2. 生成 Markdown：调用分享或导出接口生成 `.md`，显示下载链接。
 
-本人会话链接不是分享链接，格式为 `/virtual-expert/{sessionId}`。它需要登录，进入完整 Web 端。分享链接是只读公开或半公开页面，具体鉴权按现有网关策略实现；如果当前系统所有页面都需要登录，则分享页至少应使用不触发个人数据加载的只读接口。
+本人会话链接不是分享链接，格式为 `/virtual-expert/{sessionId}`。它需要登录，进入完整 Web 端。分享链接是完全公开访问的只读页面，格式为 `/virtual-expert/share/{shareId}`。公开接口只能读取分享 snapshot，不能读取原始会话、用户偏好、未确认记忆、内部权限或任意导出资源。
 
 ### 输入区
 
@@ -197,7 +197,7 @@ activeRunModelTier?: ModelTier
 底部：只读提示
 ```
 
-分享页不展示“我的偏好”、未确认记忆、内部权限、完整工具 payload 和操作按钮。工具结果只展示已归纳的 evidence card。
+分享页不展示“我的偏好”、未确认记忆、内部权限、完整工具 payload 和操作按钮。工具结果只展示已归纳的 evidence card，并保留 ReAct 过程线的轮次、工具批次和关键证据脉络。
 
 ## 数据迁移
 
@@ -210,7 +210,7 @@ ALTER TABLE analysis_session ADD COLUMN archived_at timestamptz;
 CREATE TABLE agent_share (...);
 ```
 
-如果项目当前没有 migration 框架，应新增 SQL 脚本到 `server-agent/scripts/sql/`，并在 README 或部署说明中记录执行顺序。
+如果项目当前没有 migration 框架，应新增 SQL 脚本到 `database/postgres/02-migrations/`，并在 README 或部署说明中记录执行顺序。
 
 ## 测试计划
 
@@ -223,6 +223,7 @@ CREATE TABLE agent_share (...);
 5. 标题生成成功时更新 session title，失败时保留回退标题。
 6. PATCH session 支持重命名、归档、置顶。
 7. 分享接口不返回未确认 memory 和内部敏感字段。
+8. Markdown 分享包含 ReAct 过程线、工具调用摘要、关键证据和最终答案。
 
 前端测试：
 
@@ -232,6 +233,7 @@ CREATE TABLE agent_share (...);
 4. `/virtual-expert/:sessionId` 能进入并选中指定会话。
 5. `/virtual-expert/share/:shareId` 渲染只读分享页。
 6. 输入区无预设提示词，语音、图片、导出、发送、停止均为图标按钮且 disabled 状态正确。
+7. 归档聊天位于左侧视图内，默认折叠，展开后只展示归档会话标题。
 
 验证命令：
 
@@ -245,6 +247,6 @@ cd server && mvn -pl server-web -Dtest=VirtualExpertToolProxyControllerTest test
 
 第一步实现模型挡位后端解析、`.env.example`、run 固化和 `model_selected` 事件，再接前端模型选择器。第二步实现标题生成和 session 更新 API。第三步重构左侧列表、搜索、归档、菜单操作。第四步实现路由参数、本人会话路径和分享页。第五步重组输入区并删除预设提示词。第六步补测试、构建和视觉检查。
 
-## 开放问题
+## 已定决策
 
-分享页是否必须完全公开访问，还是仍需要登录但使用只读接口，需要结合当前网关鉴权策略确认。归档聊天是左侧视图切换还是单独弹层，两者都可行；建议先做左侧视图切换，交互成本更低。标题生成是否允许用户关闭自动标题，当前建议不提供开关，重命名即可覆盖。
+分享页完全公开访问，但只能访问分享 snapshot，不能透传原始会话权限。归档聊天放在左侧视图内，默认折叠，不做单独弹层。自动标题能力不提供关闭入口，用户需要调整标题时通过重命名覆盖。

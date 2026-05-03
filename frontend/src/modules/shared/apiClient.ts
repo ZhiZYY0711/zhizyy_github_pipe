@@ -10,7 +10,7 @@ export type ApiEnvelope<T> = {
 }
 
 type ApiRequestOptions = {
-  method?: 'GET' | 'POST' | 'DELETE'
+  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'
   body?: unknown
   query?: Record<string, string | number | boolean | null | undefined>
   headers?: HeadersInit

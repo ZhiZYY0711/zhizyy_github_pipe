@@ -19,6 +19,8 @@ import {
   normalizeAgentEvent,
   rejectAgentMemoryCandidate,
   runAgentSession,
+  shareAgentSession,
+  updateAgentSession,
 } from './api'
 import type {
   AgentEvent,
@@ -31,6 +33,7 @@ import type {
   AgentMemoryItem,
   AgentMemoryStatus,
   AgentMemoryType,
+  AgentModelTier,
   AgentReactRound,
   AgentRecommendation,
   AgentRunStatus,
@@ -38,6 +41,7 @@ import type {
   AgentTimelineItem,
   AgentTimelineResponse,
   CreateAgentSessionPayload,
+  UpdateAgentSessionPayload,
 } from './types'
 
 export type ComposerKeyState = {
@@ -60,20 +64,40 @@ export function getFallbackAgentEvents() {
   return fallbackAgentEvents.map((event) => ({ ...event }))
 }
 
-export async function loadAgentSessions(limit = 20): Promise<AgentSession[]> {
-  const response = await fetchAgentSessions(limit)
+export async function loadAgentSessions(limit = 20, archived = false): Promise<AgentSession[]> {
+  const response = await fetchAgentSessions(limit, archived)
   return response.sessions.map((session) => ({
     id: session.id,
     title: session.title,
     status: session.status,
     summary: session.summary,
     objectName: session.objectName || session.object_name,
+    pinned: session.pinned,
+    archivedAt: session.archivedAt || session.archived_at,
     updatedAt: session.updatedAt || session.updated_at,
   }))
 }
 
 export async function requestAgentSessionDelete(sessionId: string) {
   return await deleteAgentSession(sessionId)
+}
+
+export async function requestAgentSessionUpdate(sessionId: string, payload: UpdateAgentSessionPayload) {
+  const session = await updateAgentSession(sessionId, payload)
+  return {
+    id: String(session.id ?? session.sessionId ?? sessionId),
+    title: String(session.title ?? ''),
+    status: String(session.status ?? 'created') as AgentSession['status'],
+    summary: typeof session.summary === 'string' ? session.summary : undefined,
+    objectName: typeof session.objectName === 'string' ? session.objectName : undefined,
+    pinned: Boolean(session.pinned),
+    archivedAt: typeof session.archivedAt === 'string' ? session.archivedAt : undefined,
+    updatedAt: typeof session.updatedAt === 'string' ? session.updatedAt : undefined,
+  }
+}
+
+export async function requestAgentSessionShare(sessionId: string, type: 'link' | 'md') {
+  return await shareAgentSession(sessionId, type)
 }
 
 export function memoryTypeLabel(type?: string) {
@@ -333,8 +357,9 @@ export async function sendAgentMessageStream(
   sessionId: string,
   content: string,
   onEvent: (event: AgentEvent) => void,
+  modelTier?: AgentModelTier,
 ) {
-  const created = await createAgentMessage(sessionId, { content })
+  const created = await createAgentMessage(sessionId, { content, modelTier })
   const events: AgentEvent[] = []
 
   return await new Promise<{

@@ -9,12 +9,13 @@ from uuid import uuid4
 import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, StreamingResponse
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.agent.events import AgentEvent, AgentEventType
 from app.agent.service import AgentRuntimeService
 from app.agent.state import RunStatus
 from app.core.config import get_settings
+from app.llm.model_choice import ModelChoice, resolve_model_choice
 from app.persistence.redis_state import AgentRedisState
 from app.persistence.repository import AgentRepository
 from app.security import require_internal_token
@@ -25,14 +26,17 @@ from app.services import (
     runtime_factory,
     session_service,
     stream_service,
+    title_service,
 )
 from app.tools.business_tools import build_business_registry
 from app.tools.http_client import build_tool_http_client
 
 router = APIRouter(prefix="/api/agent", tags=["agent"], dependencies=[Depends(require_internal_token)])
+public_router = APIRouter(prefix="/api/agent", tags=["agent-public"])
 logger = logging.getLogger(__name__)
 
 _sessions: dict[str, dict[str, Any]] = {}
+_shares: dict[str, dict[str, Any]] = {}
 _memory_candidates: dict[str, dict[str, Any]] = {}
 _user_memories: dict[str, list[dict[str, Any]]] = {}
 _repositories: dict[str, AgentRepository] = {}
@@ -56,13 +60,16 @@ DEFAULT_RUN_PERMISSIONS = {
 
 
 class CreateSessionRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     raw_input: str | None = None
     title: str | None = None
-    source_type: str = "manual"
-    source_id: str | None = None
-    object_type: str | None = None
-    object_id: str | None = None
-    object_name: str | None = None
+    source_type: str = Field("manual", alias="sourceType")
+    source_id: str | None = Field(None, alias="sourceId")
+    object_type: str | None = Field(None, alias="objectType")
+    object_id: str | None = Field(None, alias="objectId")
+    object_name: str | None = Field(None, alias="objectName")
+    model_tier: str | None = Field(None, alias="modelTier")
 
     @field_validator("raw_input", "title")
     @classmethod
@@ -80,8 +87,11 @@ class CreateSessionRequest(BaseModel):
 
 
 class CreateMessageRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     content: str
-    message_type: str = "text"
+    message_type: str = Field("text", alias="messageType")
+    model_tier: str | None = Field(None, alias="modelTier")
 
     @field_validator("content")
     @classmethod
@@ -90,6 +100,33 @@ class CreateMessageRequest(BaseModel):
         if not stripped:
             raise ValueError("content must not be blank")
         return stripped
+
+
+class UpdateSessionRequest(BaseModel):
+    title: str | None = None
+    pinned: bool | None = None
+    archived: bool | None = None
+
+    @field_validator("title")
+    @classmethod
+    def title_must_not_be_blank(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("title must not be blank")
+        return stripped[:200]
+
+
+class ShareSessionRequest(BaseModel):
+    type: str = "link"
+
+    @field_validator("type")
+    @classmethod
+    def type_must_be_supported(cls, value: str) -> str:
+        if value not in {"link", "md"}:
+            raise ValueError("type must be link or md")
+        return value
 
 
 @router.post("/sessions")
@@ -105,13 +142,94 @@ async def create_session(request: CreateSessionRequest) -> dict[str, str]:
 
 
 @router.get("/sessions")
-async def list_sessions(limit: int = Query(20, ge=1, le=100)) -> dict[str, Any]:
+async def list_sessions(
+    limit: int = Query(20, ge=1, le=100),
+    archived: bool = Query(False),
+) -> dict[str, Any]:
+    if archived:
+        if not _use_in_memory_store():
+            return {"sessions": list(await _get_repository().list_archived_sessions(limit))}
+        ordered = sorted(
+            [session for session in _sessions.values() if session.get("archived_at")],
+            key=lambda session: session.get("archived_at") or "",
+            reverse=True,
+        )
+        return {"sessions": [_in_memory_session_response(session) for session in ordered[:limit]]}
     return await session_service.list_sessions(
         limit,
         use_in_memory_store=_use_in_memory_store,
         get_repository=_get_repository,
         sessions=_sessions,
     )
+
+
+@router.patch("/sessions/{session_id}")
+async def update_session(session_id: str, request: UpdateSessionRequest) -> dict[str, Any]:
+    if not _use_in_memory_store():
+        session = await _get_repository().update_session(
+            session_id,
+            title=request.title,
+            pinned=request.pinned,
+            archived=request.archived,
+        )
+        if session is None:
+            raise HTTPException(status_code=404, detail="Session not found")
+        return _session_response(session)
+
+    session = _get_session(session_id)
+    if request.title is not None:
+        session["title"] = request.title
+    if request.pinned is not None:
+        session["pinned"] = request.pinned
+    if request.archived is not None:
+        session["archived_at"] = _now_iso() if request.archived else None
+        session["status"] = "archived" if request.archived else "completed"
+    session["updated_at"] = _now_iso()
+    return _session_response(_in_memory_session_response(session))
+
+
+@router.post("/sessions/{session_id}/share")
+async def share_session(session_id: str, request: ShareSessionRequest) -> dict[str, Any]:
+    if not _use_in_memory_store():
+        repository = _get_repository()
+        session = await repository.get_session(session_id)
+        if session is None:
+            raise HTTPException(status_code=404, detail="Session not found")
+        snapshot = await _persistent_share_snapshot(repository, session_id)
+        share_id = f"shr_{uuid4().hex}"
+        share = await repository.create_share(
+            share_id=share_id,
+            session_id=session_id,
+            share_type=request.type,
+            title=snapshot["session"]["title"],
+            snapshot=snapshot,
+        )
+        return _share_response(share)
+
+    session = _get_session(session_id)
+    snapshot = _in_memory_share_snapshot(session)
+    share_id = f"shr_{uuid4().hex}"
+    share = {
+        "id": share_id,
+        "session_id": session_id,
+        "share_type": request.type,
+        "title": snapshot["session"]["title"],
+        "snapshot": snapshot,
+        "created_at": _now_iso(),
+    }
+    _shares[share_id] = share
+    return _share_response(share)
+
+
+@public_router.get("/shared/{share_id}")
+async def get_shared_session(share_id: str) -> dict[str, Any]:
+    if not _use_in_memory_store():
+        share = await _get_repository().get_share(share_id)
+    else:
+        share = _shares.get(share_id)
+    if share is None:
+        raise HTTPException(status_code=404, detail="Share not found")
+    return _shared_response(share)
 
 
 @router.delete("/sessions/{session_id}")
@@ -127,7 +245,7 @@ async def delete_session(session_id: str) -> dict[str, str]:
 
 @router.post("/sessions/{session_id}/messages")
 async def create_message(session_id: str, request: CreateMessageRequest) -> dict[str, Any]:
-    return await message_service.create_message(
+    response = await message_service.create_message(
         session_id,
         request,
         use_in_memory_store=_use_in_memory_store,
@@ -138,6 +256,8 @@ async def create_message(session_id: str, request: CreateMessageRequest) -> dict
         run_created_response=_run_created_response,
         now_iso=_now_iso,
     )
+    await _maybe_generate_session_title(session_id, request.content)
+    return response
 
 
 @router.post("/sessions/{session_id}/runs")
@@ -152,7 +272,8 @@ async def run_session(session_id: str) -> dict[str, Any]:
     run_id = f"run_{uuid4().hex}"
     logger.info("agent run started session_id=%s run_id=%s mode=in_memory", session_id, run_id)
     raw_input = session["request"]["raw_input"]
-    service = _build_runtime_service(_accepted_summary_memory(raw_input))
+    model_choice = resolve_model_choice(session["request"].get("model_tier"))
+    service = _build_runtime_service(_accepted_summary_memory(raw_input), model_choice=model_choice)
     events = [
         event.model_dump(mode="json")
         async for event in service.run_analysis(
@@ -228,7 +349,9 @@ async def stream_run_session(
                 },
             )
         summary_memory = _accepted_summary_memory(input_text)
-        service = _build_runtime_service(summary_memory, recalled_memories)
+        model_choice = resolve_model_choice(session["request"].get("model_tier"))
+        yield _sse_event("agent_event", _model_selected_event(session_id, run_id, model_choice))
+        service = _build_runtime_service(summary_memory, recalled_memories, model_choice)
         yield _sse_event("agent_event", _preparation_event(
             session_id,
             run_id,
@@ -373,7 +496,9 @@ async def stream_specific_run_session(
                 },
             )
         summary_memory = _accepted_summary_memory(run["input_text"])
-        service = _build_runtime_service(summary_memory, recalled_memories)
+        model_choice = _model_choice_from_run(run)
+        yield _sse_event("agent_event", _model_selected_event(session_id, run_id, model_choice))
+        service = _build_runtime_service(summary_memory, recalled_memories, model_choice)
         yield _sse_event("agent_event", _preparation_event(
             session_id,
             run_id,
@@ -804,10 +929,12 @@ def _memory_candidate_response(candidate: dict[str, Any]) -> dict[str, Any]:
 def _build_runtime_service(
     summary_memory: list[str] | None = None,
     preference_memory: list[dict[str, Any]] | None = None,
+    model_choice: ModelChoice | None = None,
 ) -> AgentRuntimeService:
     return runtime_factory.build_runtime_service(
         summary_memory,
         preference_memory,
+        llm_model=model_choice.model if model_choice else None,
         runtime_cls=AgentRuntimeService,
         registry_factory=build_business_registry,
     )
@@ -826,6 +953,40 @@ async def _start_run_if_supported(repository: Any, session_id: str, run_id: str)
         await start_run(session_id, run_id)
 
 
+async def _create_run_with_model(
+    repository: Any,
+    session_id: str,
+    run_id: str,
+    model_choice: ModelChoice,
+    **kwargs: Any,
+) -> None:
+    try:
+        await repository.create_run(
+            session_id,
+            run_id,
+            model_provider=model_choice.provider,
+            model_name=model_choice.model,
+            model_tier=model_choice.tier,
+            **kwargs,
+        )
+    except TypeError:
+        await repository.create_run(session_id, run_id, **kwargs)
+
+
+async def _maybe_generate_session_title(session_id: str, input_text: str) -> None:
+    try:
+        title = await title_service.generate_session_title(input_text)
+        if _use_in_memory_store():
+            session = _sessions.get(session_id)
+            if session is not None:
+                session["title"] = title
+                session["updated_at"] = _now_iso()
+            return
+        await _get_repository().update_session(session_id, title=title)
+    except Exception:
+        logger.exception("failed to generate session title session_id=%s", session_id)
+
+
 async def _run_persistent_session(session_id: str) -> dict[str, Any]:
     repository = _get_repository()
     session = await repository.get_session(session_id)
@@ -835,10 +996,14 @@ async def _run_persistent_session(session_id: str) -> dict[str, Any]:
         raise HTTPException(status_code=409, detail="Session already has a run")
 
     run_id = f"run_{uuid4().hex}"
-    await repository.create_run(session_id, run_id)
+    model_choice = resolve_model_choice()
+    await _create_run_with_model(repository, session_id, run_id, model_choice)
     await _start_run_if_supported(repository, session_id, run_id)
     logger.info("agent run started session_id=%s run_id=%s mode=persistent", session_id, run_id)
-    service = _build_runtime_service(await _list_accepted_memories(repository, session.get("raw_input") or ""))
+    service = _build_runtime_service(
+        await _list_accepted_memories(repository, session.get("raw_input") or ""),
+        model_choice=model_choice,
+    )
     events = []
     async for event in service.run_analysis(
         session_id=session_id,
@@ -917,9 +1082,12 @@ async def _stream_persistent_specific_run(
             },
         )
     summary_memory = await _list_accepted_memories(repository, input_text)
+    model_choice = _model_choice_from_run(run)
+    yield _sse_event("agent_event", _model_selected_event(session_id, run_id, model_choice))
     service = _build_runtime_service(
         summary_memory,
         recalled_memories,
+        model_choice,
     )
     yield _sse_event("agent_event", _preparation_event(
         session_id,
@@ -929,7 +1097,7 @@ async def _stream_persistent_specific_run(
         f"已装载工具注册表、会话上下文和摘要记忆，摘要记忆 {len(summary_memory)} 条。",
         {"summary_memory_count": len(summary_memory)},
     ))
-    events: list[dict[str, Any]] = []
+    events: list[dict[str, Any]] = [_model_selected_event(session_id, run_id, model_choice)]
     cancelled_by_disconnect = False
     cancelled_by_request = False
     cleanup_scheduled = False
@@ -1054,7 +1222,9 @@ async def _stream_persistent_session(
         run_id = session["run_id"]
     else:
         run_id = f"run_{uuid4().hex}"
-        await repository.create_run(session_id, run_id)
+        model_choice = resolve_model_choice()
+        await _create_run_with_model(repository, session_id, run_id, model_choice)
+        run = await repository.get_run(session_id, run_id)
 
     logger.info("agent stream run started session_id=%s run_id=%s mode=persistent", session_id, run_id)
     user_id = _user_id_from_request(request)
@@ -1092,9 +1262,12 @@ async def _stream_persistent_session(
             },
         )
     summary_memory = await _list_accepted_memories(repository, input_text)
+    model_choice = _model_choice_from_run(run)
+    yield _sse_event("agent_event", _model_selected_event(session_id, run_id, model_choice))
     service = _build_runtime_service(
         summary_memory,
         recalled_memories,
+        model_choice,
     )
     yield _sse_event("agent_event", _preparation_event(
         session_id,
@@ -1104,7 +1277,7 @@ async def _stream_persistent_session(
         f"已装载工具注册表和摘要记忆，摘要记忆 {len(summary_memory)} 条。",
         {"summary_memory_count": len(summary_memory)},
     ))
-    events: list[dict[str, Any]] = []
+    events: list[dict[str, Any]] = [_model_selected_event(session_id, run_id, model_choice)]
     cancelled_by_disconnect = False
     cancelled_by_request = False
     cleanup_scheduled = False
@@ -1260,6 +1433,43 @@ def _message_response(message: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _session_response(session: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "id": session.get("id") or session.get("session_id"),
+        "title": session.get("title") or "新研判会话",
+        "status": session.get("status") or "created",
+        "summary": session.get("summary"),
+        "sourceType": session.get("source_type"),
+        "sourceId": session.get("source_id"),
+        "objectType": session.get("object_type"),
+        "objectId": session.get("object_id"),
+        "objectName": session.get("object_name"),
+        "pinned": bool(session.get("pinned")),
+        "archivedAt": session.get("archived_at"),
+        "createdAt": session.get("created_at"),
+        "updatedAt": session.get("updated_at"),
+    }
+
+
+def _in_memory_session_response(session: dict[str, Any]) -> dict[str, Any]:
+    request = session.get("request", {})
+    return {
+        "id": session["id"],
+        "title": session.get("title") or "新研判会话",
+        "status": session.get("status") or "created",
+        "summary": session.get("summary"),
+        "source_type": request.get("source_type") or "manual",
+        "source_id": request.get("source_id"),
+        "object_type": request.get("object_type"),
+        "object_id": request.get("object_id"),
+        "object_name": request.get("object_name"),
+        "pinned": bool(session.get("pinned")),
+        "archived_at": session.get("archived_at"),
+        "created_at": session.get("created_at"),
+        "updated_at": session.get("updated_at"),
+    }
+
+
 def _run_created_response(session_id: str, run_id: str) -> dict[str, Any]:
     return {
         "id": run_id,
@@ -1267,6 +1477,143 @@ def _run_created_response(session_id: str, run_id: str) -> dict[str, Any]:
         "status": "created",
         "streamUrl": f"/manager/virtual-expert/agent/sessions/{session_id}/runs/{run_id}/stream",
     }
+
+
+def _share_response(share: dict[str, Any]) -> dict[str, Any]:
+    share_id = share["id"]
+    share_type = share.get("share_type") or "link"
+    return {
+        "shareId": share_id,
+        "sessionId": share.get("session_id"),
+        "type": share_type,
+        "title": share.get("title"),
+        "shareUrl": f"/virtual-expert/share/{share_id}",
+        "markdown": _share_markdown(share.get("snapshot", {})) if share_type == "md" else None,
+        "createdAt": share.get("created_at"),
+        "expiresAt": share.get("expires_at"),
+    }
+
+
+def _shared_response(share: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "shareId": share["id"],
+        "type": share.get("share_type"),
+        "title": share.get("title"),
+        "snapshot": share.get("snapshot", {}),
+        "markdown": _share_markdown(share.get("snapshot", {})) if share.get("share_type") == "md" else None,
+        "createdAt": share.get("created_at"),
+    }
+
+
+async def _persistent_share_snapshot(repository: AgentRepository, session_id: str) -> dict[str, Any]:
+    session = await repository.get_session(session_id)
+    timeline = await repository.list_timeline(session_id, limit=20)
+    events = await repository.list_events(session_id, after_seq=0)
+    return _build_share_snapshot(session or {"session_id": session_id}, timeline.get("items", []), events)
+
+
+def _in_memory_share_snapshot(session: dict[str, Any]) -> dict[str, Any]:
+    timeline = _list_in_memory_timeline(session, None, 20)
+    return _build_share_snapshot(
+        _in_memory_session_response(session),
+        timeline.get("items", []),
+        session.get("events", []),
+    )
+
+
+def _build_share_snapshot(
+    session: dict[str, Any],
+    timeline_items: list[dict[str, Any]],
+    events: list[dict[str, Any]],
+) -> dict[str, Any]:
+    safe_events = [
+        _share_event(event)
+        for event in events
+        if event.get("type") not in {"memory_recalled", "memory_accepted", "memory_candidate_created"}
+    ]
+    return {
+        "session": {
+            "id": session.get("id") or session.get("session_id"),
+            "title": session.get("title") or "虚拟专家研判",
+            "summary": session.get("summary"),
+            "status": session.get("status"),
+        },
+        "timeline": timeline_items,
+        "reactTimeline": safe_events,
+        "finalAnswer": _final_answer_from_events(safe_events),
+        "createdAt": _now_iso(),
+    }
+
+
+def _share_event(event: dict[str, Any]) -> dict[str, Any]:
+    payload = event.get("payload") if isinstance(event.get("payload"), dict) else {}
+    allowed_payload = {
+        key: payload.get(key)
+        for key in [
+            "step",
+            "action",
+            "actions",
+            "tool_name",
+            "toolName",
+            "summary",
+            "facts",
+            "documents",
+            "delta",
+            "content",
+            "risk_level",
+            "recommended_actions",
+            "final_answer",
+        ]
+        if key in payload
+    }
+    return {
+        "id": event.get("id"),
+        "seq": event.get("seq"),
+        "type": event.get("type"),
+        "title": event.get("title"),
+        "message": event.get("message"),
+        "payload": allowed_payload,
+        "createdAt": event.get("created_at") or event.get("createdAt"),
+    }
+
+
+def _final_answer_from_events(events: list[dict[str, Any]]) -> str:
+    streamed = "".join(
+        str(event.get("payload", {}).get("delta", ""))
+        for event in events
+        if event.get("type") == "final_answer_delta"
+    ).strip()
+    if streamed:
+        return streamed
+    recommendation = next(
+        (event.get("payload", {}) for event in reversed(events) if event.get("type") == "recommendation_generated"),
+        {},
+    )
+    return str(recommendation.get("final_answer") or recommendation.get("judgment") or "")
+
+
+def _share_markdown(snapshot: dict[str, Any]) -> str:
+    session = snapshot.get("session", {})
+    lines = [f"# {session.get('title') or '虚拟专家研判'}", ""]
+    if session.get("summary"):
+        lines.extend(["## 会话摘要", str(session["summary"]), ""])
+    for item in snapshot.get("timeline", []):
+        user_message = item.get("user_message") or item.get("userMessage") or {}
+        content = user_message.get("content")
+        if content:
+            lines.extend(["## 用户问题", str(content), ""])
+    lines.extend(["## ReAct 过程线", ""])
+    for event in snapshot.get("reactTimeline", []):
+        event_type = event.get("type")
+        payload = event.get("payload") or {}
+        if event_type in {"llm_thinking_completed", "action_selected", "tool_completed", "knowledge_search_completed", "recommendation_generated"}:
+            title = event.get("title") or event_type
+            summary = payload.get("summary") or payload.get("content") or payload.get("tool_name") or payload.get("toolName")
+            lines.append(f"- {title}: {summary or event_type}")
+    final_answer = snapshot.get("finalAnswer")
+    if final_answer:
+        lines.extend(["", "## 最终答案", str(final_answer), ""])
+    return "\n".join(lines).strip() + "\n"
 
 
 async def _create_export_events_if_requested(
@@ -1552,6 +1899,32 @@ def _preparation_event(
         },
         "created_at": _now_iso(),
     }
+
+
+def _model_selected_event(session_id: str, run_id: str, model_choice: ModelChoice) -> dict[str, Any]:
+    return {
+        "id": f"evt_model_selected_{uuid4().hex}",
+        "session_id": session_id,
+        "run_id": run_id,
+        "seq": 0,
+        "type": AgentEventType.MODEL_SELECTED,
+        "level": "info",
+        "title": "本轮模型已锁定",
+        "payload": model_choice.model_dump(mode="json"),
+        "created_at": _now_iso(),
+    }
+
+
+def _model_choice_from_run(run: dict[str, Any] | None, fallback_tier: str | None = None) -> ModelChoice:
+    if run and run.get("model_name"):
+        resolved = resolve_model_choice(run.get("model_tier") or fallback_tier)
+        return ModelChoice(
+            tier=run.get("model_tier") or resolved.tier,
+            label=resolved.label,
+            provider=run.get("model_provider") or resolved.provider,
+            model=run["model_name"],
+        )
+    return resolve_model_choice(fallback_tier)
 
 
 def _log_agent_event(payload: dict[str, Any]) -> None:

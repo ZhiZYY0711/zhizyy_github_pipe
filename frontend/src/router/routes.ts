@@ -14,6 +14,7 @@ const AllTasksPage = defineAsyncComponent(() => import('../modules/tasks/views/A
 const EmergencyPage = defineAsyncComponent(() => import('../modules/emergency/views/EmergencyPage.vue'))
 const LogsPage = defineAsyncComponent(() => import('../modules/logs/views/LogsPage.vue'))
 const VirtualExpertPage = defineAsyncComponent(() => import('../modules/virtual-expert/views/VirtualExpertPage.vue'))
+const VirtualExpertSharedPage = defineAsyncComponent(() => import('../modules/virtual-expert/views/VirtualExpertSharedPage.vue'))
 
 export const routes: AppRouteRecord[] = [
   {
@@ -105,6 +106,19 @@ export const routes: AppRouteRecord[] = [
     path: '/logs',
     name: 'logs',
     component: LogsPage,
+    meta: {
+      requiresAuth: true,
+    },
+  },
+  {
+    path: '/virtual-expert/share/:shareId',
+    name: 'virtual-expert-share',
+    component: VirtualExpertSharedPage,
+  },
+  {
+    path: '/virtual-expert/:sessionId',
+    name: 'virtual-expert-session',
+    component: VirtualExpertPage,
     meta: {
       requiresAuth: true,
     },

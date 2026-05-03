@@ -64,6 +64,79 @@ def test_list_sessions_returns_recent_session():
     assert any(session["id"] == created["session_id"] for session in sessions)
 
 
+def test_update_session_supports_pin_archive_and_rename():
+    client = TestClient(app)
+    created = client.post("/api/agent/sessions", json={"title": "待整理会话"}).json()
+
+    response = client.patch(
+        f"/api/agent/sessions/{created['session_id']}",
+        json={"title": "阴保波动复核", "pinned": True, "archived": True},
+    )
+    archived = client.get("/api/agent/sessions", params={"archived": True}).json()["sessions"]
+
+    assert response.status_code == 200
+    assert response.json()["title"] == "阴保波动复核"
+    assert response.json()["pinned"] is True
+    assert response.json()["status"] == "archived"
+    assert any(session["id"] == created["session_id"] for session in archived)
+
+
+def test_share_session_returns_public_snapshot_with_react_timeline():
+    client = TestClient(app)
+    created = client.post("/api/agent/sessions", json={"title": "分享会话"}).json()
+    session_id = created["session_id"]
+    sessions_module._sessions[session_id]["messages"].append(
+        {
+            "id": "msg_share_001",
+            "session_id": session_id,
+            "role": "user",
+            "content": "请分析压力波动",
+            "message_type": "text",
+            "created_at": "2026-05-03T10:00:00+00:00",
+        }
+    )
+    sessions_module._sessions[session_id]["events"] = [
+        {
+            "id": "evt_001",
+            "session_id": session_id,
+            "run_id": "run_share_001",
+            "seq": 1,
+            "type": "tool_completed",
+            "title": "监测趋势",
+            "payload": {"tool_name": "query_monitoring_trend", "summary": "压力波动明显"},
+            "created_at": "2026-05-03T10:00:01+00:00",
+        },
+        {
+            "id": "evt_002",
+            "session_id": session_id,
+            "run_id": "run_share_001",
+            "seq": 2,
+            "type": "final_answer_delta",
+            "payload": {"delta": "建议现场复核。"},
+            "created_at": "2026-05-03T10:00:02+00:00",
+        },
+        {
+            "id": "evt_mem",
+            "session_id": session_id,
+            "run_id": "run_share_001",
+            "seq": 3,
+            "type": "memory_recalled",
+            "payload": {"items": [{"content": "敏感偏好"}]},
+        },
+    ]
+
+    response = client.post(f"/api/agent/sessions/{session_id}/share", json={"type": "md"})
+    public_response = client.get(f"/api/agent/shared/{response.json()['shareId']}")
+
+    assert response.status_code == 200
+    assert "ReAct 过程线" in response.json()["markdown"]
+    assert "压力波动明显" in response.json()["markdown"]
+    assert public_response.status_code == 200
+    snapshot = public_response.json()["snapshot"]
+    assert snapshot["finalAnswer"] == "建议现场复核。"
+    assert all(event["type"] != "memory_recalled" for event in snapshot["reactTimeline"])
+
+
 def test_delete_session_removes_it_from_history():
     client = TestClient(app)
     created = client.post("/api/agent/sessions", json={"title": "待删除会话"}).json()
@@ -107,6 +180,43 @@ def test_run_session_returns_events(monkeypatch):
     event_types = [event["type"] for event in response.json()["events"]]
     assert "plan_created" in event_types
     assert "awaiting_user" in event_types
+
+
+def test_message_run_records_model_tier_and_stream_emits_model_selected(monkeypatch):
+    class FakeService:
+        def __init__(self, tool_registry) -> None:
+            self.tool_registry = tool_registry
+
+        async def run_analysis(self, session_id: str, run_id: str, raw_input: str, permissions: set[str]):
+            yield AgentEvent(
+                id="evt_model_test_001",
+                session_id=session_id,
+                run_id=run_id,
+                seq=1,
+                type=AgentEventType.RUN_COMPLETED,
+            )
+
+    monkeypatch.setattr(sessions_module, "AgentRuntimeService", FakeService)
+
+    client = TestClient(app)
+    created = client.post("/api/agent/sessions", json={"title": "模型会话"}).json()
+    message_response = client.post(
+        f"/api/agent/sessions/{created['session_id']}/messages",
+        json={"content": "压力波动", "modelTier": "performance"},
+    )
+    run_id = message_response.json()["run"]["id"]
+    run = sessions_module._sessions[created["session_id"]]["runs"][run_id]
+
+    with client.stream(
+        "GET",
+        f"/api/agent/sessions/{created['session_id']}/runs/{run_id}/stream",
+    ) as response:
+        body = response.read().decode("utf-8")
+
+    assert run["model_tier"] == "performance"
+    assert run["model_name"] == "kimi-k2.5"
+    assert '"type":"model_selected"' in body
+    assert '"model":"kimi-k2.5"' in body
 
 
 def test_stream_run_session_returns_sse_events(monkeypatch):

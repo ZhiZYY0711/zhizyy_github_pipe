@@ -3,6 +3,8 @@ from uuid import uuid4
 
 from fastapi import HTTPException
 
+from app.llm.model_choice import resolve_model_choice
+
 
 async def create_message(
     session_id: str,
@@ -34,6 +36,7 @@ async def create_message(
     message_id = f"msg_{uuid4().hex}"
     run_id = f"run_{uuid4().hex}"
     created_at = now_iso()
+    model_choice = resolve_model_choice(getattr(request, "model_tier", None))
     message = {
         "id": message_id,
         "session_id": session_id,
@@ -50,6 +53,9 @@ async def create_message(
         "triggering_message_id": message_id,
         "input_text": request.content,
         "status": "created",
+        "model_tier": model_choice.tier,
+        "model_provider": model_choice.provider,
+        "model_name": model_choice.model,
         "events": [],
         "created_at": created_at,
     }
@@ -82,6 +88,7 @@ async def _create_persistent_message(
 
     message_id = f"msg_{uuid4().hex}"
     run_id = f"run_{uuid4().hex}"
+    model_choice = resolve_model_choice(getattr(request, "model_tier", None))
     message = await repository.create_message(
         message_id=message_id,
         session_id=session_id,
@@ -94,6 +101,9 @@ async def _create_persistent_message(
         run_id=run_id,
         triggering_message_id=message_id,
         input_text=request.content,
+        model_provider=model_choice.provider,
+        model_name=model_choice.model,
+        model_tier=model_choice.tier,
     )
     return {
         "message": message_response(message),

@@ -9,6 +9,7 @@ class AgentEventType(StrEnum):
     RUN_STARTED = "run_started"
     RUN_PREPARATION_COMPLETED = "run_preparation_completed"
     CONTEXT_BUILT = "context_built"
+    MODEL_SELECTED = "model_selected"
     LLM_STEP_STARTED = "llm_step_started"
     LLM_THINKING_STARTED = "llm_thinking_started"
     LLM_THINKING_DELTA = "llm_thinking_delta"

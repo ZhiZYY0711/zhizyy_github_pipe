@@ -18,4 +18,5 @@ export type AppRouteLocation = {
   name: string
   component: Component
   meta: AppRouteMeta
+  params: Record<string, string>
 }

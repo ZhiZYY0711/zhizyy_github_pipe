@@ -75,6 +75,8 @@ export type AgentSession = {
   severity?: string
   objectName?: string
   summary?: string
+  pinned?: boolean
+  archivedAt?: string
   updatedAt?: string
 }
 
@@ -88,10 +90,15 @@ export type AgentSessionsResponse = {
     source_type?: string
     objectName?: string
     object_name?: string
+    pinned?: boolean
+    archivedAt?: string
+    archived_at?: string
     updatedAt?: string
     updated_at?: string
   }>
 }
+
+export type AgentModelTier = 'auto' | 'light' | 'standard' | 'performance' | 'ultimate'
 
 export type AgentMessage = {
   id: string
@@ -252,6 +259,7 @@ export type CreateAgentSessionPayload = {
   objectType?: string
   objectId?: string
   objectName?: string
+  modelTier?: AgentModelTier
 }
 
 export type AgentSessionResponse = {
@@ -268,6 +276,44 @@ export type AgentRunResponse = {
 export type CreateAgentMessagePayload = {
   content: string
   messageType?: 'text'
+  modelTier?: AgentModelTier
+}
+
+export type UpdateAgentSessionPayload = {
+  title?: string
+  pinned?: boolean
+  archived?: boolean
+}
+
+export type AgentShareResponse = {
+  shareId: string
+  sessionId: string
+  type: 'link' | 'md'
+  title: string
+  shareUrl: string
+  markdown?: string | null
+  createdAt?: string
+  expiresAt?: string
+}
+
+export type AgentSharedSessionResponse = {
+  shareId: string
+  type: 'link' | 'md'
+  title: string
+  snapshot: {
+    session?: {
+      id?: string
+      title?: string
+      summary?: string
+      status?: string
+    }
+    timeline?: AgentTimelineItem[]
+    reactTimeline?: AgentEvent[]
+    finalAnswer?: string
+    createdAt?: string
+  }
+  markdown?: string | null
+  createdAt?: string
 }
 
 export type AgentMessageRunResponse = {

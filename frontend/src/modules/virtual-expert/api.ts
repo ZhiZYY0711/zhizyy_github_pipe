@@ -13,14 +13,17 @@ import type {
   AgentRunResponse,
   AgentSessionResponse,
   AgentSessionsResponse,
+  AgentShareResponse,
+  AgentSharedSessionResponse,
   AgentTimelineResponse,
   CreateAgentMessagePayload,
   CreateAgentSessionPayload,
+  UpdateAgentSessionPayload,
 } from './types'
 
-export function fetchAgentSessions(limit = 20) {
+export function fetchAgentSessions(limit = 20, archived = false) {
   return apiRequest<AgentSessionsResponse>('/manager/virtual-expert/agent/sessions', {
-    query: { limit },
+    query: { limit, archived },
   })
 }
 
@@ -49,8 +52,36 @@ export function createAgentMessage(sessionId: string, payload: CreateAgentMessag
       body: {
         content: payload.content,
         messageType: payload.messageType || 'text',
+        modelTier: payload.modelTier,
       },
     },
+  )
+}
+
+export function updateAgentSession(sessionId: string, payload: UpdateAgentSessionPayload) {
+  return apiRequest<AgentSessionResponse & Record<string, unknown>>(
+    `/manager/virtual-expert/agent/sessions/${encodeURIComponent(sessionId)}`,
+    {
+      method: 'PATCH',
+      body: payload,
+    },
+  )
+}
+
+export function shareAgentSession(sessionId: string, type: 'link' | 'md') {
+  return apiRequest<AgentShareResponse>(
+    `/manager/virtual-expert/agent/sessions/${encodeURIComponent(sessionId)}/share`,
+    {
+      method: 'POST',
+      body: { type },
+    },
+  )
+}
+
+export function fetchSharedAgentSession(shareId: string) {
+  return apiRequest<AgentSharedSessionResponse>(
+    `/manager/virtual-expert/agent/shared/${encodeURIComponent(shareId)}`,
+    { requiresAuth: false },
   )
 }
 

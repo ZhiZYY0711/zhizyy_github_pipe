@@ -13,6 +13,7 @@ from app.persistence.models import (
     AgentMessageModel,
     AgentRunModel,
     AgentRunSummaryModel,
+    AgentShareModel,
     AnalysisSessionModel,
     MemoryCandidateModel,
     UserMemoryModel,
@@ -64,16 +65,57 @@ class AgentRepository:
                 "raw_input": session.raw_input,
                 "run_id": session.current_run_id,
                 "title": session.title,
+                "summary": session.summary,
+                "pinned": session.pinned,
+                "archived_at": session.archived_at.isoformat() if session.archived_at is not None else None,
             }
 
     async def list_sessions(self, limit: int = 20) -> Sequence[dict[str, Any]]:
         async with self._session_factory() as db:
             result = await db.execute(
                 select(AnalysisSessionModel)
-                .order_by(AnalysisSessionModel.updated_at.desc(), AnalysisSessionModel.created_at.desc())
+                .where(AnalysisSessionModel.archived_at.is_(None))
+                .order_by(
+                    AnalysisSessionModel.pinned.desc(),
+                    AnalysisSessionModel.updated_at.desc(),
+                    AnalysisSessionModel.created_at.desc(),
+                )
                 .limit(max(1, min(limit, 100)))
             )
             return [_session_to_dict(session) for session in result.scalars()]
+
+    async def list_archived_sessions(self, limit: int = 50) -> Sequence[dict[str, Any]]:
+        async with self._session_factory() as db:
+            result = await db.execute(
+                select(AnalysisSessionModel)
+                .where(AnalysisSessionModel.archived_at.is_not(None))
+                .order_by(AnalysisSessionModel.archived_at.desc(), AnalysisSessionModel.updated_at.desc())
+                .limit(max(1, min(limit, 100)))
+            )
+            return [_session_to_dict(session) for session in result.scalars()]
+
+    async def update_session(
+        self,
+        session_id: str,
+        *,
+        title: str | None = None,
+        pinned: bool | None = None,
+        archived: bool | None = None,
+    ) -> dict[str, Any] | None:
+        async with self._session_factory() as db:
+            session = await db.get(AnalysisSessionModel, session_id)
+            if session is None:
+                return None
+            if title is not None:
+                session.title = title[:200]
+            if pinned is not None:
+                session.pinned = pinned
+            if archived is not None:
+                session.archived_at = datetime.now(UTC) if archived else None
+                session.status = "archived" if archived else "completed"
+            session.updated_at = func.now()
+            await db.commit()
+            return _session_to_dict(session)
 
     async def delete_session(self, session_id: str) -> bool:
         async with self._session_factory() as db:
@@ -128,6 +170,9 @@ class AgentRepository:
         run_id: str,
         triggering_message_id: str | None = None,
         input_text: str | None = None,
+        model_provider: str | None = None,
+        model_name: str | None = None,
+        model_tier: str | None = None,
     ) -> None:
         async with self._session_factory() as db:
             db.add(
@@ -137,6 +182,9 @@ class AgentRepository:
                     triggering_message_id=triggering_message_id,
                     input_text=input_text,
                     status="created",
+                    model_provider=model_provider,
+                    model_name=model_name,
+                    model_tier=model_tier,
                 )
             )
             session = await db.get(AnalysisSessionModel, session_id)
@@ -166,6 +214,35 @@ class AgentRepository:
             if run is None or run.session_id != session_id:
                 return None
             return _run_to_dict(run)
+
+    async def create_share(
+        self,
+        share_id: str,
+        session_id: str,
+        share_type: str,
+        title: str,
+        snapshot: dict[str, Any],
+        created_by: str = "system",
+    ) -> dict[str, Any]:
+        async with self._session_factory() as db:
+            model = AgentShareModel(
+                id=share_id,
+                session_id=session_id,
+                share_type=share_type,
+                title=title[:200],
+                snapshot=snapshot,
+                created_by=created_by,
+            )
+            db.add(model)
+            await db.commit()
+            return _share_to_dict(model)
+
+    async def get_share(self, share_id: str) -> dict[str, Any] | None:
+        async with self._session_factory() as db:
+            share = await db.get(AgentShareModel, share_id)
+            if share is None or share.revoked_at is not None:
+                return None
+            return _share_to_dict(share)
 
     async def append_event(self, event: AgentEvent) -> None:
         async with self._session_factory() as db:
@@ -568,6 +645,8 @@ def _session_to_dict(session: AnalysisSessionModel) -> dict[str, Any]:
         "object_type": session.object_type,
         "object_id": session.object_id,
         "object_name": session.object_name,
+        "pinned": session.pinned,
+        "archived_at": session.archived_at.isoformat() if session.archived_at is not None else None,
         "created_at": session.created_at.isoformat() if session.created_at is not None else None,
         "updated_at": session.updated_at.isoformat() if session.updated_at is not None else None,
     }
@@ -580,9 +659,24 @@ def _run_to_dict(run: AgentRunModel) -> dict[str, Any]:
         "triggering_message_id": run.triggering_message_id,
         "input_text": run.input_text,
         "status": run.status,
+        "model_provider": run.model_provider,
+        "model_name": run.model_name,
+        "model_tier": run.model_tier,
         "created_at": run.created_at.isoformat() if run.created_at is not None else None,
         "updated_at": run.updated_at.isoformat() if run.updated_at is not None else None,
         "finished_at": run.finished_at.isoformat() if run.finished_at is not None else None,
+    }
+
+
+def _share_to_dict(share: AgentShareModel) -> dict[str, Any]:
+    return {
+        "id": share.id,
+        "session_id": share.session_id,
+        "share_type": share.share_type,
+        "title": share.title,
+        "snapshot": share.snapshot,
+        "created_at": share.created_at.isoformat() if share.created_at is not None else None,
+        "expires_at": share.expires_at.isoformat() if share.expires_at is not None else None,
     }
 
 

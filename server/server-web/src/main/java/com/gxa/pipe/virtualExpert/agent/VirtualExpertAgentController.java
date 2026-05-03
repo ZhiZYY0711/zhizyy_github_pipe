@@ -14,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -48,8 +49,10 @@ public class VirtualExpertAgentController {
     }
 
     @GetMapping("/sessions")
-    public Map<String, Object> listSessions(@RequestParam(value = "limit", required = false) Integer limit) {
-        return agentClient.listSessions(limit);
+    public Map<String, Object> listSessions(
+            @RequestParam(value = "limit", required = false) Integer limit,
+            @RequestParam(value = "archived", required = false) Boolean archived) {
+        return agentClient.listSessions(limit, archived);
     }
 
     @PostMapping("/sessions")
@@ -60,6 +63,21 @@ public class VirtualExpertAgentController {
     @DeleteMapping("/sessions/{sessionId}")
     public Map<String, Object> deleteSession(@PathVariable String sessionId) {
         return agentClient.deleteSession(sessionId);
+    }
+
+    @PatchMapping("/sessions/{sessionId}")
+    public Map<String, Object> updateSession(@PathVariable String sessionId, @RequestBody Map<String, Object> request) {
+        return agentClient.updateSession(sessionId, request);
+    }
+
+    @PostMapping("/sessions/{sessionId}/share")
+    public Map<String, Object> shareSession(@PathVariable String sessionId, @RequestBody Map<String, Object> request) {
+        return agentClient.shareSession(sessionId, request);
+    }
+
+    @GetMapping("/shared/{shareId}")
+    public Map<String, Object> getSharedSession(@PathVariable String shareId) {
+        return agentClient.getSharedSession(shareId);
     }
 
     @PostMapping("/sessions/{sessionId}/runs")

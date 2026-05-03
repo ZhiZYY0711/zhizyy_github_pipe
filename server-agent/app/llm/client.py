@@ -142,14 +142,14 @@ class OpenAICompatibleLlmClient:
             return response.json()
 
 
-def build_llm_client() -> LlmClient | None:
+def build_llm_client(model_override: str | None = None) -> LlmClient | None:
     settings = get_settings()
     if not settings.llm_enabled or not settings.llm_api_key.strip():
         return None
     return OpenAICompatibleLlmClient(
         base_url=settings.llm_base_url,
         api_key=settings.llm_api_key,
-        model=settings.llm_model,
+        model=(model_override or settings.llm_model).strip(),
         timeout_seconds=settings.llm_timeout_seconds,
         temperature=settings.llm_temperature,
     )

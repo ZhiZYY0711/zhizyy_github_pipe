@@ -33,11 +33,6 @@ const timePresets: Array<{ label: string; value: MapTimePreset }> = [
 
 <template>
   <aside class="area-filter">
-    <section class="area-filter__hero">
-      <span class="eyebrow">Current Lens</span>
-      <strong>{{ activeAreaName }}</strong>
-    </section>
-
     <section class="area-filter__section">
       <div class="area-filter__head">
         <span>热门地区</span>
@@ -157,22 +152,10 @@ const timePresets: Array<{ label: string; value: MapTimePreset }> = [
   background: linear-gradient(180deg, rgba(110, 202, 212, 0.14), transparent 30%, rgba(231, 104, 45, 0.1) 72%, transparent);
 }
 
-.area-filter__hero,
 .area-filter__section {
   border: 1px solid var(--color-line);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent), var(--color-panel-2);
   padding: 12px;
-}
-
-.area-filter__hero {
-  display: grid;
-  gap: 6px;
-}
-
-.area-filter__hero strong {
-  font-family: var(--font-serif);
-  font-size: var(--text-heading-md);
-  letter-spacing: 0;
 }
 
 .hot-tabs button,

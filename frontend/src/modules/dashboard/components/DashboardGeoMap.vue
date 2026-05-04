@@ -1320,7 +1320,7 @@ function toMapInput(geoJson: GeoJsonLike) {
 
 .geo-map-panel__scale {
   position: absolute;
-  inset: auto 22px 22px auto;
+  inset: auto auto 22px 22px;
   min-inline-size: 138px;
   padding: 10px 12px;
   display: grid;
@@ -1334,7 +1334,7 @@ function toMapInput(geoJson: GeoJsonLike) {
 
 .geo-map-panel__toolbar {
   position: absolute;
-  inset: 18px 20px auto auto;
+  inset: auto 292px 22px auto;
   z-index: 4;
   display: flex;
   gap: 6px;

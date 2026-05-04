@@ -99,21 +99,6 @@ const selectedPipelineStatusText = computed(() => {
 
   return '运行正常'
 })
-const focusStats = computed(() => {
-  if (selectedPipeline.value) {
-    return [
-      { label: '压力', value: `${selectedPipeline.value.pressure.toFixed(2)} MPa` },
-      { label: '流量', value: `${formatCount(selectedPipeline.value.flow)} m3/h` },
-      { label: '风险点', value: formatCount(selectedPipeline.value.riskCount) },
-    ]
-  }
-
-  return [
-    { label: '传感器', value: formatCount(kpi.value.sensor_numbers) },
-    { label: '异常', value: formatCount(kpi.value.abnormal_sensor_numbers) },
-    { label: '告警', value: formatCount(kpi.value.warnings) },
-  ]
-})
 const kpiItems = computed<DashboardKpiItem[]>(() => [
   { label: '传感器总数', value: formatCount(kpi.value.sensor_numbers), tone: 'default' },
   { label: '异常传感器', value: formatCount(kpi.value.abnormal_sensor_numbers), tone: 'warn' },
@@ -540,12 +525,6 @@ function formatDateInput(date: Date) {
           <span class="eyebrow">Current Focus</span>
           <h2>{{ selectedPipeline?.name ?? activeAreaName }}</h2>
           <p>{{ selectedPipelineStatusText }}</p>
-          <div class="dashboard-page-module__focus-stats">
-            <span v-for="item in focusStats" :key="item.label">
-              <small>{{ item.label }}</small>
-              <strong>{{ item.value }}</strong>
-            </span>
-          </div>
         </section>
 
         <section class="dashboard-page-module__layer-control panel" aria-label="地图图层控制">
@@ -690,7 +669,7 @@ function formatDateInput(date: Date) {
 
 .dashboard-page-module__focus-card {
   inset: auto auto var(--space-4) 336px;
-  inline-size: min(420px, 34vw);
+  inline-size: min(340px, 30vw);
   padding: var(--space-4);
   border-color: rgba(110, 202, 212, 0.28);
   background:
@@ -709,36 +688,6 @@ function formatDateInput(date: Date) {
 .dashboard-page-module__focus-card p {
   margin: 0;
   color: var(--color-text-muted);
-}
-
-.dashboard-page-module__focus-stats {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-2);
-  margin-block-start: var(--space-3);
-}
-
-.dashboard-page-module__focus-stats span {
-  min-width: 0;
-  padding-block-start: var(--space-2);
-  border-top: 1px solid rgba(110, 202, 212, 0.2);
-}
-
-.dashboard-page-module__focus-stats small,
-.dashboard-page-module__focus-stats strong {
-  display: block;
-}
-
-.dashboard-page-module__focus-stats small {
-  color: var(--color-text-muted);
-  font-size: var(--text-meta);
-}
-
-.dashboard-page-module__focus-stats strong {
-  margin-block-start: 4px;
-  color: var(--color-text);
-  font-size: 0.94rem;
-  white-space: nowrap;
 }
 
 .dashboard-page-module__layer-control {
@@ -850,7 +799,6 @@ function formatDateInput(date: Date) {
     grid-template-columns: 1fr;
   }
 
-  .dashboard-page-module__focus-stats,
   .dashboard-page-module__layer-control {
     grid-template-columns: 1fr;
   }

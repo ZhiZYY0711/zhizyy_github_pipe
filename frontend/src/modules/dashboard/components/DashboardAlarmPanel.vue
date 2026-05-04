@@ -91,8 +91,11 @@ const detailFields: Array<{ label: string; key: keyof DashboardAlarm }> = [
   color: var(--color-text);
   background: rgba(255, 255, 255, 0.02);
   display: grid;
-  grid-template-columns: 48px minmax(0, 1fr) auto;
+  grid-template-columns: 46px minmax(0, 1fr) 86px;
   grid-template-rows: auto auto;
+  grid-template-areas:
+    "level main time"
+    "level main more";
   align-items: center;
   column-gap: 10px;
   row-gap: 4px;
@@ -124,6 +127,7 @@ const detailFields: Array<{ label: string; key: keyof DashboardAlarm }> = [
 }
 
 .alarm-level {
+  grid-area: level;
   grid-row: 1 / 3;
   color: var(--color-accent-orange);
   font-size: var(--text-body-sm);
@@ -131,6 +135,7 @@ const detailFields: Array<{ label: string; key: keyof DashboardAlarm }> = [
 }
 
 .alarm-card__main {
+  grid-area: main;
   min-width: 0;
   display: grid;
   gap: 5px;
@@ -162,11 +167,13 @@ const detailFields: Array<{ label: string; key: keyof DashboardAlarm }> = [
 }
 
 .alarm-card time {
+  grid-area: time;
   justify-self: end;
   white-space: nowrap;
 }
 
 .alarm-more {
+  grid-area: more;
   justify-self: end;
   color: var(--color-accent-cyan);
   letter-spacing: var(--tracking-panel);

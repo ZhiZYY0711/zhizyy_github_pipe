@@ -115,6 +115,7 @@ class AgentRepository:
                 session.status = "archived" if archived else "completed"
             session.updated_at = func.now()
             await db.commit()
+            await db.refresh(session)
             return _session_to_dict(session)
 
     async def delete_session(self, session_id: str) -> bool:

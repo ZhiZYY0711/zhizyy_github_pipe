@@ -1,6 +1,7 @@
 import os
 from typing import Any
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 
@@ -378,6 +379,45 @@ def test_post_message_creates_run_and_run_specific_stream_persists_summary(monke
     assert run["last_event_seq"] == 4
     assert run["failure_reason"] is None
     assert session["active_run_id"] is None
+
+
+def test_run_specific_stream_converts_llm_http_error_to_failed_sse(monkeypatch):
+    class FailingService:
+        def __init__(self, tool_registry) -> None:
+            self.tool_registry = tool_registry
+
+        async def run_analysis(self, session_id: str, run_id: str, raw_input: str, permissions: set[str]):
+            request = httpx.Request("POST", "https://api.moonshot.cn/v1/chat/completions")
+            response = httpx.Response(
+                400,
+                request=request,
+                json={"error": {"message": "bad request from model"}},
+            )
+            raise httpx.HTTPStatusError("400 Bad Request", request=request, response=response)
+            yield
+
+    monkeypatch.setattr(sessions_module, "AgentRuntimeService", FailingService)
+
+    client = TestClient(app)
+    created = client.post("/api/agent/sessions", json={"title": "LLM 失败会话"}).json()
+    message = client.post(
+        f"/api/agent/sessions/{created['session_id']}/messages",
+        json={"content": "触发 LLM 400"},
+    ).json()
+
+    with client.stream(
+        "GET",
+        f"/api/agent/sessions/{created['session_id']}/runs/{message['run']['id']}/stream",
+    ) as response:
+        body = response.read().decode("utf-8")
+
+    assert response.status_code == 200
+    assert "event: agent_error" in body
+    assert '"type":"run_failed"' in body
+    assert '"status":"failed"' in body
+    run = sessions_module._sessions[created["session_id"]]["runs"][message["run"]["id"]]
+    assert run["status"] == "failed"
+    assert run["failure_reason"]
 
 
 def test_completed_in_memory_run_stream_replays_events(monkeypatch):

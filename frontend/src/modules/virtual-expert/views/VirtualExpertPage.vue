@@ -16,6 +16,7 @@ import type {
   AgentRunSummary,
   AgentRunStatus,
   AgentSession,
+  AgentTimelineResponse,
 } from '../types'
 import {
   buildComposerMessageContent,
@@ -68,6 +69,13 @@ type BrowserSpeechRecognition = {
 type SpeechWindow = Window & {
   SpeechRecognition?: new () => BrowserSpeechRecognition
   webkitSpeechRecognition?: new () => BrowserSpeechRecognition
+}
+
+type CachedSessionTimeline = {
+  turns: AgentConversationTurn[]
+  beforeCursor?: string
+  hasMoreBefore: boolean
+  activeRunId: string
 }
 
 type TimelineItem =
@@ -160,6 +168,7 @@ const isExporting = ref(false)
 const conversationScroll = ref<HTMLElement | null>(null)
 const fileInput = ref<HTMLInputElement | null>(null)
 const imageAttachments = ref<AgentComposerAttachment[]>([])
+const selectedImageAttachment = ref<AgentComposerAttachment | null>(null)
 const beforeCursor = ref<string | undefined>()
 const hasMoreBefore = ref(false)
 const isLoadingHistory = ref(false)
@@ -180,14 +189,16 @@ const lastStreamBlockRenderedAt = ref(0)
 const router = useRouter()
 const selectedModelTier = ref<AgentModelTier>('auto')
 const activeRunModelLabel = ref('')
-const sidebarCollapsed = ref(false)
 const sidebarHidden = ref(false)
 const sessionSearch = ref('')
 const archivedSessions = ref<AgentSession[]>([])
 const archivedOpen = ref(false)
+const exportMenuOpen = ref(false)
+const modelMenuOpen = ref(false)
 const sessionMenuOpenId = ref<string | null>(null)
 const searchExpanded = ref(false)
 const shareNotice = ref('')
+const sessionTimelineCache = ref<Record<string, CachedSessionTimeline>>({})
 
 const streamBlockRenderIntervalMs = 280
 
@@ -229,17 +240,35 @@ function exportFormatLabel(format: AgentExportFormat) {
 }
 
 onMounted(() => {
+  document.addEventListener('pointerdown', handleDocumentPointerDown)
   void loadInitialSessions()
   void refreshMemories()
 })
 
 onBeforeUnmount(() => {
+  document.removeEventListener('pointerdown', handleDocumentPointerDown)
   speechRecognition.value?.stop()
   if (streamEventTimer.value !== undefined) {
     window.clearTimeout(streamEventTimer.value)
   }
   imageAttachments.value.forEach((item) => URL.revokeObjectURL(item.previewUrl))
 })
+
+function handleDocumentPointerDown(event: PointerEvent) {
+  const target = event.target
+  if (!(target instanceof Element)) {
+    return
+  }
+  if (!target.closest('.export-menu')) {
+    exportMenuOpen.value = false
+  }
+  if (!target.closest('.model-menu')) {
+    modelMenuOpen.value = false
+  }
+  if (!target.closest('.session-item')) {
+    sessionMenuOpenId.value = null
+  }
+}
 
 async function loadInitialSessions() {
   try {
@@ -1222,28 +1251,82 @@ async function toggleRun(turnId: string) {
   turn.collapsed = !turn.collapsed
 }
 
+function cloneConversationTurns(source: AgentConversationTurn[]): AgentConversationTurn[] {
+  return source.map((turn) => {
+    if (turn.kind !== 'agent_run') {
+      return { ...turn }
+    }
+    return {
+      ...turn,
+      events: [...turn.events],
+      summary: turn.summary ? { ...turn.summary } : undefined,
+      streamState: { ...turn.streamState },
+    }
+  })
+}
+
+function cacheCurrentSessionTimeline() {
+  if (!selectedSessionId.value) {
+    return
+  }
+  sessionTimelineCache.value[selectedSessionId.value] = {
+    turns: cloneConversationTurns(turns.value),
+    beforeCursor: beforeCursor.value,
+    hasMoreBefore: hasMoreBefore.value,
+    activeRunId: activeRunId.value,
+  }
+}
+
+function applyTimelineResponse(response: AgentTimelineResponse) {
+  turns.value = response.items.flatMap(timelineItemToTurns)
+  beforeCursor.value = response.beforeCursor
+  hasMoreBefore.value = response.hasMoreBefore
+  activeRunId.value = turns.value.find((turn) => turn.kind === 'agent_run')?.runId || ''
+  sessionTimelineCache.value[response.sessionId] = {
+    turns: cloneConversationTurns(turns.value),
+    beforeCursor: beforeCursor.value,
+    hasMoreBefore: hasMoreBefore.value,
+    activeRunId: activeRunId.value,
+  }
+}
+
+function pushVirtualExpertPath(path: string) {
+  if (window.location.pathname === path) {
+    return
+  }
+  window.history.pushState({}, '', path)
+}
+
 async function selectSession(session: AgentSession, options: { updateRoute?: boolean } = {}) {
+  cacheCurrentSessionTimeline()
   resetStreamEventQueue()
   selectedSessionId.value = session.id
   sessionMenuOpenId.value = null
+  exportMenuOpen.value = false
+  modelMenuOpen.value = false
   errorMessage.value = ''
   exportMessage.value = null
   pendingExportPlan.value = null
   memoryNotices.value = []
   recalledMemorySummary.value = ''
-  const response = await loadAgentTimeline(session.id, { limit: 1 })
-  turns.value = response.items.flatMap(timelineItemToTurns)
-  beforeCursor.value = response.beforeCursor
-  hasMoreBefore.value = response.hasMoreBefore
-  activeRunId.value = turns.value.find((turn) => turn.kind === 'agent_run')?.runId || ''
+  const cached = sessionTimelineCache.value[session.id]
+  if (cached) {
+    turns.value = cloneConversationTurns(cached.turns)
+    beforeCursor.value = cached.beforeCursor
+    hasMoreBefore.value = cached.hasMoreBefore
+    activeRunId.value = cached.activeRunId
+  } else {
+    applyTimelineResponse(await loadAgentTimeline(session.id, { limit: 1 }))
+  }
   await nextTick()
   scrollConversationToBottom()
   if (options.updateRoute !== false && !session.id.startsWith('ana_demo')) {
-    router.push(`/virtual-expert/${encodeURIComponent(session.id)}`)
+    pushVirtualExpertPath(`/virtual-expert/${encodeURIComponent(session.id)}`)
   }
 }
 
 function startNewConversation() {
+  cacheCurrentSessionTimeline()
   resetStreamEventQueue()
   selectedSessionId.value = ''
   activeRunId.value = ''
@@ -1256,7 +1339,9 @@ function startNewConversation() {
   memoryNotices.value = []
   recalledMemorySummary.value = ''
   sessionMenuOpenId.value = null
-  router.push('/virtual-expert')
+  exportMenuOpen.value = false
+  modelMenuOpen.value = false
+  pushVirtualExpertPath('/virtual-expert')
 }
 
 function getSpeechRecognitionConstructor() {
@@ -1301,11 +1386,20 @@ function handleImageUpload(event: Event) {
 function removeImageAttachment(attachment: AgentComposerAttachment) {
   URL.revokeObjectURL(attachment.previewUrl)
   imageAttachments.value = imageAttachments.value.filter((item) => item.id !== attachment.id)
+  if (selectedImageAttachment.value?.id === attachment.id) {
+    selectedImageAttachment.value = null
+  }
 }
 
 function clearImageAttachments() {
   imageAttachments.value.forEach((item) => URL.revokeObjectURL(item.previewUrl))
   imageAttachments.value = []
+  selectedImageAttachment.value = null
+}
+
+function selectModelTier(tier: AgentModelTier) {
+  selectedModelTier.value = tier
+  modelMenuOpen.value = false
 }
 
 function toggleVoiceInput() {
@@ -1670,6 +1764,12 @@ async function loadOlderTurns() {
     turns.value = [...response.items.flatMap(timelineItemToTurns), ...turns.value]
     beforeCursor.value = response.beforeCursor
     hasMoreBefore.value = response.hasMoreBefore
+    sessionTimelineCache.value[selectedSessionId.value] = {
+      turns: cloneConversationTurns(turns.value),
+      beforeCursor: beforeCursor.value,
+      hasMoreBefore: hasMoreBefore.value,
+      activeRunId: activeRunId.value,
+    }
     await nextTick()
     if (scroller) {
       scroller.scrollTop = scroller.scrollHeight - oldScrollHeight + oldScrollTop
@@ -1684,11 +1784,11 @@ function handleConversationScroll() {
   if (!scroller) {
     return
   }
-  if (scroller.scrollTop < 24) {
-    void loadOlderTurns()
-  }
   if (programmaticScroll.value) {
     return
+  }
+  if (scroller.scrollTop < 96) {
+    void loadOlderTurns()
   }
   autoFollowConversation.value = isNearConversationBottom(scroller)
 }
@@ -1716,27 +1816,30 @@ function scrollConversationToBottom() {
         aria-label="展开会话列表"
         @click="sidebarHidden = false"
       >
-        显示会话
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="3" width="12" height="12" rx="0"/>
+          <line x1="7" y1="3" x2="7" y2="15"/>
+          <path d="M10 7l2 2-2 2"/>
+        </svg>
       </button>
 
       <aside
         v-if="!sidebarHidden"
         class="agent-sidebar table-panel"
-        :class="{ 'is-collapsed': sidebarCollapsed }"
         aria-label="Agent sessions"
       >
         <div class="session-toolbar">
           <button
             type="button"
             class="toolbar-btn"
-            :title="sidebarCollapsed ? '展开列表' : '收起列表'"
-            @click="sidebarCollapsed = !sidebarCollapsed"
+            title="收起列表"
+            @click="sidebarHidden = true"
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
               <rect x="2" y="2" width="12" height="12" rx="0"/>
               <line x1="6" y1="2" x2="6" y2="14"/>
             </svg>
-            <span>{{ sidebarCollapsed ? '展开列表' : '收起列表' }}</span>
+            <span>收起列表</span>
           </button>
           <button
             type="button"
@@ -1768,7 +1871,7 @@ function scrollConversationToBottom() {
             type="button"
             class="toolbar-btn"
             title="归档聊天"
-            @click="archivedOpen = !archivedOpen"
+            @click="archivedOpen = true"
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
               <rect x="2" y="3" width="12" height="3" rx="0"/>
@@ -1794,18 +1897,17 @@ function scrollConversationToBottom() {
           </button>
         </div>
 
-        <template v-if="!sidebarCollapsed">
-          <div v-if="searchExpanded" class="session-search">
-            <input
-              v-model="sessionSearch"
-              type="search"
-              placeholder="搜索历史记录"
-              aria-label="搜索历史记录"
-              @keydown.esc="searchExpanded = false"
-            >
-          </div>
+        <div v-if="searchExpanded" class="session-search">
+          <input
+            v-model="sessionSearch"
+            type="search"
+            placeholder="搜索历史记录"
+            aria-label="搜索历史记录"
+            @keydown.esc="searchExpanded = false"
+          >
+        </div>
 
-          <div class="session-list">
+        <div class="session-list">
           <article
             v-for="session in filteredSessions"
             :key="session.id"
@@ -1813,7 +1915,13 @@ function scrollConversationToBottom() {
             :class="{ 'is-active': session.id === selectedSessionId }"
           >
             <button class="session-open" @click="selectSession(session)">
-              <span v-if="session.pinned" class="session-pin">置顶</span>
+              <span v-if="session.pinned" class="session-pin" title="置顶会话" aria-label="置顶会话">
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M5 2h6"/>
+                  <path d="M6 2v5l-2 2v1h8V9l-2-2V2"/>
+                  <path d="M8 10v4"/>
+                </svg>
+              </span>
               <strong class="session-title">{{ session.title }}</strong>
             </button>
             <button
@@ -1833,39 +1941,12 @@ function scrollConversationToBottom() {
               <button type="button" :disabled="isRunning || session.id.startsWith('ana_demo')" @click="deleteSession(session)">删除</button>
             </div>
           </article>
-
-          <section class="archive-section">
-            <button class="archive-toggle" type="button" @click="archivedOpen = !archivedOpen">
-              <span>归档聊天</span>
-              <strong>{{ archivedSessions.length }}</strong>
-            </button>
-            <div v-if="archivedOpen" class="archive-list">
-              <article
-                v-for="session in filteredArchivedSessions"
-                :key="session.id"
-                class="session-item is-archived"
-              >
-                <button class="session-open" @click="selectSession(session)">
-                  <strong class="session-title">{{ session.title }}</strong>
-                </button>
-                <button class="session-more" type="button" @click.stop="restoreSession(session)">恢复</button>
-              </article>
-            </div>
-          </section>
         </div>
-        </template>
       </aside>
 
       <section class="agent-main table-panel">
         <div ref="conversationScroll" class="conversation-scroll" @scroll="handleConversationScroll">
-          <button
-            v-if="hasMoreBefore"
-            class="history-loader"
-            :disabled="isLoadingHistory"
-            @click="loadOlderTurns"
-          >
-            {{ isLoadingHistory ? '加载中' : '加载更早对话' }}
-          </button>
+          <p v-if="isLoadingHistory" class="history-loader">正在加载更早对话</p>
 
           <section v-if="recalledMemorySummary" class="memory-banner">
             <span class="chip">记忆召回</span>
@@ -2266,9 +2347,10 @@ function scrollConversationToBottom() {
           <div class="composer">
             <div v-if="imageAttachments.length" class="attachment-list" aria-label="图片附件">
               <article v-for="attachment in imageAttachments" :key="attachment.id" class="attachment-chip">
-                <img :src="attachment.previewUrl" :alt="attachment.name">
-                <span>{{ attachment.name }}</span>
-                <button type="button" aria-label="移除图片" @click="removeImageAttachment(attachment)">移除</button>
+                <button type="button" class="attachment-preview" :aria-label="`查看图片 ${attachment.name}`" @click="selectedImageAttachment = attachment">
+                  <img :src="attachment.previewUrl" :alt="attachment.name">
+                </button>
+                <button type="button" class="attachment-remove" aria-label="移除图片" @click="removeImageAttachment(attachment)">×</button>
               </article>
             </div>
             <textarea
@@ -2316,14 +2398,53 @@ function scrollConversationToBottom() {
                   <line x1="8" y1="12" x2="8" y2="14"/>
                 </svg>
               </button>
-              <label class="model-select" :title="isRunning ? '将在下一次提问生效' : '选择本轮模型'">
-                <span>{{ isRunning && activeRunModelLabel ? activeRunModelLabel : selectedModelLabel }}</span>
-                <select v-model="selectedModelTier" aria-label="选择模型挡位">
-                  <option v-for="option in modelTierOptions" :key="option.tier" :value="option.tier">
-                    {{ option.label }} · {{ option.model }}
-                  </option>
-                </select>
-              </label>
+              <div class="model-menu">
+                <button
+                  type="button"
+                  class="model-select"
+                  :class="{ 'is-active': modelMenuOpen }"
+                  :title="isRunning ? '将在下一次提问生效' : '选择本轮模型'"
+                  aria-label="选择模型挡位"
+                  @click="modelMenuOpen = !modelMenuOpen"
+                >
+                  <span>{{ isRunning && activeRunModelLabel ? activeRunModelLabel : selectedModelLabel }}</span>
+                </button>
+                <div v-if="modelMenuOpen" class="model-menu__list">
+                  <button
+                    v-for="option in modelTierOptions"
+                    :key="option.tier"
+                    type="button"
+                    :class="{ 'is-selected': option.tier === selectedModelTier }"
+                    @click="selectModelTier(option.tier)"
+                  >
+                    <strong>{{ option.label }}</strong>
+                    <small>{{ option.model }}</small>
+                  </button>
+                </div>
+              </div>
+              <div class="export-menu">
+                <button
+                  type="button"
+                  class="tool-icon-btn is-export"
+                  :class="{ 'is-active': exportMenuOpen }"
+                  :disabled="isRunning || isExporting || !selectedSessionId || selectedSessionId.startsWith('ana_demo')"
+                  title="导出会话"
+                  aria-label="导出会话"
+                  @click="exportMenuOpen = !exportMenuOpen"
+                >
+                  导出
+                </button>
+                <div v-if="exportMenuOpen" class="export-menu__list">
+                  <button
+                    v-for="item in quickExportFormats"
+                    :key="item.format"
+                    type="button"
+                    @click="exportMenuOpen = false; exportSelectedSession(item.format)"
+                  >
+                    {{ item.label }}
+                  </button>
+                </div>
+              </div>
               <div class="composer-spacer"></div>
               <button
                 v-if="isRunning"
@@ -2353,22 +2474,60 @@ function scrollConversationToBottom() {
                 </svg>
               </button>
             </div>
-            <div class="composer__exports">
-              <button
-                v-for="item in quickExportFormats"
-                :key="item.format"
-                class="tool-icon-btn is-export"
-                :disabled="isRunning || isExporting || !selectedSessionId || selectedSessionId.startsWith('ana_demo')"
-                :title="item.label"
-                :aria-label="item.label"
-                @click="exportSelectedSession(item.format)"
-              >
-                {{ exportFormatLabel(item.format) }}
-              </button>
-            </div>
           </div>
         </div>
       </section>
+
+      <div
+        v-if="archivedOpen"
+        class="archive-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="archive-modal-title"
+        @click.self="archivedOpen = false"
+      >
+        <section class="archive-dialog" aria-label="归档聊天">
+          <header class="archive-dialog__head">
+            <div>
+              <span class="eyebrow">ARCHIVE</span>
+              <h3 id="archive-modal-title">归档聊天</h3>
+            </div>
+            <div class="archive-dialog__actions">
+              <span>{{ archivedSessions.length }} 条</span>
+              <button class="ghost-action" type="button" @click="archivedOpen = false">关闭</button>
+            </div>
+          </header>
+
+          <div class="archive-list">
+            <article
+              v-for="session in filteredArchivedSessions"
+              :key="session.id"
+              class="session-item is-archived"
+            >
+              <button class="session-open" @click="selectSession(session); archivedOpen = false">
+                <strong class="session-title">{{ session.title }}</strong>
+              </button>
+              <button class="session-more" type="button" @click.stop="restoreSession(session)">恢复</button>
+            </article>
+            <p v-if="!filteredArchivedSessions.length" class="archive-empty">暂无归档聊天。</p>
+          </div>
+        </section>
+      </div>
+
+      <div
+        v-if="selectedImageAttachment"
+        class="image-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="图片详情"
+        @click.self="selectedImageAttachment = null"
+      >
+        <figure class="image-dialog">
+          <button class="image-dialog__close" type="button" aria-label="关闭图片详情" @click="selectedImageAttachment = null">×</button>
+          <img :src="selectedImageAttachment.previewUrl" :alt="selectedImageAttachment.name">
+          <figcaption>{{ selectedImageAttachment.name }}</figcaption>
+        </figure>
+      </div>
 
       <aside v-if="memoryPanelOpen" class="memory-panel">
         <div class="memory-panel__head">
@@ -2431,10 +2590,6 @@ function scrollConversationToBottom() {
 
 .agent-sidebar {
   align-content: start;
-}
-
-.agent-sidebar.is-collapsed {
-  inline-size: auto;
 }
 
 .agent-main {
@@ -2503,21 +2658,34 @@ function scrollConversationToBottom() {
 .sidebar-reveal {
   display: inline-grid;
   place-items: center;
-  inline-size: auto;
-  min-inline-size: 42px;
-  block-size: 30px;
-  padding: 0 8px;
+  inline-size: 38px;
+  block-size: 34px;
+  padding: 0;
   border: 1px solid rgba(110, 202, 212, 0.2);
   color: var(--color-text-muted);
   background: rgba(5, 12, 18, 0.72);
   font-size: var(--text-meta);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 9px 100%, 0 calc(100% - 9px));
+  transition: background 80ms step-end, border-color 80ms step-end, color 80ms step-end;
 }
 
 .sidebar-reveal {
-  position: absolute;
-  inset-block-start: 14px;
-  inset-inline-start: 14px;
-  z-index: 5;
+  position: fixed;
+  inset-block-start: 96px;
+  inset-inline-start: 24px;
+  z-index: 35;
+  box-shadow: 0 10px 30px rgba(2, 6, 10, 0.38);
+}
+
+.sidebar-reveal:hover {
+  border-color: rgba(110, 202, 212, 0.42);
+  color: var(--color-text);
+  background: rgba(9, 22, 30, 0.92);
+}
+
+.sidebar-reveal svg {
+  width: 18px;
+  height: 18px;
 }
 
 .session-search {
@@ -2633,36 +2801,19 @@ function scrollConversationToBottom() {
 }
 
 .session-pin {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  border: 1px solid rgba(110, 202, 212, 0.22);
   color: var(--color-accent-cyan);
+  background: rgba(110, 202, 212, 0.08);
 }
 
-.archive-section {
-  display: grid;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.archive-toggle {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  min-height: 36px;
-  padding: 0 10px;
-  border: 1px solid var(--color-line);
-  color: var(--color-text-muted);
-  background: transparent;
-  font-size: var(--text-meta);
-  transition: background 80ms step-end, border-color 80ms step-end;
-}
-
-.archive-toggle:hover {
-  background: var(--color-panel-3);
-  border-color: rgba(110, 202, 212, 0.2);
-}
-
-.archive-list {
-  display: grid;
-  gap: 8px;
+.session-pin svg {
+  width: 13px;
+  height: 13px;
 }
 
 .session-item__head,
@@ -2720,8 +2871,9 @@ function scrollConversationToBottom() {
 
 .history-loader {
   justify-self: center;
-  min-height: 30px;
-  padding: 0 12px;
+  margin: 0;
+  min-height: 24px;
+  padding: 4px 10px;
   border: 1px solid rgba(110, 202, 212, 0.18);
   color: var(--color-text-muted);
   background: rgba(255, 255, 255, 0.018);
@@ -3315,16 +3467,17 @@ function scrollConversationToBottom() {
 }
 
 .composer-shell {
-  padding-top: var(--space-2);
+  padding-top: 6px;
   border-top: 1px solid var(--color-line);
 }
 
 .composer {
   display: grid;
-  gap: 8px;
-  padding: 12px;
-  background: var(--color-panel-2);
-  border: 1px solid var(--color-line);
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid rgba(110, 202, 212, 0.22);
+  background: var(--color-bg-elevated);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.018);
 }
 
 .attachment-list {
@@ -3339,60 +3492,68 @@ function scrollConversationToBottom() {
   align-items: center;
   gap: 4px;
   min-width: 0;
+  position: relative;
 }
 
 .attachment-chip {
-  display: grid;
-  grid-template-columns: 34px minmax(0, 1fr) 26px;
-  align-items: center;
-  gap: 8px;
-  max-width: min(280px, 100%);
-  min-height: 42px;
-  padding: 4px 6px 4px 4px;
+  position: relative;
+  width: 58px;
+  height: 58px;
   border: 1px solid var(--color-line);
-  background: var(--color-bg-elevated);
+  background: rgba(2, 6, 10, 0.54);
 }
 
-.attachment-chip img {
-  width: 34px;
-  height: 34px;
+.attachment-preview {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.attachment-preview img {
+  display: block;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
-  border: 1px solid var(--color-line);
 }
 
-.attachment-chip span {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--color-text-muted);
-  font-size: var(--text-micro);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.attachment-chip button {
+.attachment-remove {
+  position: absolute;
+  inset-block-start: -7px;
+  inset-inline-end: -7px;
   display: grid;
   place-items: center;
-  width: 26px;
-  height: 26px;
+  width: 18px;
+  height: 18px;
+  padding: 0;
   border: 1px solid rgba(231, 78, 45, 0.24);
   color: var(--color-danger);
-  background: rgba(231, 78, 45, 0.08);
+  background: rgba(5, 10, 15, 0.96);
+  font-size: 14px;
+  line-height: 1;
+}
+
+.attachment-remove:hover {
+  border-color: rgba(231, 78, 45, 0.5);
+  background: rgba(231, 78, 45, 0.16);
 }
 
 .composer textarea {
-  min-height: 78px;
-  max-height: 128px;
+  min-height: 68px;
+  max-height: 112px;
   resize: vertical;
-  padding: 12px;
-  border: 1px solid var(--color-line);
+  padding: 8px 10px;
+  border: 0;
   color: var(--color-text);
-  background: var(--color-bg-elevated);
+  background: transparent;
+  line-height: 1.5;
   transition: border-color 80ms step-end, box-shadow 80ms step-end;
 }
 
 .composer textarea:focus {
-  border-color: var(--color-accent-cyan);
-  box-shadow: 0 0 6px rgba(110, 202, 212, 0.25);
+  box-shadow: inset 0 -1px 0 rgba(110, 202, 212, 0.38);
   outline: none;
 }
 
@@ -3404,17 +3565,32 @@ function scrollConversationToBottom() {
   display: none;
 }
 
-.model-select {
+.model-menu,
+.export-menu {
   position: relative;
   display: inline-flex;
+}
+
+.model-select {
+  display: inline-flex;
   align-items: center;
+  justify-content: center;
   min-height: 32px;
+  min-width: 72px;
   max-width: 160px;
   border: 1px solid var(--color-line);
   color: var(--color-text-muted);
-  background: var(--color-bg-elevated);
+  background: transparent;
   padding: 0 10px;
   font-size: var(--text-micro);
+  transition: background 80ms step-end, border-color 80ms step-end, color 80ms step-end;
+}
+
+.model-select:hover,
+.model-select.is-active {
+  border-color: rgba(110, 202, 212, 0.32);
+  color: var(--color-text);
+  background: rgba(110, 202, 212, 0.08);
 }
 
 .model-select span {
@@ -3423,12 +3599,60 @@ function scrollConversationToBottom() {
   white-space: nowrap;
 }
 
-.model-select select {
+.model-menu__list,
+.export-menu__list {
   position: absolute;
-  inset: 0;
-  inline-size: 100%;
-  opacity: 0;
-  cursor: pointer;
+  inset-block-end: calc(100% + 6px);
+  inset-inline-start: 0;
+  z-index: 20;
+  display: grid;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid var(--color-line);
+  background: var(--color-panel-3);
+  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.42);
+}
+
+.model-menu__list {
+  min-inline-size: 188px;
+}
+
+.model-menu__list button,
+.export-menu__list button {
+  min-height: 30px;
+  padding: 6px 8px;
+  border: 0;
+  color: var(--color-text-muted);
+  background: transparent;
+  text-align: left;
+  font-size: var(--text-meta);
+}
+
+.model-menu__list button {
+  display: grid;
+  gap: 2px;
+}
+
+.model-menu__list strong {
+  color: inherit;
+  font-size: var(--text-meta);
+}
+
+.model-menu__list small {
+  color: var(--color-text-dim);
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+}
+
+.model-menu__list button:hover,
+.model-menu__list button.is-selected,
+.export-menu__list button:hover {
+  color: var(--color-text);
+  background: var(--color-panel-2);
+}
+
+.model-menu__list button.is-selected {
+  border-left: 2px solid var(--color-accent-cyan);
 }
 
 .composer-spacer {
@@ -3497,10 +3721,13 @@ function scrollConversationToBottom() {
   background: rgba(231, 104, 45, 0.08);
 }
 
-.composer__exports {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
+.tool-icon-btn.is-export.is-active {
+  border-color: rgba(231, 104, 45, 0.5);
+  background: rgba(231, 104, 45, 0.14);
+}
+
+.export-menu__list {
+  min-inline-size: 128px;
 }
 
 .error-banner {
@@ -3580,6 +3807,137 @@ function scrollConversationToBottom() {
 .conversation-scroll::-webkit-scrollbar {
   width: 0;
   height: 0;
+}
+
+.archive-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(1, 5, 8, 0.68);
+}
+
+.archive-dialog {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 14px;
+  inline-size: min(560px, calc(100vw - 32px));
+  max-block-size: min(680px, calc(100vh - 48px));
+  padding: 16px;
+  border: 1px solid rgba(110, 202, 212, 0.28);
+  background: rgba(5, 10, 15, 0.97);
+  box-shadow: 0 24px 80px rgba(2, 6, 10, 0.52);
+}
+
+.archive-dialog__head,
+.archive-dialog__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.archive-dialog__head {
+  justify-content: space-between;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-line);
+}
+
+.archive-dialog__head h3 {
+  margin: 0;
+  color: var(--color-text);
+  font-family: var(--font-serif);
+  font-size: var(--text-section);
+}
+
+.archive-dialog__actions span {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  white-space: nowrap;
+}
+
+.archive-list {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-height: 0;
+  overflow: auto;
+}
+
+.archive-list .session-more {
+  opacity: 1;
+}
+
+.archive-empty {
+  margin: 0;
+  padding: 18px;
+  border: 1px solid var(--color-line);
+  color: var(--color-text-muted);
+  background: rgba(4, 9, 14, 0.8);
+  text-align: center;
+}
+
+.image-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(1, 5, 8, 0.72);
+}
+
+.image-dialog {
+  position: relative;
+  display: grid;
+  gap: 10px;
+  max-inline-size: min(760px, calc(100vw - 32px));
+  max-block-size: min(720px, calc(100vh - 48px));
+  margin: 0;
+  padding: 12px;
+  border: 1px solid rgba(110, 202, 212, 0.28);
+  background: rgba(5, 10, 15, 0.97);
+  box-shadow: 0 24px 80px rgba(2, 6, 10, 0.52);
+}
+
+.image-dialog img {
+  display: block;
+  max-inline-size: 100%;
+  max-block-size: calc(100vh - 132px);
+  object-fit: contain;
+  border: 1px solid var(--color-line);
+  background: rgba(2, 6, 10, 0.42);
+}
+
+.image-dialog figcaption {
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.image-dialog__close {
+  position: absolute;
+  inset-block-start: -10px;
+  inset-inline-end: -10px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid rgba(231, 78, 45, 0.3);
+  color: var(--color-danger);
+  background: rgba(5, 10, 15, 0.98);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.image-dialog__close:hover {
+  border-color: rgba(231, 78, 45, 0.52);
+  background: rgba(231, 78, 45, 0.16);
 }
 
 .memory-panel {

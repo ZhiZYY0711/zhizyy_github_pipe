@@ -361,27 +361,37 @@ async def stream_run_session(
             {"summary_memory_count": len(summary_memory)},
         ))
         events = []
-        async for event in service.run_analysis(
-            session_id=session_id,
-            run_id=run_id,
-            raw_input=input_text,
-            permissions=DEFAULT_RUN_PERMISSIONS,
-        ):
-            if await _get_redis_state().is_cancelled(run_id):
-                session["status"] = "cancelled"
-                yield _sse_event("run_status", {"session_id": session_id, "run_id": run_id, "status": "cancelled"})
-                return
-            if await request.is_disconnected():
-                session["status"] = "cancelled"
-                await _get_redis_state().request_cancel(run_id)
-                logger.info("agent stream client disconnected session_id=%s run_id=%s mode=in_memory events=%s", session_id, run_id, len(events))
-                return
-            payload = event.model_dump(mode="json")
-            _log_agent_event(payload)
+        try:
+            async for event in service.run_analysis(
+                session_id=session_id,
+                run_id=run_id,
+                raw_input=input_text,
+                permissions=DEFAULT_RUN_PERMISSIONS,
+            ):
+                if await _get_redis_state().is_cancelled(run_id):
+                    session["status"] = "cancelled"
+                    yield _sse_event("run_status", {"session_id": session_id, "run_id": run_id, "status": "cancelled"})
+                    return
+                if await request.is_disconnected():
+                    session["status"] = "cancelled"
+                    await _get_redis_state().request_cancel(run_id)
+                    logger.info("agent stream client disconnected session_id=%s run_id=%s mode=in_memory events=%s", session_id, run_id, len(events))
+                    return
+                payload = event.model_dump(mode="json")
+                _log_agent_event(payload)
+                events.append(payload)
+                session["events"] = events
+                await _get_redis_state().remember_last_seq(session_id, event.seq)
+                yield _sse_event("agent_event", payload)
+        except Exception as error:
+            payload = _runtime_failure_event(session_id, run_id, len(events) + 1, error).model_dump(mode="json")
+            logger.exception("agent stream run failed session_id=%s run_id=%s", session_id, run_id)
             events.append(payload)
             session["events"] = events
-            await _get_redis_state().remember_last_seq(session_id, event.seq)
-            yield _sse_event("agent_event", payload)
+            session["status"] = "failed"
+            yield _sse_event("agent_error", payload)
+            yield _sse_event("run_status", {"session_id": session_id, "run_id": run_id, "status": "failed"})
+            return
         session["status"] = _derive_run_status(events)
         memory_result = await _store_preference_memories(user_id, session_id, run_id, input_text)
         for memory in memory_result["accepted"]:
@@ -508,31 +518,45 @@ async def stream_specific_run_session(
             {"summary_memory_count": len(summary_memory)},
         ))
         events = []
-        async for event in service.run_analysis(
-            session_id=session_id,
-            run_id=run_id,
-            raw_input=run["input_text"],
-            permissions=DEFAULT_RUN_PERMISSIONS,
-        ):
-            if await _get_redis_state().is_cancelled(run_id):
-                run["status"] = "cancelled"
-                session["status"] = "cancelled"
-                session["active_run_id"] = None
-                yield _sse_event("run_status", {"session_id": session_id, "run_id": run_id, "status": "cancelled"})
-                return
-            if await request.is_disconnected():
-                run["status"] = "cancelled"
-                session["status"] = "cancelled"
-                session["active_run_id"] = None
-                await _get_redis_state().request_cancel(run_id)
-                return
-            payload = event.model_dump(mode="json")
-            _log_agent_event(payload)
+        try:
+            async for event in service.run_analysis(
+                session_id=session_id,
+                run_id=run_id,
+                raw_input=run["input_text"],
+                permissions=DEFAULT_RUN_PERMISSIONS,
+            ):
+                if await _get_redis_state().is_cancelled(run_id):
+                    run["status"] = "cancelled"
+                    session["status"] = "cancelled"
+                    session["active_run_id"] = None
+                    yield _sse_event("run_status", {"session_id": session_id, "run_id": run_id, "status": "cancelled"})
+                    return
+                if await request.is_disconnected():
+                    run["status"] = "cancelled"
+                    session["status"] = "cancelled"
+                    session["active_run_id"] = None
+                    await _get_redis_state().request_cancel(run_id)
+                    return
+                payload = event.model_dump(mode="json")
+                _log_agent_event(payload)
+                events.append(payload)
+                run["events"] = events
+                session["events"] = events
+                await _get_redis_state().remember_last_seq(session_id, event.seq)
+                yield _sse_event("agent_event", payload)
+        except Exception as error:
+            payload = _runtime_failure_event(session_id, run_id, len(events) + 1, error).model_dump(mode="json")
+            logger.exception("agent stream run failed session_id=%s run_id=%s", session_id, run_id)
             events.append(payload)
             run["events"] = events
             session["events"] = events
-            await _get_redis_state().remember_last_seq(session_id, event.seq)
-            yield _sse_event("agent_event", payload)
+            run["status"] = "failed"
+            run["failure_reason"] = payload.get("message")
+            session["status"] = "failed"
+            session["active_run_id"] = None
+            yield _sse_event("agent_error", payload)
+            yield _sse_event("run_status", {"session_id": session_id, "run_id": run_id, "status": "failed"})
+            return
 
         final_status = _derive_run_status(events)
         _complete_in_memory_message_run(session, run, events, final_status)
@@ -1129,6 +1153,16 @@ async def _stream_persistent_specific_run(
         cleanup_scheduled = True
         asyncio.create_task(_complete_cancelled_run_later(session_id, run_id, len(events)))
         raise
+    except Exception as error:
+        failure_event = _runtime_failure_event(session_id, run_id, len(events) + 1, error)
+        logger.exception("agent stream run failed session_id=%s run_id=%s", session_id, run_id)
+        await asyncio.shield(repository.append_event(failure_event))
+        payload = failure_event.model_dump(mode="json")
+        events.append(payload)
+        await asyncio.shield(repository.complete_run(session_id, run_id, "failed", payload.get("message")))
+        yield _sse_event("agent_error", payload)
+        yield _sse_event("run_status", {"session_id": session_id, "run_id": run_id, "status": "failed"})
+        return
     finally:
         if cancelled_by_disconnect and not cleanup_scheduled:
             await _complete_cancelled_run(repository, session_id, run_id, len(events))
@@ -1307,6 +1341,16 @@ async def _stream_persistent_session(
         cleanup_scheduled = True
         asyncio.create_task(_complete_cancelled_run_later(session_id, run_id, len(events)))
         raise
+    except Exception as error:
+        failure_event = _runtime_failure_event(session_id, run_id, len(events) + 1, error)
+        logger.exception("agent stream run failed session_id=%s run_id=%s", session_id, run_id)
+        await asyncio.shield(repository.append_event(failure_event))
+        payload = failure_event.model_dump(mode="json")
+        events.append(payload)
+        await asyncio.shield(repository.complete_run(session_id, run_id, "failed", payload.get("message")))
+        yield _sse_event("agent_error", payload)
+        yield _sse_event("run_status", {"session_id": session_id, "run_id": run_id, "status": "failed"})
+        return
     finally:
         if cancelled_by_disconnect and not cleanup_scheduled:
             await _complete_cancelled_run(repository, session_id, run_id, len(events))
@@ -1407,6 +1451,54 @@ async def _complete_cancelled_run_with_fresh_connection(session_id: str, run_id:
 
 def _derive_run_status(events: list[dict[str, Any]]) -> RunStatus:
     return run_service.derive_run_status(events)
+
+
+def _runtime_failure_event(session_id: str, run_id: str, seq: int, error: Exception) -> AgentEvent:
+    message = _runtime_failure_message(error)
+    return AgentEvent(
+        id=f"evt_run_failed_{uuid4().hex}",
+        session_id=session_id,
+        run_id=run_id,
+        seq=seq,
+        type=AgentEventType.RUN_FAILED,
+        level="error",
+        title="Agent runtime failed",
+        message=message,
+        payload={
+            "error_type": type(error).__name__,
+            "message": message,
+        },
+    )
+
+
+def _runtime_failure_message(error: Exception) -> str:
+    response = getattr(error, "response", None)
+    status_code = getattr(response, "status_code", None)
+    if status_code:
+        try:
+            body = response.json()
+        except Exception:
+            body = getattr(response, "text", "")
+        detail = _extract_error_detail(body)
+        if detail:
+            return f"LLM request failed with HTTP {status_code}: {detail}"
+        return f"LLM request failed with HTTP {status_code}."
+    return str(error) or type(error).__name__
+
+
+def _extract_error_detail(body: Any) -> str:
+    if isinstance(body, dict):
+        error = body.get("error")
+        if isinstance(error, dict):
+            message = error.get("message") or error.get("detail")
+            if message:
+                return str(message)
+        message = body.get("message") or body.get("detail")
+        if message:
+            return str(message)
+    if isinstance(body, str):
+        return body[:500]
+    return ""
 
 
 def _active_run_response(session_id: str, run_id: str) -> JSONResponse:

@@ -87,15 +87,7 @@ public class AgentClient {
         if (request.containsKey("archived")) {
             payload.put("archived", request.get("archived"));
         }
-        Map<String, Object> response = restTemplate.exchange(
-                url("/api/agent/sessions/{sessionId}"),
-                HttpMethod.PATCH,
-                new HttpEntity<>(toJson(payload), headers()),
-                new ParameterizedTypeReference<Map<String, Object>>() {
-                },
-                sessionId
-        ).getBody();
-        return response == null ? Map.of() : response;
+        return patchJson(url("/api/agent/sessions/" + sessionId), toJson(payload));
     }
 
     public Map<String, Object> shareSession(String sessionId, Map<String, Object> request) {
@@ -392,6 +384,30 @@ public class AgentClient {
                 throw new AgentServiceException(response.statusCode(), parseErrorBody(response.body()));
             }
             return objectMapper.readValue(response.body(), responseType);
+        } catch (IOException e) {
+            throw new IllegalStateException("Agent request failed", e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Agent request interrupted", e);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> patchJson(String targetUrl, String body) {
+        HttpRequest request = HttpRequest.newBuilder(URI.create(targetUrl))
+                .version(HttpClient.Version.HTTP_1_1)
+                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + generateInternalToken())
+                .header("X-Agent-Audience", properties.getAudience())
+                .header("X-Agent-User-Id", "system")
+                .method("PATCH", HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
+                .build();
+        try {
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                throw new AgentServiceException(response.statusCode(), parseErrorBody(response.body()));
+            }
+            return objectMapper.readValue(response.body(), Map.class);
         } catch (IOException e) {
             throw new IllegalStateException("Agent request failed", e);
         } catch (InterruptedException e) {

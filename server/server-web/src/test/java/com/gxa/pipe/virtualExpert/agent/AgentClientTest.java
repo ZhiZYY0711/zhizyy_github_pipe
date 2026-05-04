@@ -352,6 +352,47 @@ class AgentClientTest {
     }
 
     @Test
+    void updateSessionSendsPatchBodyViaHttpClient() throws Exception {
+        AtomicReference<String> method = new AtomicReference<>();
+        AtomicReference<String> payload = new AtomicReference<>();
+        HttpServer httpServer = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        httpServer.createContext("/api/agent/sessions/ana_001", exchange -> {
+            method.set(exchange.getRequestMethod());
+            payload.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            byte[] response = """
+                    {
+                      "session_id": "ana_001",
+                      "title": "新标题",
+                      "pinned": true
+                    }
+                    """.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", MediaType.APPLICATION_JSON_VALUE);
+            exchange.sendResponseHeaders(200, response.length);
+            exchange.getResponseBody().write(response);
+            exchange.close();
+        });
+        httpServer.start();
+        AgentClient localClient = new AgentClient(
+                new AgentServiceProperties("http://127.0.0.1:" + httpServer.getAddress().getPort(), "dev-agent-secret", "pipeline-agent"),
+                new RestTemplateBuilder().build()
+        );
+
+        Map<String, Object> response;
+        try {
+            response = localClient.updateSession("ana_001", Map.of("title", "新标题", "pinned", true));
+        } finally {
+            httpServer.stop(0);
+        }
+
+        assertThat(method.get()).isEqualTo("PATCH");
+        assertThat(payload.get()).contains("\"title\":\"新标题\"");
+        assertThat(payload.get()).contains("\"pinned\":true");
+        assertThat(response).containsEntry("session_id", "ana_001");
+        assertThat(response).containsEntry("title", "新标题");
+        assertThat(response).containsEntry("pinned", true);
+    }
+
+    @Test
     void clientAbortDetectionTreatsBrokenPipeAsDisconnect() {
         IOException exception = new IOException("ServletOutputStream failed to flush: java.io.IOException: Broken pipe");
 

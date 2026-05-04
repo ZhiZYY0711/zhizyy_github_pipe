@@ -527,36 +527,38 @@ function formatDateInput(date: Date) {
           <p>{{ selectedPipelineStatusText }}</p>
         </section>
 
-        <section class="dashboard-page-module__layer-control panel" aria-label="地图图层控制">
-          <button
-            type="button"
-            :class="{ 'is-active': visibleMapLayers.regions }"
-            @click="toggleMapLayer('regions')"
-          >
-            行政区
-          </button>
-          <button
-            type="button"
-            :class="{ 'is-active': visibleMapLayers.pipelines }"
-            @click="toggleMapLayer('pipelines')"
-          >
-            主干线
-          </button>
-          <button
-            type="button"
-            :class="{ 'is-active': visibleMapLayers.nodes }"
-            @click="toggleMapLayer('nodes')"
-          >
-            节点
-          </button>
-          <button
-            type="button"
-            :class="{ 'is-active': visibleMapLayers.alarms }"
-            @click="toggleMapLayer('alarms')"
-          >
-            告警
-          </button>
-        </section>
+        <div class="dashboard-page-module__control-dock">
+          <section class="dashboard-page-module__layer-control" aria-label="地图图层控制">
+            <button
+              type="button"
+              :class="{ 'is-active': visibleMapLayers.regions }"
+              @click="toggleMapLayer('regions')"
+            >
+              行政区
+            </button>
+            <button
+              type="button"
+              :class="{ 'is-active': visibleMapLayers.pipelines }"
+              @click="toggleMapLayer('pipelines')"
+            >
+              主干线
+            </button>
+            <button
+              type="button"
+              :class="{ 'is-active': visibleMapLayers.nodes }"
+              @click="toggleMapLayer('nodes')"
+            >
+              节点
+            </button>
+            <button
+              type="button"
+              :class="{ 'is-active': visibleMapLayers.alarms }"
+              @click="toggleMapLayer('alarms')"
+            >
+              告警
+            </button>
+          </section>
+        </div>
       </section>
     </div>
   </section>
@@ -645,7 +647,7 @@ function formatDateInput(date: Date) {
 
 .dashboard-page-module__hud,
 .dashboard-page-module__focus-card,
-.dashboard-page-module__layer-control {
+.dashboard-page-module__control-dock {
   position: absolute;
   z-index: 2;
 }
@@ -668,9 +670,9 @@ function formatDateInput(date: Date) {
 }
 
 .dashboard-page-module__focus-card {
-  inset: auto auto var(--space-4) 336px;
-  inline-size: min(340px, 30vw);
-  padding: var(--space-4);
+  inset: auto auto 30px 320px;
+  inline-size: 250px;
+  padding: 14px 16px;
   border-color: rgba(110, 202, 212, 0.28);
   background:
     linear-gradient(135deg, rgba(110, 202, 212, 0.12), transparent 40%),
@@ -679,9 +681,9 @@ function formatDateInput(date: Date) {
 }
 
 .dashboard-page-module__focus-card h2 {
-  margin: var(--space-2) 0 var(--space-1);
+  margin: 8px 0 4px;
   color: var(--color-text);
-  font-size: clamp(1rem, 1.4vw, 1.45rem);
+  font-size: clamp(1rem, 1.2vw, 1.25rem);
   line-height: 1.1;
 }
 
@@ -690,9 +692,10 @@ function formatDateInput(date: Date) {
   color: var(--color-text-muted);
 }
 
-.dashboard-page-module__layer-control {
-  inset: auto auto var(--space-4) calc(50% - 54px);
+.dashboard-page-module__control-dock {
+  inset: auto auto 22px calc(50% - 50px);
   display: flex;
+  align-items: center;
   gap: 6px;
   padding: 8px;
   border-color: rgba(110, 202, 212, 0.24);
@@ -700,11 +703,17 @@ function formatDateInput(date: Date) {
   backdrop-filter: blur(18px);
 }
 
+.dashboard-page-module__layer-control {
+  display: flex;
+  gap: 6px;
+}
+
 .dashboard-page-module__layer-control button {
-  min-block-size: 32px;
-  padding: 0 10px;
+  min-block-size: 34px;
+  padding: 0 12px;
   border: 1px solid rgba(143, 166, 182, 0.22);
   color: var(--color-text-muted);
+  font-size: var(--text-body-sm);
   background: rgba(8, 13, 19, 0.62);
 }
 
@@ -773,7 +782,7 @@ function formatDateInput(date: Date) {
 
   .dashboard-page-module__hud,
   .dashboard-page-module__focus-card,
-  .dashboard-page-module__layer-control {
+  .dashboard-page-module__control-dock {
     position: relative;
     inset: auto;
     transform: none;
@@ -804,6 +813,7 @@ function formatDateInput(date: Date) {
     grid-template-columns: 1fr;
   }
 
+  .dashboard-page-module__control-dock,
   .dashboard-page-module__layer-control {
     display: grid;
   }

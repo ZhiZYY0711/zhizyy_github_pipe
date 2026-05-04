@@ -1334,12 +1334,13 @@ function toMapInput(geoJson: GeoJsonLike) {
 
 .geo-map-panel__toolbar {
   position: absolute;
-  inset: auto auto 22px calc(50% - 190px);
+  inset: auto auto 22px calc(50% - 185px);
   z-index: 4;
   display: flex;
   gap: 6px;
   padding: 6px;
-  border: 1px solid rgba(110, 202, 212, 0.22);
+  border: 1px solid rgba(110, 202, 212, 0.24);
+  border-right: 0;
   background: rgba(6, 11, 17, 0.66);
   backdrop-filter: blur(16px);
 }
@@ -1466,6 +1467,7 @@ function toMapInput(geoJson: GeoJsonLike) {
 
   .geo-map-panel__toolbar {
     inset: auto auto 14px 14px;
+    border-right: 1px solid rgba(110, 202, 212, 0.24);
   }
 }
 </style>

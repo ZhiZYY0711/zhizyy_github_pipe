@@ -160,7 +160,7 @@ async function renderBaseMap() {
   syncZoomRatio()
   registerMap(activeMapName, toMapInput(geoJson))
   hideTooltip()
-  chart?.setOption(buildMapOption(activeMapName, markFeatures(geoJson.features ?? [], baseFeatureLayer()), view.center), true, true)
+  setMapOption(buildMapOption(activeMapName, markFeatures(geoJson.features ?? [], baseFeatureLayer()), view.center), true)
   scheduleDetailUpdate()
 }
 
@@ -696,15 +696,32 @@ function refreshCurrentMapOption() {
   }
 
   hideTooltip()
-  chart.setOption(
+  setMapOption(
     buildMapOption(
       activeMapName,
       markFeatures(baseGeoJson.features ?? [], baseFeatureLayer()),
       readChartCenter(),
     ),
-    false,
-    true,
   )
+}
+
+function setMapOption(option: ReturnType<typeof buildMapOption>, notMerge = false) {
+  if (!chart) {
+    return
+  }
+
+  if (notMerge) {
+    chart.setOption(option, true, true)
+    return
+  }
+
+  ;(chart.setOption as unknown as (
+    nextOption: ReturnType<typeof buildMapOption>,
+    opts: { replaceMerge: string[]; lazyUpdate: boolean },
+  ) => void)(option, {
+    replaceMerge: ['series'],
+    lazyUpdate: true,
+  })
 }
 
 function attachWheelZoom(target: HTMLDivElement) {
@@ -812,7 +829,7 @@ async function updateDetailLayer() {
       rememberLayer(nextSignature, activeMapName)
     }
     hideTooltip()
-    chart.setOption(buildMapOption(activeMapName, markFeatures(baseFeatures, baseFeatureLayer()), center), false, true)
+    setMapOption(buildMapOption(activeMapName, markFeatures(baseFeatures, baseFeatureLayer()), center))
     return
   }
 
@@ -828,7 +845,7 @@ async function updateDetailLayer() {
     rememberLayer(nextSignature, activeMapName)
   }
   hideTooltip()
-  chart.setOption(buildMapOption(activeMapName, mergedGeoJson.features, center), false, true)
+  setMapOption(buildMapOption(activeMapName, mergedGeoJson.features, center))
 }
 
 async function buildVisibleFeatures(baseFeatures: GeoFeature[]) {

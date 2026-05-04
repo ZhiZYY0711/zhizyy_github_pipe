@@ -1334,7 +1334,7 @@ function toMapInput(geoJson: GeoJsonLike) {
 
 .geo-map-panel__toolbar {
   position: absolute;
-  inset: auto 292px 22px auto;
+  inset: auto auto 22px calc(50% - 190px);
   z-index: 4;
   display: flex;
   gap: 6px;
@@ -1386,25 +1386,25 @@ function toMapInput(geoJson: GeoJsonLike) {
 }
 
 .geo-map-panel__icon--target {
-  border: 2px solid currentColor;
-  border-radius: 50%;
-}
-
-.geo-map-panel__icon--target::before,
-.geo-map-panel__icon--target::after {
-  content: '';
-  position: absolute;
-  background: currentColor;
+  inline-size: 18px;
+  block-size: 18px;
+  background:
+    linear-gradient(currentColor, currentColor) left top / 7px 2px no-repeat,
+    linear-gradient(currentColor, currentColor) left top / 2px 7px no-repeat,
+    linear-gradient(currentColor, currentColor) right top / 7px 2px no-repeat,
+    linear-gradient(currentColor, currentColor) right top / 2px 7px no-repeat,
+    linear-gradient(currentColor, currentColor) left bottom / 7px 2px no-repeat,
+    linear-gradient(currentColor, currentColor) left bottom / 2px 7px no-repeat,
+    linear-gradient(currentColor, currentColor) right bottom / 7px 2px no-repeat,
+    linear-gradient(currentColor, currentColor) right bottom / 2px 7px no-repeat;
 }
 
 .geo-map-panel__icon--target::before {
-  inset: 6px -4px auto;
-  block-size: 2px;
-}
-
-.geo-map-panel__icon--target::after {
-  inset: -4px auto -4px 6px;
-  inline-size: 2px;
+  content: '';
+  position: absolute;
+  inset: 7px;
+  background: currentColor;
+  box-shadow: 0 0 8px currentColor;
 }
 
 .geo-map-panel__scale span,
@@ -1465,7 +1465,7 @@ function toMapInput(geoJson: GeoJsonLike) {
   }
 
   .geo-map-panel__toolbar {
-    inset: 14px 14px auto auto;
+    inset: auto auto 14px 14px;
   }
 }
 </style>

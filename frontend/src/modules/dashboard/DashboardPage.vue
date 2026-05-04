@@ -691,7 +691,7 @@ function formatDateInput(date: Date) {
 }
 
 .dashboard-page-module__layer-control {
-  inset: auto var(--space-4) var(--space-4) auto;
+  inset: auto auto var(--space-4) calc(50% - 54px);
   display: flex;
   gap: 6px;
   padding: 8px;
@@ -776,6 +776,7 @@ function formatDateInput(date: Date) {
   .dashboard-page-module__layer-control {
     position: relative;
     inset: auto;
+    transform: none;
     inline-size: auto;
     z-index: 2;
   }

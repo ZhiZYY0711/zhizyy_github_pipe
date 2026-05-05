@@ -102,6 +102,8 @@ class OpenAICompatibleLlmClient:
                 json=payload,
                 timeout=self._timeout_seconds,
             )
+            if response.is_error:
+                await response.aread()
             response.raise_for_status()
             async for chunk in _iter_sse_chunks(response.aiter_lines()):
                 yield chunk
@@ -115,6 +117,8 @@ class OpenAICompatibleLlmClient:
                 json=payload,
                 timeout=self._timeout_seconds,
             ) as response:
+                if response.is_error:
+                    await response.aread()
                 response.raise_for_status()
                 async for chunk in _iter_sse_chunks(response.aiter_lines()):
                     yield chunk

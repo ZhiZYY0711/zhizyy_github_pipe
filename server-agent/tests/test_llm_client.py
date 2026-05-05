@@ -1,4 +1,5 @@
 import httpx
+import pytest
 
 from app.agent.state import RecommendationState
 from app.llm.client import OpenAICompatibleLlmClient
@@ -109,3 +110,32 @@ async def test_openai_compatible_llm_client_streams_reasoning_and_content_chunks
         ("reasoning_content", "先判断异常对象"),
         ("content", '{"action":"final_answer"}'),
     ]
+
+
+async def test_openai_compatible_llm_client_stream_error_keeps_response_body() -> None:
+    async def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            400,
+            json={"error": {"message": "model does not support response_format"}},
+        )
+
+    transport = httpx.MockTransport(handler)
+    async with httpx.AsyncClient(transport=transport) as http_client:
+        client = OpenAICompatibleLlmClient(
+            base_url="https://llm.local/v1",
+            api_key="test-key",
+            model="test-model",
+            client=http_client,
+        )
+
+        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+            _ = [
+                chunk
+                async for chunk in client.stream_chat(
+                    system_prompt="system",
+                    user_prompt="user",
+                    response_format={"type": "json_object"},
+                )
+            ]
+
+    assert "model does not support response_format" in exc_info.value.response.text

@@ -144,6 +144,57 @@ export type TimeRange = {
   endTime?: number
 }
 
+export type DashboardFreshness = {
+  metricRefreshedAt?: string
+  currentRefreshedAt?: string
+  alarmRefreshedAt?: string
+  generatedAt?: string
+}
+
+export type DashboardSummaryResponse = {
+  kpi?: DashboardKpi
+  alarms?: DashboardAlarm[]
+  areaTrend?: AreaDimensionData[]
+  freshness?: DashboardFreshness
+  generatedAt?: string
+}
+
+export type DashboardSummary = {
+  kpi: Required<DashboardKpi>
+  alarms: DashboardAlarm[]
+  areaTrend: AreaDimensionData[]
+  freshness: DashboardFreshness
+  generatedAt?: string
+}
+
+export type DashboardTooltipResponse = {
+  areaId?: string | number
+  areaName?: string
+  flow?: number
+  pressure?: number
+  temperature?: number
+  vibration?: number
+  sensorNumbers?: number
+  abnormalSensorNumbers?: number
+  warnings?: number
+}
+
+export type AdminBoundaryEntry = {
+  code: string
+  name: string
+  level: AreaLevel
+  parentCode?: string
+  bbox: [number, number, number, number]
+  center: [number, number]
+}
+
+export type AdminBoundaryIndex = {
+  generatedAt?: string
+  source?: string
+  tileUrl?: string
+  entries: Record<string, AdminBoundaryEntry>
+}
+
 export type GeoIndexEntry = {
   code: string
   name: string

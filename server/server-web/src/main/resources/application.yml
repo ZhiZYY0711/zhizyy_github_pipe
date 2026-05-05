@@ -46,3 +46,11 @@ performance:
     today-refresh-interval-ms: 600000
     repair-cron: "0 20 3 * * *"
     repair-window-days: 7
+  dashboard-read-model:
+    summary-cache-ttl-ms: ${PIPELINE_DASHBOARD_SUMMARY_CACHE_TTL_MS:15000}
+    tooltip-cache-ttl-ms: ${PIPELINE_DASHBOARD_TOOLTIP_CACHE_TTL_MS:30000}
+    refresh-enabled: ${PIPELINE_DASHBOARD_READ_MODEL_REFRESH_ENABLED:true}
+    refresh-on-startup: ${PIPELINE_DASHBOARD_READ_MODEL_REFRESH_ON_STARTUP:true}
+    refresh-interval-ms: ${PIPELINE_DASHBOARD_READ_MODEL_REFRESH_INTERVAL_MS:600000}
+    initial-delay-ms: ${PIPELINE_DASHBOARD_READ_MODEL_INITIAL_DELAY_MS:30000}
+    alarm-limit: ${PIPELINE_DASHBOARD_ALARM_LIMIT:5000}

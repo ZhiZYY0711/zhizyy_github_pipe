@@ -1,6 +1,7 @@
 package com.gxa.pipe.dataVsualization.dataMonitoring;
 
 import com.gxa.pipe.config.MonitoringAggregateProperties;
+import com.gxa.pipe.dataVsualization.dashboard.DashboardReadService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -20,12 +21,26 @@ public class DataMonitoringServiceImpl implements DataMonitoringService {
     
     private final DataMonitoringMapper dataMonitoringMapper;
     private final MonitoringAggregateProperties monitoringAggregateProperties;
+    private final DashboardReadService dashboardReadService;
     
     @Override
     public List<AreaDetailResponse> getAreaDetails(AreaDetailRequest request) {
         // 参数校验
         if (request == null) {
             throw new IllegalArgumentException("请求参数不能为空");
+        }
+
+        try {
+            if (dashboardReadService.isReadModelAvailable()) {
+                List<AreaDetailResponse> rows = dashboardReadService
+                        .getSummary(request.getAreaId(), request.getStartTime(), request.getEndTime())
+                        .getAreaTrend();
+                if (rows != null && !rows.isEmpty()) {
+                    return rows;
+                }
+            }
+        } catch (RuntimeException exception) {
+            log.warn("大屏区域趋势读模型查询失败，继续使用监测聚合路径", exception);
         }
         
         if (monitoringAggregateProperties.isEnabled()) {

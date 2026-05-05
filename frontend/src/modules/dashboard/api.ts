@@ -1,5 +1,13 @@
 import { apiRequest, type ApiEnvelope } from '../shared/apiClient'
-import type { AreaDimensionData, AreaOption, DashboardAlarm, DashboardKpi, TimeRange } from './types'
+import type {
+  AreaDimensionData,
+  AreaOption,
+  DashboardAlarm,
+  DashboardKpi,
+  DashboardSummaryResponse,
+  DashboardTooltipResponse,
+  TimeRange,
+} from './types'
 
 export function fetchProvinces() {
   return apiRequest<ApiEnvelope<AreaOption[]>>('/area_details/provinces')
@@ -21,6 +29,18 @@ export function fetchWholeKpi(areaId?: string) {
 
 export function fetchRunningWaterAlarm(areaId?: string, range?: TimeRange) {
   return apiRequest<ApiEnvelope<DashboardAlarm[]>>('/data_visualization/all/running_water_alarm', {
+    query: { area_id: areaId, start_time: range?.startTime, end_time: range?.endTime },
+  })
+}
+
+export function fetchDashboardSummary(areaId?: string, range?: TimeRange) {
+  return apiRequest<ApiEnvelope<DashboardSummaryResponse>>('/data_visualization/dashboard/summary', {
+    query: { area_id: areaId, start_time: range?.startTime, end_time: range?.endTime },
+  })
+}
+
+export function fetchDashboardAreaTooltip(areaId: string, range?: TimeRange) {
+  return apiRequest<ApiEnvelope<DashboardTooltipResponse>>('/data_visualization/dashboard/area_tooltip', {
     query: { area_id: areaId, start_time: range?.startTime, end_time: range?.endTime },
   })
 }

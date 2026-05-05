@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gxa.pipe.dataVsualization.dashboard.DashboardMapper">
+
+    <select id="selectCurrentSummary" resultType="com.gxa.pipe.dataVsualization.dashboard.DashboardCurrentSummaryRow">
+        SELECT
+            area_id AS areaId,
+            sensor_count AS sensorCount,
+            abnormal_sensor_count AS abnormalSensorCount,
+            underway_task_count AS underwayTaskCount,
+            overtime_task_count AS overtimeTaskCount,
+            refreshed_at AS refreshedAt
+        FROM dashboard_area_current_summary
+        WHERE area_id = #{areaId}
+        LIMIT 1
+    </select>
+
+    <select id="selectMetricTrend" resultType="com.gxa.pipe.dataVsualization.dataMonitoring.AreaDetailResponse">
+        SELECT
+            traffic_sum / NULLIF(sample_count, 0) AS ave_flow,
+            pressure_sum / NULLIF(sample_count, 0) AS ave_pressure,
+            temperature_sum / NULLIF(sample_count, 0) AS ave_temperature,
+            shake_sum / NULLIF(sample_count, 0) AS ave_vibration,
+            UNIX_TIMESTAMP(stat_date) * 1000 AS time
+        FROM dashboard_area_metric_daily
+        WHERE area_id = #{areaId}
+        <if test="startTime != null and startTime != 0">
+            AND stat_date &gt;= DATE(FROM_UNIXTIME(#{startTime}/1000))
+        </if>
+        <if test="endTime != null and endTime != 0">
+            AND stat_date &lt;= DATE(FROM_UNIXTIME(#{endTime}/1000))
+        </if>
+        ORDER BY stat_date
+    </select>
+
+    <select id="selectWarningCount" resultType="java.lang.Long">
+        SELECT COALESCE(SUM(danger_count + critical_count), 0)
+        FROM dashboard_area_metric_daily
+        WHERE area_id = #{areaId}
+        <if test="startTime != null and startTime != 0">
+            AND stat_date &gt;= DATE(FROM_UNIXTIME(#{startTime}/1000))
+        </if>
+        <if test="endTime != null and endTime != 0">
+            AND stat_date &lt;= DATE(FROM_UNIXTIME(#{endTime}/1000))
+        </if>
+    </select>
+
+    <select id="selectTodayWarningCount" resultType="java.lang.Long">
+        SELECT COALESCE(SUM(danger_count + critical_count), 0)
+        FROM dashboard_area_metric_daily
+        WHERE area_id = #{areaId}
+          AND stat_date = CURDATE()
+    </select>
+
+    <select id="selectMetricAverage" resultType="com.gxa.pipe.dataVsualization.dataMonitoring.AreaDetailResponse">
+        SELECT
+            COALESCE(SUM(traffic_sum) / NULLIF(SUM(sample_count), 0), 0) AS ave_flow,
+            COALESCE(SUM(pressure_sum) / NULLIF(SUM(sample_count), 0), 0) AS ave_pressure,
+            COALESCE(SUM(temperature_sum) / NULLIF(SUM(sample_count), 0), 0) AS ave_temperature,
+            COALESCE(SUM(shake_sum) / NULLIF(SUM(sample_count), 0), 0) AS ave_vibration,
+            0 AS time
+        FROM dashboard_area_metric_daily
+        WHERE area_id = #{areaId}
+        <if test="startTime != null and startTime != 0">
+            AND stat_date &gt;= DATE(FROM_UNIXTIME(#{startTime}/1000))
+        </if>
+        <if test="endTime != null and endTime != 0">
+            AND stat_date &lt;= DATE(FROM_UNIXTIME(#{endTime}/1000))
+        </if>
+    </select>
+
+    <select id="selectRecentAlarms" resultType="com.gxa.pipe.dataVsualization.total.RunningWaterResponse">
+        SELECT
+            CAST(inspection_id AS CHAR) AS id,
+            UNIX_TIMESTAMP(alarm_time) * 1000 AS time,
+            CAST(sensor_id AS CHAR) AS sensor_id,
+            sensor_name AS sensor_name,
+            CAST(area_id AS CHAR) AS area_id,
+            area_name AS area_name,
+            message,
+            level
+        FROM dashboard_alarm_recent
+        WHERE 1 = 1
+        <if test="areaStart != null and areaEnd != null">
+            AND area_id BETWEEN #{areaStart} AND #{areaEnd}
+        </if>
+        <if test="startTime != null and startTime != 0">
+            AND alarm_time &gt;= FROM_UNIXTIME(#{startTime}/1000)
+        </if>
+        <if test="endTime != null and endTime != 0">
+            AND alarm_time &lt;= FROM_UNIXTIME(#{endTime}/1000)
+        </if>
+        ORDER BY alarm_time DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="selectLatestFreshness" resultType="com.gxa.pipe.dataVsualization.dashboard.DashboardFreshnessRow">
+        SELECT
+            MAX(CASE WHEN model_name = 'dashboard_area_metric_daily' THEN refreshed_at END) AS metricRefreshedAt,
+            MAX(CASE WHEN model_name = 'dashboard_area_current_summary' THEN refreshed_at END) AS currentRefreshedAt,
+            MAX(CASE WHEN model_name = 'dashboard_alarm_recent' THEN refreshed_at END) AS alarmRefreshedAt
+        FROM dashboard_read_model_refresh_state
+        WHERE status = 'SUCCESS'
+    </select>
+</mapper>

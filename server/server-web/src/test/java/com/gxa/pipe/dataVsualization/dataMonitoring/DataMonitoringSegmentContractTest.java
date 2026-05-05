@@ -2,6 +2,7 @@ package com.gxa.pipe.dataVsualization.dataMonitoring;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gxa.pipe.config.MonitoringAggregateProperties;
+import com.gxa.pipe.dataVsualization.dashboard.DashboardReadService;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
@@ -19,7 +20,7 @@ class DataMonitoringSegmentContractTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private DataMonitoringServiceImpl newService(DataMonitoringMapper mapper) {
-        return new DataMonitoringServiceImpl(mapper, new MonitoringAggregateProperties());
+        return new DataMonitoringServiceImpl(mapper, new MonitoringAggregateProperties(), mock(DashboardReadService.class));
     }
 
     @Test

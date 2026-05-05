@@ -1,34 +1,33 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref } from 'vue'
 import KpiStrip from '../../components/shell/KpiStrip.vue'
 import SideStack from '../../components/shell/SideStack.vue'
 import TopBar from '../../components/shell/TopBar.vue'
 import { dashboardPageModel } from '../../data/mockShell'
 import AreaFilterPanel from './components/AreaFilterPanel.vue'
 import DashboardAlarmPanel from './components/DashboardAlarmPanel.vue'
-import DashboardGeoMap from './components/DashboardGeoMap.vue'
-import { trunkPipelines } from './pipelineOverlayData'
+import { dashboardLayerButtonState } from './map/adminViewport'
 import {
   loadCities,
   loadDashboardAlarms,
   loadDashboardKpi,
+  loadDashboardSummary,
   loadDistricts,
   loadGeoIndex,
   loadMapTooltipData,
   loadAreaOptions,
+  resolveDashboardAlarms,
 } from './service'
 import type {
   AreaOption,
   DashboardAlarm,
   DashboardKpi,
-  DashboardMapLayerKey,
   DashboardKpiItem,
   GeoIndex,
   MapTimePreset,
   MapTimeRange,
   MapRegion,
   MapTooltipData,
-  TrunkPipeline,
 } from './types'
 
 const provinces = ref<AreaOption[]>([])
@@ -64,13 +63,13 @@ const tooltipDebounceMs = 260
 const tooltipCacheTtlMs = 5 * 60 * 1000
 const timeRange = ref<MapTimeRange>(createDefaultTimeRange())
 const activeTimePreset = ref<MapTimePreset>('all')
-const visibleMapLayers = ref<Record<DashboardMapLayerKey, boolean>>({
+const visibleMapLayers = ref({
   regions: true,
   pipelines: true,
   nodes: true,
-  alarms: true,
 })
-const selectedPipeline = ref<TrunkPipeline | null>(null)
+const mapFullscreen = ref(false)
+const DashboardDeckMap = defineAsyncComponent(() => import('./components/DashboardDeckMap.vue'))
 
 const hotRegions: AreaOption[] = [
   { code: '130000', name: '河北省' },
@@ -84,21 +83,6 @@ const hotRegions: AreaOption[] = [
 const activeAreaId = computed(() => selectedDistrict.value || selectedCity.value || selectedProvince.value || undefined)
 const activeAreaName = computed(() => focusRegion.value?.name ?? '全国')
 const tooltipQueryRange = computed(() => toTimestampRange(timeRange.value))
-const selectedPipelineStatusText = computed(() => {
-  if (!selectedPipeline.value) {
-    return '行政区域监控态势'
-  }
-
-  if (selectedPipeline.value.status === 'critical') {
-    return '严重异常'
-  }
-
-  if (selectedPipeline.value.status === 'warning') {
-    return '风险关注'
-  }
-
-  return '运行正常'
-})
 const kpiItems = computed<DashboardKpiItem[]>(() => [
   { label: '传感器总数', value: formatCount(kpi.value.sensor_numbers), tone: 'default' },
   { label: '异常传感器', value: formatCount(kpi.value.abnormal_sensor_numbers), tone: 'warn' },
@@ -106,6 +90,15 @@ const kpiItems = computed<DashboardKpiItem[]>(() => [
   { label: '进行任务', value: formatCount(kpi.value.underway_task), tone: 'signal' },
   { label: '超时任务', value: formatCount(kpi.value.overtime_task), tone: 'warn' },
 ])
+const layerControls = [
+  { key: 'regions', label: '行政区', tone: 'default' },
+  { key: 'pipelines', label: '主干线', tone: 'signal' },
+  { key: 'nodes', label: '节点', tone: 'default' },
+] as const satisfies readonly {
+  key: keyof typeof visibleMapLayers.value
+  label: string
+  tone: 'default' | 'signal'
+}[]
 
 onMounted(async () => {
   const [index, provinceOptions] = await Promise.all([
@@ -129,7 +122,6 @@ onBeforeUnmount(() => {
 })
 
 async function resetRegion() {
-  selectedPipeline.value = null
   selectedProvince.value = ''
   selectedCity.value = ''
   selectedDistrict.value = ''
@@ -143,7 +135,6 @@ async function resetRegion() {
 }
 
 async function selectProvince(code: string) {
-  selectedPipeline.value = null
   selectedProvince.value = code
   selectedCity.value = ''
   selectedDistrict.value = ''
@@ -163,7 +154,6 @@ async function selectProvince(code: string) {
 }
 
 async function selectCity(code: string) {
-  selectedPipeline.value = null
   selectedCity.value = code
   selectedDistrict.value = ''
   tooltipData.value = null
@@ -182,7 +172,6 @@ async function selectCity(code: string) {
 }
 
 async function selectDistrict(code: string) {
-  selectedPipeline.value = null
   selectedDistrict.value = code
   tooltipData.value = null
   tooltipCache.clear()
@@ -198,8 +187,6 @@ async function selectDistrict(code: string) {
 }
 
 async function selectHotRegion(code: string) {
-  selectedPipeline.value = null
-
   if (isProvinceCode(code)) {
     await selectProvince(code)
     return
@@ -218,7 +205,6 @@ async function selectHotRegion(code: string) {
 }
 
 async function handleRegionClick(payload: { code: string }) {
-  selectedPipeline.value = null
   const code = payload.code
 
   if (isProvinceCode(code)) {
@@ -275,34 +261,53 @@ function selectTimePreset(preset: MapTimePreset) {
   void refreshDashboardData()
 }
 
-function toggleMapLayer(layer: DashboardMapLayerKey) {
+function toggleMapLayer(layer: keyof typeof visibleMapLayers.value) {
   visibleMapLayers.value = {
     ...visibleMapLayers.value,
     [layer]: !visibleMapLayers.value[layer],
   }
 }
 
-function handlePipelineClick(pipeline: TrunkPipeline) {
-  selectedPipeline.value = pipeline
+function toggleMapFullscreen() {
+  mapFullscreen.value = !mapFullscreen.value
 }
 
 async function refreshDashboardData() {
   alarmLoading.value = true
 
   try {
-    const [kpiResult, alarmResult] = await Promise.allSettled([
+    const [summaryResult, kpiResult, alarmResult] = await Promise.allSettled([
+      loadDashboardSummary(activeAreaId.value, tooltipQueryRange.value),
       loadDashboardKpi(activeAreaId.value),
       loadDashboardAlarms(activeAreaId.value, tooltipQueryRange.value),
     ])
+
+    const fallbackAlarms = alarmResult.status === 'fulfilled' ? alarmResult.value : []
+
+    if (summaryResult.status === 'fulfilled' && hasDashboardSummaryData(summaryResult.value)) {
+      kpi.value = summaryResult.value.kpi
+      alarms.value = resolveDashboardAlarms(summaryResult.value, fallbackAlarms)
+      return
+    }
 
     if (kpiResult.status === 'fulfilled') {
       kpi.value = kpiResult.value
     }
 
-    alarms.value = alarmResult.status === 'fulfilled' ? alarmResult.value : []
+    alarms.value = fallbackAlarms
   } finally {
     alarmLoading.value = false
   }
+}
+
+function hasDashboardSummaryData(summary: Awaited<ReturnType<typeof loadDashboardSummary>>) {
+  return Boolean(
+    summary.freshness.metricRefreshedAt
+      || summary.freshness.currentRefreshedAt
+      || summary.freshness.alarmRefreshedAt
+      || summary.alarms.length
+      || summary.areaTrend.length,
+  )
 }
 
 function syncMapRegion() {
@@ -392,14 +397,15 @@ async function loadHoveredRegion(payload: { code: string; name: string }, reques
 }
 
 function readTooltipCache(code: string) {
-  const cached = tooltipCache.get(createTooltipCacheKey(code))
+  const key = createTooltipCacheKey(code)
+  const cached = tooltipCache.get(key)
 
   if (!cached) {
     return null
   }
 
   if (cached.expiresAt <= Date.now()) {
-    tooltipCache.delete(code)
+    tooltipCache.delete(key)
     return null
   }
 
@@ -469,26 +475,25 @@ function formatDateInput(date: Date) {
 </script>
 
 <template>
-  <section class="dashboard-page-module">
+  <section class="dashboard-page-module" :class="{ 'is-map-fullscreen': mapFullscreen }">
     <div class="dashboard-page-module__frame">
       <TopBar
         :nav-items="dashboardPageModel.navItems"
       />
 
       <section class="dashboard-page-module__stage">
-        <DashboardGeoMap
+        <DashboardDeckMap
           :region="mapRegion"
           :focus-code="activeAreaId"
           :geo-index="geoIndex"
           :tooltip-data="tooltipData"
           :loading="tooltipLoading"
-          :pipelines="trunkPipelines"
           :visible-layers="visibleMapLayers"
-          :selected-pipeline-id="selectedPipeline?.id"
+          :fullscreen="mapFullscreen"
           @region-click="handleRegionClick"
           @region-hover="handleRegionHover"
-          @pipeline-click="handlePipelineClick"
           @reset-view="resetRegion"
+          @toggle-fullscreen="toggleMapFullscreen"
         />
 
         <div class="dashboard-page-module__hud dashboard-page-module__hud--kpis">
@@ -523,39 +528,21 @@ function formatDateInput(date: Date) {
 
         <section class="dashboard-page-module__focus-card panel">
           <span class="eyebrow">Current Focus</span>
-          <h2>{{ selectedPipeline?.name ?? activeAreaName }}</h2>
-          <p>{{ selectedPipelineStatusText }}</p>
+          <h2>{{ activeAreaName }}</h2>
+          <p>行政区域监控态势</p>
         </section>
 
         <div class="dashboard-page-module__control-dock">
           <section class="dashboard-page-module__layer-control" aria-label="地图图层控制">
             <button
+              v-for="control in layerControls"
+              :key="control.key"
               type="button"
-              :class="{ 'is-active': visibleMapLayers.regions }"
-              @click="toggleMapLayer('regions')"
+              :class="dashboardLayerButtonState(visibleMapLayers[control.key], control.tone).className"
+              :aria-pressed="visibleMapLayers[control.key]"
+              @click="toggleMapLayer(control.key)"
             >
-              行政区
-            </button>
-            <button
-              type="button"
-              :class="{ 'is-active': visibleMapLayers.pipelines }"
-              @click="toggleMapLayer('pipelines')"
-            >
-              主干线
-            </button>
-            <button
-              type="button"
-              :class="{ 'is-active': visibleMapLayers.nodes }"
-              @click="toggleMapLayer('nodes')"
-            >
-              节点
-            </button>
-            <button
-              type="button"
-              :class="{ 'is-active': visibleMapLayers.alarms }"
-              @click="toggleMapLayer('alarms')"
-            >
-              告警
+              <span>{{ control.label }}</span>
             </button>
           </section>
         </div>
@@ -625,6 +612,7 @@ function formatDateInput(date: Date) {
     linear-gradient(180deg, rgba(255, 255, 255, 0.015), rgba(255, 255, 255, 0.004)),
     var(--color-bg-elevated);
   box-shadow: var(--shadow-shell);
+  transition: grid-template-rows 280ms cubic-bezier(0.2, 0, 0, 1);
 }
 
 .dashboard-page-module__stage {
@@ -632,6 +620,22 @@ function formatDateInput(date: Date) {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+}
+
+.dashboard-page-module.is-map-fullscreen .dashboard-page-module__frame {
+  grid-template-rows: 0 minmax(0, 1fr);
+}
+
+.dashboard-page-module.is-map-fullscreen :deep(.topbar) {
+  opacity: 0;
+  transform: translateY(-18px);
+  pointer-events: none;
+}
+
+.dashboard-page-module :deep(.topbar) {
+  transition:
+    opacity 260ms cubic-bezier(0.2, 0, 0, 1),
+    transform 260ms cubic-bezier(0.2, 0, 0, 1);
 }
 
 .dashboard-page-module__stage::after {
@@ -650,6 +654,34 @@ function formatDateInput(date: Date) {
 .dashboard-page-module__control-dock {
   position: absolute;
   z-index: 2;
+}
+
+.dashboard-page-module__hud,
+.dashboard-page-module__focus-card {
+  transition:
+    opacity 260ms cubic-bezier(0.2, 0, 0, 1),
+    transform 260ms cubic-bezier(0.2, 0, 0, 1),
+    filter 260ms ease;
+}
+
+.dashboard-page-module.is-map-fullscreen .dashboard-page-module__hud,
+.dashboard-page-module.is-map-fullscreen .dashboard-page-module__focus-card {
+  opacity: 0;
+  filter: blur(3px);
+  pointer-events: none;
+}
+
+.dashboard-page-module.is-map-fullscreen .dashboard-page-module__hud--kpis {
+  transform: translateY(-28px);
+}
+
+.dashboard-page-module.is-map-fullscreen .dashboard-page-module__hud--filters,
+.dashboard-page-module.is-map-fullscreen .dashboard-page-module__focus-card {
+  transform: translateX(-36px);
+}
+
+.dashboard-page-module.is-map-fullscreen .dashboard-page-module__hud--events {
+  transform: translateX(36px);
 }
 
 .dashboard-page-module__hud--kpis {
@@ -698,9 +730,27 @@ function formatDateInput(date: Date) {
   align-items: center;
   gap: 6px;
   padding: 8px;
-  border-color: rgba(110, 202, 212, 0.24);
-  background: rgba(6, 11, 17, 0.76);
+  border: 1px solid rgba(110, 202, 212, 0.3);
+  background:
+    linear-gradient(180deg, rgba(110, 202, 212, 0.08), rgba(6, 11, 17, 0.82)),
+    rgba(6, 11, 17, 0.78);
   backdrop-filter: blur(18px);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.025),
+    0 18px 36px rgba(0, 0, 0, 0.34);
+  transition:
+    transform 260ms cubic-bezier(0.2, 0, 0, 1),
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.dashboard-page-module.is-map-fullscreen .dashboard-page-module__control-dock {
+  transform: translateY(-4px);
+  border-color: rgba(143, 232, 240, 0.46);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.035),
+    0 0 28px rgba(110, 202, 212, 0.14),
+    0 20px 42px rgba(0, 0, 0, 0.42);
 }
 
 .dashboard-page-module__layer-control {
@@ -709,19 +759,87 @@ function formatDateInput(date: Date) {
 }
 
 .dashboard-page-module__layer-control button {
+  position: relative;
+  overflow: hidden;
   min-block-size: 34px;
-  padding: 0 12px;
+  padding: 0 13px 0 24px;
   border: 1px solid rgba(143, 166, 182, 0.22);
   color: var(--color-text-muted);
   font-size: var(--text-body-sm);
-  background: rgba(8, 13, 19, 0.62);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent),
+    rgba(8, 13, 19, 0.66);
+  transition:
+    border-color 160ms ease,
+    color 160ms ease,
+    background 160ms ease,
+    box-shadow 160ms ease,
+    opacity 160ms ease;
+}
+
+.dashboard-page-module__layer-control button::before {
+  content: '';
+  position: absolute;
+  inset: 50% auto auto 10px;
+  inline-size: 7px;
+  block-size: 7px;
+  background: rgba(143, 166, 182, 0.46);
+  box-shadow: 0 0 0 rgba(110, 202, 212, 0);
+  transform: translateY(-50%);
+}
+
+.dashboard-page-module__layer-control button::after {
+  content: '';
+  position: absolute;
+  inset: auto 8px 0;
+  block-size: 2px;
+  background: rgba(255, 122, 53, 0);
+  transition: background 160ms ease;
 }
 
 .dashboard-page-module__layer-control button.is-active {
-  border-color: rgba(110, 202, 212, 0.62);
+  border-color: rgba(110, 202, 212, 0.66);
   color: var(--color-text);
-  background: rgba(110, 202, 212, 0.16);
-  box-shadow: 0 0 18px rgba(110, 202, 212, 0.12);
+  background:
+    linear-gradient(180deg, rgba(110, 202, 212, 0.16), rgba(110, 202, 212, 0.05)),
+    rgba(8, 13, 19, 0.86);
+  box-shadow:
+    inset 0 0 18px rgba(110, 202, 212, 0.055),
+    0 0 18px rgba(110, 202, 212, 0.12);
+}
+
+.dashboard-page-module__layer-control button.is-active::before {
+  background: #8fe8f0;
+  box-shadow: 0 0 12px rgba(143, 232, 240, 0.9);
+}
+
+.dashboard-page-module__layer-control button.is-active::after {
+  background: rgba(255, 122, 53, 0.84);
+}
+
+.dashboard-page-module__layer-control button.is-critical.is-active {
+  border-color: rgba(255, 122, 53, 0.64);
+  box-shadow:
+    inset 0 0 18px rgba(255, 122, 53, 0.08),
+    0 0 18px rgba(255, 122, 53, 0.14);
+}
+
+.dashboard-page-module__layer-control button.is-critical.is-active::before {
+  background: #ff7a35;
+  box-shadow: 0 0 13px rgba(255, 122, 53, 0.86);
+}
+
+.dashboard-page-module__layer-control button.is-signal.is-active::before {
+  background: #6ecad4;
+}
+
+.dashboard-page-module__layer-control button.is-muted {
+  opacity: 0.62;
+}
+
+.dashboard-page-module__layer-control button:hover {
+  opacity: 1;
+  border-color: rgba(143, 232, 240, 0.48);
 }
 
 .dashboard-page-module :deep(.area-filter),

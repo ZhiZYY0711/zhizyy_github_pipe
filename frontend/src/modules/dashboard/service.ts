@@ -3,6 +3,8 @@ import { toNumber } from '../shared/normalize'
 import {
   fetchAreaDimensionData,
   fetchCities,
+  fetchDashboardAreaTooltip,
+  fetchDashboardSummary,
   fetchDistricts,
   fetchProvinces,
   fetchRunningWaterAlarm,
@@ -12,7 +14,11 @@ import type {
   AreaDimensionData,
   AreaOption,
   DashboardAlarm,
+  DashboardFreshness,
   DashboardKpi,
+  DashboardSummary,
+  DashboardSummaryResponse,
+  DashboardTooltipResponse,
   GeoIndex,
   MapTooltipData,
   TimeRange,
@@ -80,7 +86,23 @@ export async function loadDashboardAlarms(areaId?: string, range?: TimeRange) {
   return unwrapData(await fetchRunningWaterAlarm(areaId, range), []).map(normalizeAlarm)
 }
 
+export async function loadDashboardSummary(areaId?: string, range?: TimeRange): Promise<DashboardSummary> {
+  return normalizeDashboardSummary(unwrapData(await fetchDashboardSummary(areaId, range), {}))
+}
+
+export function resolveDashboardAlarms(summary: DashboardSummary, fallbackAlarms: DashboardAlarm[]) {
+  return summary.alarms.length ? summary.alarms : fallbackAlarms
+}
+
 export async function loadMapTooltipData(areaId: string, areaName: string, range?: TimeRange) {
+  try {
+    return normalizeTooltip(unwrapData(await fetchDashboardAreaTooltip(areaId, range), {}), areaId, areaName)
+  } catch {
+    return loadMapTooltipDataFromLegacyApis(areaId, areaName, range)
+  }
+}
+
+async function loadMapTooltipDataFromLegacyApis(areaId: string, areaName: string, range?: TimeRange) {
   const [dimensionResult, kpiResult] = await Promise.allSettled([
     fetchAreaDimensionData(areaId, range),
     fetchWholeKpi(areaId),
@@ -104,6 +126,39 @@ export async function loadMapTooltipData(areaId: string, areaName: string, range
     sensorNumbers: kpi.sensor_numbers,
     abnormalSensorNumbers: kpi.abnormal_sensor_numbers,
     warnings: kpi.warnings,
+  } satisfies MapTooltipData
+}
+
+function normalizeDashboardSummary(payload: DashboardSummaryResponse): DashboardSummary {
+  return {
+    kpi: normalizeKpi(payload.kpi ?? emptyKpi),
+    alarms: (payload.alarms ?? []).map(normalizeAlarm),
+    areaTrend: (payload.areaTrend ?? []).map(normalizeDimensionRow),
+    freshness: normalizeFreshness(payload.freshness, payload.generatedAt),
+    generatedAt: payload.generatedAt,
+  }
+}
+
+function normalizeFreshness(payload: DashboardFreshness | undefined, generatedAt?: string) {
+  return {
+    metricRefreshedAt: payload?.metricRefreshedAt,
+    currentRefreshedAt: payload?.currentRefreshedAt,
+    alarmRefreshedAt: payload?.alarmRefreshedAt,
+    generatedAt: payload?.generatedAt ?? generatedAt,
+  } satisfies DashboardFreshness
+}
+
+function normalizeTooltip(payload: DashboardTooltipResponse, fallbackAreaId: string, fallbackAreaName: string) {
+  return {
+    areaId: String(payload.areaId ?? fallbackAreaId),
+    areaName: String(payload.areaName ?? fallbackAreaName),
+    flow: toNumber(payload.flow),
+    pressure: toNumber(payload.pressure),
+    temperature: toNumber(payload.temperature),
+    vibration: toNumber(payload.vibration),
+    sensorNumbers: toNumber(payload.sensorNumbers),
+    abnormalSensorNumbers: toNumber(payload.abnormalSensorNumbers),
+    warnings: toNumber(payload.warnings),
   } satisfies MapTooltipData
 }
 
@@ -199,18 +254,32 @@ function normalizeDimension(items: AreaDimensionData[]) {
   }
 }
 
+function normalizeDimensionRow(item: AreaDimensionData) {
+  return {
+    ave_flow: toNumber(item.ave_flow),
+    ave_pressure: toNumber(item.ave_pressure),
+    ave_temperature: toNumber(item.ave_temperature),
+    ave_vibration: toNumber(item.ave_vibration),
+    time: toNumber(item.time),
+  } satisfies Required<AreaDimensionData>
+}
+
 function normalizeAlarm(item: DashboardAlarm) {
   return {
     ...item,
     id: String(item.id ?? ''),
     time: formatAlarmTime(item.time),
-    sensor_id: String(item.sensor_id ?? ''),
-    sensor_name: String(item.sensor_name ?? '未知传感器'),
-    area_id: String(item.area_id ?? ''),
-    area_name: String(item.area_name ?? '未知区域'),
+    sensor_id: String(item.sensor_id ?? readUnknown(item, 'sensorId') ?? ''),
+    sensor_name: String(item.sensor_name ?? readUnknown(item, 'sensorName') ?? '未知传感器'),
+    area_id: String(item.area_id ?? readUnknown(item, 'areaId') ?? ''),
+    area_name: String(item.area_name ?? readUnknown(item, 'areaName') ?? '未知区域'),
     message: String(item.message ?? '检测到异常数据'),
     level: String(item.level ?? '异常'),
   }
+}
+
+function readUnknown(item: DashboardAlarm, key: string) {
+  return (item as Record<string, unknown>)[key]
 }
 
 function formatAlarmTime(value: string | number | undefined) {
